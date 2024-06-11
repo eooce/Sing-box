@@ -7,20 +7,21 @@
 * 无需设置NEZHA_TLS,当哪吒端口为{443,8443,2096,2087,2083,2053}其中之一时，自动开启tls
 
 # 可选环境变量
-
-  | PORT         | 否 |  3000  |http订阅端口，对应的主运行文件中修改，列如：index.js,app.py中|
-  | ARGO_PORT    | 否 |  8001  |argo隧道端口，固定隧道token需和cloudflare后台设置的一致|
-  | UUID         | 否 | bc97f674-c578-4940-9234-0a1da46041b9|节点UUID|
-  | NEZHA_SERVER | 否 |        | 哪吒服务端域名，例如nz.aaa.com    |
+  | 变量名        | 是否必须 | 默认值 | 备注 |
+  | ------------ | ------ | ------ | ------ |
+  | PORT         | 否 |  3000  |http订阅端口，对应的主运行文件中修改，列如：index.js,app.py中 |
+  | ARGO_PORT    | 否 |  8001  |argo隧道端口，固定隧道token需和cloudflare后台设置的一致      |
+  | UUID         | 否 | bc97f674-c578-4940-9234-0a1da46041b9|节点UUID                     |
+  | NEZHA_SERVER | 否 |        | 哪吒服务端域名，例如nz.aaa.com                             |
   | NEZHA_PORT   | 否 |  5555  | 哪吒端口为{443,8443,2096,2087,2083,2053}其中之一时，开启tls|
-  | NEZHA_KEY    | 否 |        | 哪吒客户端KEY                   |
-  | ARGO_DOMAIN  | 否 |        | argo固定隧道域名                 |
-  | ARGO_AUTH    | 否 |        | argo固定隧道json或token          |
-  | CFIP         | 否 |skk.moe | 节点优选域名或ip                 |
-  | CFPORT       | 否 |  8443  |节点端口                          |
-  | SERVER_PORT  | 否 |自动获取 | 玩具分配端口，自动获取，无需填写，hy2端口|
-  | REALITY_PORT | 否 |        | vless-reality端口，支持多端口的玩具可以填写，不填写该节点不通|
-  | TUIC_PORT | 否 |        | tuic-v5端口，支持多端口的玩具可以填写，不填写该节点不通|
+  | NEZHA_KEY    | 否 |        | 哪吒客户端KEY                                             |
+  | ARGO_DOMAIN  | 否 |        | argo固定隧道域名                                          |
+  | ARGO_AUTH    | 否 |        | argo固定隧道json或token                                   |
+  | CFIP         | 否 |skk.moe | 节点优选域名或ip                                           |
+  | CFPORT       | 否 |  8443  |节点端口                                                   |
+  | SERVER_PORT  | 否 |自动获取 | 玩具分配端口，自动获取，无需填写，hy2端口                    |
+  | REALITY_PORT | 否 |        | vless-reality端口，支持多端口的玩具可以填写，不填写该节点不通 |
+  | TUIC_PORT    | 否 |        | tuic-v5端口，支持多端口的玩具可以填写，不填写该节点不通       |
 
 # 节点输出
 * 输出sub.txt节点文件，base64混淆后的文件

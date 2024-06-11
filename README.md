@@ -9,7 +9,7 @@
 # 可选环境变量
 
   | PORT         | 否 |  3000  |http订阅端口，对应的主运行文件中修改，列如：index.js,app.py中|
-  | ARGO_PORT    | 否 |  8080  |argo隧道端口，固定隧道token需和cloudflare后台设置的一致|
+  | ARGO_PORT    | 否 |  8001  |argo隧道端口，固定隧道token需和cloudflare后台设置的一致|
   | UUID         | 否 | bc97f674-c578-4940-9234-0a1da46041b9|节点UUID|
   | NEZHA_SERVER | 否 |        | 哪吒服务端域名，例如nz.aaa.com    |
   | NEZHA_PORT   | 否 |  5555  | 哪吒端口为{443,8443,2096,2087,2083,2053}其中之一时，开启tls|

@@ -1,12 +1,12 @@
 #!/bin/bash  
-export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b9'}
-export NEZHA_SERVER=${NEZHA_SERVER:-'nz.abc.com'} 
-export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
-export NEZHA_KEY=${NEZHA_KEY:-''}
-export ARGO_DOMAIN=${ARGO_DOMAIN:-''}   
-export ARGO_AUTH=${ARGO_AUTH:-''} 
-export CFIP=${CFIP:-'www.visa.com.tw'} 
-export CFPORT=${CFPORT:-'8443'}    
+export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b9'}   # 节点UUID
+export NEZHA_SERVER=${NEZHA_SERVER:-'nz.abc.com'}             # 哪吒客户端域名或ip
+export NEZHA_PORT=${NEZHA_PORT:-'5555'}                       # 哪吒端口为{443,8443,2053,2087,2096}其中之一时自动开启tls
+export NEZHA_KEY=${NEZHA_KEY:-''}                             # 哪吒客户端密钥
+export ARGO_DOMAIN=${ARGO_DOMAIN:-''}                         # 固定隧道域名，留空即启用临时隧道
+export ARGO_AUTH=${ARGO_AUTH:-''}                             # 固定隧道token或json
+export CFIP=${CFIP:-'www.visa.com.tw'}                        # argo节点优选域名
+export CFPORT=${CFPORT:-'8443'}                               # argo节点端口
 export ARGO_PORT=${ARGO_PORT:-'8001'}                # argo端口也是vmess端口 使用固定隧道token需和cf后台设置对应
 export SERVER_PORT="${SERVER_PORT:-${PORT:-7860}}"   # Hy2 端口，自动获取玩具端口，无需不用填写
 export REALITY_PORT=${REALITY_PORT:-'50000'}         # vless-reality 端口,支持多端口玩具可填写

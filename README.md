@@ -24,7 +24,7 @@
   | TUIC_PORT    | 否 |        | tuic-v5端口，支持多端口的玩具可以填写，不填写该节点不通       |
 
 ## 节点输出
-* 输出sub.txt节点文件，base64混淆后的文件
+* 输出sub.txt节点文件，可直接导入V2ray，nekbox，小火箭等代理软中
 * 订阅：默认不开启，多端口玩具可开启：分配的域名:http端口/sub,前缀不是https，而是http，例如http://www.google.com:1234/sub
 
   

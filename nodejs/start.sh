@@ -8,7 +8,7 @@ export ARGO_AUTH=${ARGO_AUTH:-''}                             # 固定隧道toke
 export CFIP=${CFIP:-'www.visa.com.tw'}                        # argo节点优选域名
 export CFPORT=${CFPORT:-'8443'}                               # argo节点端口
 export ARGO_PORT=${ARGO_PORT:-'8001'}                # argo端口也是vmess端口 使用固定隧道token需和cf后台设置对应
-export SERVER_PORT="${SERVER_PORT:-${PORT:-7860}}"   # Hy2 端口，自动获取玩具端口，无需不用填写
+export SERVER_PORT="${SERVER_PORT:-${PORT:-7860}}"   # Hy2 端口，自动获取玩具端口，不用填写
 export REALITY_PORT=${REALITY_PORT:-'50000'}         # vless-reality 端口,支持多端口玩具可填写
 export TUIC_PORT=${TUIC_PORT:-'60000'}               # tuic5 端口，支持多端口玩具可填写
 

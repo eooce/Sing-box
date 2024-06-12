@@ -13,10 +13,9 @@ server_name="sing-box"
 work_dir="/etc/sing-box"
 config_dir="${work_dir}/config.json"
 log_dir="/var/log/singbox.log"
-client_url="${work_dir}/url.txt"
 
 # 检查是否为root下运行
-[[ $EUID -ne 0 ]] && echo -e "${red}注意: 请在root用户下运行脚本${re}" && sleep 1 && exit 1
+[[ $EUID -ne 0 ]] && echo -e "${red}注意: 请在root用户下运行脚本${re}" && exit 1
 
 # 检查 sing-box 是否已安装
 check_singbox() {
@@ -33,7 +32,7 @@ check_singbox() {
 
 #根据系统类型安装依赖
 install_packages() {
-    packages="jq tar openssl qrencode coreutils nginx"
+    packages="nginx jq tar openssl coreutils qrencode"
     install=""
 
     for pkg in $packages; do
@@ -54,7 +53,7 @@ install_packages() {
     elif command -v dnf &>/dev/null; then
         cmd="dnf install -y"
     elif command -v apk &>/dev/null; then
-        cmd="apk add"
+        cmd="apk update && apk add"
     else
         echo -e "${red}暂不支持的系统!${re}"
         exit 1
@@ -62,7 +61,7 @@ install_packages() {
     $cmd $install
 }
 
-# 下载并安装主程序
+# 下载并安装 sing-box,cloudflared
 install_singbox() {
     clear
     echo -e "${purple}正在安装sing-box中，请稍后...${re}"
@@ -101,10 +100,6 @@ install_singbox() {
     # 生成自签名证书
     openssl ecparam -genkey -name prime256v1 -out "${work_dir}/private.key"
     openssl req -new -x509 -days 3650 -key "${work_dir}/private.key" -out "${work_dir}/cert.pem" -subj "/CN=bing.com"
-
-    # 获取本机 IP 和服务器服务商
-    server_ip=$(curl -s ipv4.ip.sb)
-    isp=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g')
 
    # 生成配置文件
 cat > "${config_dir}" << EOF
@@ -228,8 +223,8 @@ cat > "${config_dir}" << EOF
 }
 EOF
 }
-
-sb_and_argo_systemd() {
+# debian/ubuntu/centos 守护进程
+main_systemd_services() {
     cat > /etc/systemd/system/sing-box.service << EOF
 [Unit]
 Description=sing-box service
@@ -252,7 +247,6 @@ WantedBy=multi-user.target
 EOF
 
     cat > /etc/systemd/system/argo.service << EOF
-
 [Unit]
 Description=Cloudflare Tunnel
 After=network.target
@@ -261,23 +255,60 @@ After=network.target
 Type=simple
 NoNewPrivileges=yes
 TimeoutStartSec=0
-ExecStart=/bin/bash -c "/etc/sing-box/argo tunnel --url http://localhost:8001 --no-autoupdate --edge-ip-version auto --protocol http2>/etc/sing-box/argo.log 2>&1"
+ExecStart=/bin/sh -c "/etc/sing-box/argo tunnel --url http://localhost:8001 --no-autoupdate --edge-ip-version auto --protocol http2 > /etc/sing-box/argo.log 2>&1"
 Restart=on-failure
 RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target
 EOF
-}
-sb_and_argo_systemd
 
-get_info(){
+    systemctl daemon-reload
+    systemctl enable sing-box
+    systemctl start sing-box
+    systemctl enable argo
+    systemctl start argo
+}
+# 适配alpine 守护进程
+alpine_openrc_services() {
+    cat > /etc/init.d/sing-box << 'EOF'
+#!/sbin/openrc-run
+
+description="sing-box service"
+command="/etc/sing-box/sing-box"
+command_args="run -c /etc/sing-box/config.json"
+command_background=true
+pidfile="/var/run/sing-box.pid"
+EOF
+
+    cat > /etc/init.d/argo << 'EOF'
+#!/sbin/openrc-run
+
+description="Cloudflare Tunnel"
+command="/bin/sh"
+command_args="-c '/etc/sing-box/argo tunnel --url http://localhost:8001 --no-autoupdate --edge-ip-version auto --protocol http2 > /etc/sing-box/argo.log 2>&1'"
+command_background=true
+pidfile="/var/run/argo.pid"
+EOF
+
+    chmod +x /etc/init.d/sing-box
+    chmod +x /etc/init.d/argo
+
+    rc-update add sing-box default
+    rc-update add argo default
+
+}
+
+get_info() {  
+  server_ip=$(curl -s -4 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
+
+  isp=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g')
 
   argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
-  
+
   echo -e "${green}ArgoDomain：${re}${purple}$argodomain${re}"
-  
-  VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"www.visa.com.sg\", \"port\": \"443\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess?ed=2048\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\" }"
+
+  VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"www.visa.com.sg\", \"port\": \"443\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess?ed=2048\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"randomized\"}"
 
   cat > ${work_dir}/url.txt <<EOF
 vless://${uuid}@${server_ip}:${vless_port}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.yahoo.com&fp=chrome&pbk=${public_key}&type=tcp&headerType=none#${isp}
@@ -289,12 +320,12 @@ hysteria2://${uuid}@${server_ip}:${hy2_port}/?sni=www.bing.com&alpn=h3&insecure=
 tuic://${uuid}:@${server_ip}:${tuic_port}?sni=www.bing.com&alpn=h3&congestion_control=bbr#${isp}
 EOF
 echo ""
-while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
+while IFS= read -r line; do echo -e "${purple}$line${re}"; done < ${work_dir}/url.txt
 base64 -w0 ${work_dir}/url.txt > ${work_dir}/sub.txt
 echo ""
 echo -e "${green}节点订阅链接：http://${server_ip}:${nginx_port}/sub  适用于V2rayN,Nekbox,小火箭,圈X等${re}"
 echo ""
-qrencode -t ANSIUTF8 -m 2 -s 2 -o - "http://${server_ip}:${nginx_port}/sub"
+qrencode -t ANSIUTF8 -m 2 "http://${server_ip}:${nginx_port}/sub"
 echo ""
 }
 
@@ -308,23 +339,33 @@ new_config="server {
     }
 }"
 
-echo "$new_config" | sudo tee /etc/nginx/server_config_temp.conf > /dev/null
+echo "$new_config" | tee /etc/nginx/server_config_temp.conf > /dev/null
 sed -i '/http {/r /etc/nginx/server_config_temp.conf' /etc/nginx/nginx.conf
 rm /etc/nginx/server_config_temp.conf
 
 nginx -t
 
 if [ $? -eq 0 ]; then
-    systemctl reload nginx
-    systemctl restart nginx
+    if [ -f /etc/alpine-release ]; then
+        nginx -s reload
+        rc-service nginx restart
+    else
+        systemctl reload nginx
+        systemctl restart nginx
+    fi
 fi
 }
 
 # 启动 sing-box
 start_singbox() {
-   echo -e "${yellow}正在启动 ${server_name} 服务${re}"
-   systemctl daemon-reload
-   systemctl start "${server_name}"
+    echo -e "${yellow}正在启动 ${server_name} 服务${re}"
+    if [ -f /etc/alpine-release ]; then
+        rc-service sing-box start
+        rc-service argo start
+    else
+        systemctl daemon-reload
+        systemctl start "${server_name}"
+    fi
    if [ $? -eq 0 ]; then
        echo -e "${green}${server_name} 服务已成功启动${re}"
    else
@@ -335,7 +376,12 @@ start_singbox() {
 # 停止 sing-box
 stop_singbox() {
    echo -e "${yellow}正在停止 ${server_name} 服务${re}"
-   systemctl stop "${server_name}"
+    if [ -f /etc/alpine-release ]; then
+        rc-service sing-box stop
+        rc-service argo stop
+    else
+        systemctl stop "${server_name}"
+    fi
    if [ $? -eq 0 ]; then
        echo -e "${green}${server_name} 服务已成功停止${re}"
    else
@@ -346,8 +392,13 @@ stop_singbox() {
 # 重启 sing-box
 restart_singbox() {
    echo -e "${yellow}正在重启 ${server_name} 服务${re}"
-   systemctl daemon-reload
-   systemctl restart "${server_name}"
+    if [ -f /etc/alpine-release ]; then
+        rc-service sing-box restart
+        rc-service argo restart
+    else
+        systemctl daemon-reload
+        systemctl restart "${server_name}"
+    fi
    if [ $? -eq 0 ]; then
        echo -e "${green}${server_name} 服务已成功重启${re}"
    else
@@ -361,19 +412,26 @@ uninstall_singbox() {
    case "${choice}" in
        y|Y)
            echo -e "${yellow}正在卸载 sing-box${re}"
+           if [ -f /etc/alpine-release ]; then
+                rc-service sing-box stop
+                rc-service argo stop
+                rm /etc/init.d/sing-box /etc/init.d/argo
+                rc-update del sing-box default
+                rc-update del argo default
+           else
+                # 停止 sing-box和 argo 服务
+                systemctl stop "${server_name}"
+                systemctl stop argo
+                # 禁用 sing-box 服务
+                systemctl disable "${server_name}"
+                systemctl disable argo
 
-           # 停止 sing-box和 argo 服务
-           systemctl stop "${server_name}"
-           systemctl stop argo
-           # 禁用 sing-box 服务
-           systemctl disable "${server_name}"
-           systemctl disable argo
+                # 重新加载 systemd
+                systemctl daemon-reload || true
+            fi
            # 删除配置文件和日志
            rm -rf "${work_dir}" || true
            rm -f "${log_dir}" || true
-
-           # 重新加载 systemd
-           systemctl daemon-reload || true
 
            echo -e "${green}sing-box 卸载成功${re}"
            echo ""
@@ -394,12 +452,19 @@ EOF
   chmod +x "$work_dir/sb.sh"
   sudo ln -sf "$work_dir/sb.sh" /usr/bin/sb
   if [ -s /usr/bin/sb ]; then
-    echo -e "${green}\nsb 快捷指令创建成功${re}"
+    echo -e "${green}\n sb 快捷指令创建成功${re}"
   else
-    echo -e "${red}\nsb 快捷指令创建失败${re}"
+    echo -e "${red}\n sb 快捷指令创建失败${re}"
   fi
 }
 
+# 适配alpine运行argo报错用户组和dns的问题
+change_alpine_dns() {
+    sh -c 'echo "0 0" > /proc/sys/net/ipv4/ping_group_range'
+    sed -i '1s/.*/127.0.0.1   localhost/' /etc/hosts
+    sed -i '2s/.*/::1         localhost/' /etc/hosts
+}
+ 
 menu() {
    check_singbox
    check_singbox=$?
@@ -436,11 +501,20 @@ while true; do
            else
                 install_packages
                 install_singbox
-                start_singbox
-                systemctl daemon-reload
-                systemctl enable argo
-                systemctl start argo
-                systemctl restart argo
+
+                if [ -x "$(command -v systemctl)" ]; then
+                    main_systemd_services
+                elif [ -x "$(command -v rc-update)" ]; then
+                    alpine_openrc_services
+                    change_alpine_dns
+                    rc-service sing-box restart
+                    rc-service argo restart
+                    sleep 3
+                else
+                    echo "Unsupported init system"
+                    exit 1
+                fi
+
                 sleep 3
                 get_info
                 add_nginx_conf
@@ -464,12 +538,11 @@ while true; do
            restart_singbox
            ;;
        6)
-           while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
+           while IFS= read -r line; do echo -e "${green}$line${re}"; done < ${work_dir}/url.txt
            ;;
        7)
            clear
-           systemctl stop argo
-           systemctl restart argo
+           restart_singbox
            sleep 3
            argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
            echo ""
@@ -481,7 +554,7 @@ while true; do
            exit 0
            ;;
        *)
-           echo -e "${red}无效的选项，请输入 0 到 7${re}"
+           echo -e "${red}无效的选项，请输入 0 到 8${re}"
            ;;
    esac
    read -p $'\033[1;91m按 回车键 继续...\033[0m'

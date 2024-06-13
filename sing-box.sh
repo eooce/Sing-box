@@ -321,7 +321,7 @@ get_info() {
 
   echo -e "${green}ArgoDomain：${re}${purple}$argodomain${re}"
 
-  VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"www.visa.com.sg\", \"port\": \"443\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess?ed=2048\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"randomized\"}"
+  VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"www.visa.com.sg\", \"port\": \"443\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess?ed=2048\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"randomized\", \"allowlnsecure\": \"flase\"}"
 
   cat > ${work_dir}/url.txt <<EOF
 vless://${uuid}@${server_ip}:${vless_port}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.yahoo.com&fp=chrome&pbk=${public_key}&type=tcp&headerType=none#${isp}
@@ -330,7 +330,7 @@ vmess://$(echo "$VMESS" | base64 -w0)
 
 hysteria2://${uuid}@${server_ip}:${hy2_port}/?sni=www.bing.com&alpn=h3&insecure=1#${isp}
 
-tuic://${uuid}:@${server_ip}:${tuic_port}?sni=www.bing.com&alpn=h3&congestion_control=bbr#${isp}
+tuic://${uuid}:@${server_ip}:${tuic_port}?sni=www.bing.com&alpn=h3&allowlnsecure=true&congestion_control=bbr#${isp}
 EOF
 echo ""
 while IFS= read -r line; do echo -e "${purple}$line${re}"; done < ${work_dir}/url.txt
@@ -465,9 +465,9 @@ EOF
   chmod +x "$work_dir/sb.sh"
   sudo ln -sf "$work_dir/sb.sh" /usr/bin/sb
   if [ -s /usr/bin/sb ]; then
-    echo -e "${green}\n sb 快捷指令创建成功${re}"
+    echo -e "${green}\nsb 快捷指令创建成功${re}"
   else
-    echo -e "${red}\n sb 快捷指令创建失败${re}"
+    echo -e "${red}\nsb 快捷指令创建失败${re}"
   fi
 }
 

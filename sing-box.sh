@@ -343,7 +343,7 @@ vmess://$(echo "$VMESS" | base64 -w0)
 
 hysteria2://${uuid}@${server_ip}:${hy2_port}/?sni=www.bing.com&alpn=h3&insecure=1#${isp}
 
-tuic://${uuid}:@${server_ip}:${tuic_port}?sni=www.bing.com&alpn=h3&allowlnsecure=ture&congestion_control=bbr#${isp}
+tuic://${uuid}:@${server_ip}:${tuic_port}?sni=www.bing.com&alpn=h3&insecure=1&congestion_control=bbr#${isp}
 EOF
 echo ""
 while IFS= read -r line; do echo -e "${purple}$line${re}"; done < ${work_dir}/url.txt

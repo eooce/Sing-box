@@ -45,7 +45,7 @@ check_argo() {
 
 #根据系统类型安装依赖
 install_packages() {
-    packages="nginx jq tar openssl coreutils qrencode"
+    packages="nginx jq tar iptables openssl coreutils qrencode"
     install=""
 
     for pkg in $packages; do
@@ -109,6 +109,12 @@ install_singbox() {
     output=$(/etc/sing-box/sing-box generate reality-keypair)
     private_key=$(echo "${output}" | grep -oP 'PrivateKey:\s*\K.*')
     public_key=$(echo "${output}" | grep -oP 'PublicKey:\s*\K.*')
+
+    iptables -A INPUT -p tcp --dport 8001 -j ACCEPT
+    iptables -A INPUT -p tcp --dport $vless_port -j ACCEPT
+    iptables -A INPUT -p tcp --dport $nginx_port -j ACCEPT
+    iptables -A INPUT -p udp --dport $hy2_port -j ACCEPT
+    iptables -A INPUT -p tcp --dport $tuic_port -j ACCEPT
 
     # 生成自签名证书
     openssl ecparam -genkey -name prime256v1 -out "${work_dir}/private.key"
@@ -275,7 +281,14 @@ RestartSec=5s
 [Install]
 WantedBy=multi-user.target
 EOF
-
+    if [ -f /etc/centos-release ]; then
+        yum install -y chrony
+        systemctl start chronyd
+        systemctl enable chronyd
+        chronyc -a makestep
+        yum update -y ca-certificates
+        bash -c 'echo "0 0" > /proc/sys/net/ipv4/ping_group_range'
+    fi
     systemctl daemon-reload
     systemctl enable sing-box
     systemctl start sing-box
@@ -330,13 +343,13 @@ vmess://$(echo "$VMESS" | base64 -w0)
 
 hysteria2://${uuid}@${server_ip}:${hy2_port}/?sni=www.bing.com&alpn=h3&insecure=1#${isp}
 
-tuic://${uuid}:@${server_ip}:${tuic_port}?sni=www.bing.com&alpn=h3&allowlnsecure=true&congestion_control=bbr#${isp}
+tuic://${uuid}:@${server_ip}:${tuic_port}?sni=www.bing.com&alpn=h3&allowlnsecure=ture&congestion_control=bbr#${isp}
 EOF
 echo ""
 while IFS= read -r line; do echo -e "${purple}$line${re}"; done < ${work_dir}/url.txt
 base64 -w0 ${work_dir}/url.txt > ${work_dir}/sub.txt
 echo ""
-echo -e "${green}节点订阅链接：http://${server_ip}:${nginx_port}/sub  适用于V2rayN,Nekbox,小火箭,圈X等${re}"
+echo -e "${green}节点订阅链接：http://${server_ip}:${nginx_port}/sub  适用于V2rayN,Nekbox,Sterisand,小火箭,圈X等${re}"
 echo ""
 qrencode -t ANSIUTF8 -m 2 "http://${server_ip}:${nginx_port}/sub"
 echo ""
@@ -378,6 +391,7 @@ start_singbox() {
     else
         systemctl daemon-reload
         systemctl start "${server_name}"
+        systemctl start argo
     fi
    if [ $? -eq 0 ]; then
        echo -e "${green}${server_name} 服务已成功启动${re}"
@@ -394,6 +408,7 @@ stop_singbox() {
         rc-service argo stop
     else
         systemctl stop "${server_name}"
+        systemctl stop argo
     fi
    if [ $? -eq 0 ]; then
        echo -e "${green}${server_name} 服务已成功停止${re}"
@@ -411,6 +426,7 @@ restart_singbox() {
     else
         systemctl daemon-reload
         systemctl restart "${server_name}"
+        systemctl restart argo
     fi
    if [ $? -eq 0 ]; then
        echo -e "${green}${server_name} 服务已成功重启${re}"
@@ -527,7 +543,7 @@ while true; do
                     sleep 3
                 else
                     echo "Unsupported init system"
-                    exit 1
+                    exit 1 
                 fi
 
                 sleep 3

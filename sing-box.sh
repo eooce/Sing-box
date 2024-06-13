@@ -30,6 +30,19 @@ check_singbox() {
     fi
 }
 
+# 检查 argo 是否已安装
+check_argo() {
+    if [ -f "${work_dir}/${server_name}" ]; then
+        if [ -f /etc/alpine-release ]; then
+            rc-service argo status | grep -q "started" && echo -e "${green}running${re}" || echo -e "${red}not running${re}"
+        else 
+            [ "$(systemctl is-active argo)" = "active" ] && echo -e "${green}running${re}" || echo -e "${red}not running${re}"
+        fi
+    else
+        echo -e "${red}not installed${re}"
+    fi
+}
+
 #根据系统类型安装依赖
 install_packages() {
     packages="nginx jq tar openssl coreutils qrencode"
@@ -468,10 +481,12 @@ change_alpine_dns() {
 menu() {
    check_singbox
    check_singbox=$?
+   check_argo_status=$(check_argo)
    clear
    echo ""
    echo -e "${purple}=== 老王sing-box一键安装脚本 ===${re}"
-   echo -e "${green}sing-box 状态: $(if [ ${check_singbox} -eq 0 ]; then echo "${green}running${re}"; else echo "${red}not running${re}"; fi)${re}   ${green}Argo 状态: ${re}$(systemctl is-active argo &>/dev/null && echo -e "${green}running${re}" || echo -e "${red}not running${re}")"
+   echo -e "${green}sing-box 状态: $(if [ ${check_singbox} -eq 0 ]; then echo -e "${green}running${re}"; else echo -e "${red}not running${re}"; fi)${re}   ${green}Argo 状态: ${check_argo_status}${re}"
+   echo ""
    echo -e "${green}1. 安装 sing-box${re}"
    echo -e "${red}2. 卸载 sing-box${re}"
    echo -e "${green}=================${re}"
@@ -538,7 +553,7 @@ while true; do
            restart_singbox
            ;;
        6)
-           while IFS= read -r line; do echo -e "${green}$line${re}"; done < ${work_dir}/url.txt
+           while IFS= read -r line; do echo -e "${purple}$line${re}"; done < ${work_dir}/url.txt
            ;;
        7)
            clear
@@ -554,7 +569,7 @@ while true; do
            exit 0
            ;;
        *)
-           echo -e "${red}无效的选项，请输入 0 到 8${re}"
+           echo -e "${red}无效的选项，请输入 0 到 7${re}"
            ;;
    esac
    read -p $'\033[1;91m按 回车键 继续...\033[0m'

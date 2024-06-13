@@ -28,7 +28,7 @@
 * 订阅：默认不开启，多端口玩具可开启：分配的域名:http端口/sub,前缀不是https，而是http，例如http://www.google.com:1234/sub
 
   
-##vps一键命令，已集成到ssh工具箱中
+## vps一键命令，已集成到ssh工具箱中
 vps一键命令，无交互安装，支持订阅 支持Ubuntu/Debian/CentOS/Alpine/Fedora/Rocky/Almalinux
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sing-box.sh)

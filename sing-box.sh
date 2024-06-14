@@ -757,6 +757,7 @@ while true; do
             new_vmess_url="$vmess_prefix$encoded_updated_vmess"
             new_content=$(echo "$content" | sed "s|$vmess_url|$new_vmess_url|")
             echo "$new_content" > "$client_dir"
+            base64 -w0 ${work_dir}/url.txt > ${work_dir}/sub.txt
             echo -e "${green}\nvmess已更新到节点文件中,更新订阅或手动复制以下vmess-argo节点\n${re}"
             echo -e "${yellow}$new_vmess_url\n${re}"              
            ;;

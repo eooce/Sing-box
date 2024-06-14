@@ -12,8 +12,9 @@ skybule="\e[1;36m"
 server_name="sing-box"
 work_dir="/etc/sing-box"
 config_dir="${work_dir}/config.json"
-log_dir="/var/log/singbox.log"
 client_dir="${work_dir}/url.txt"
+nginx_dir="/etc/nginx/nginx.conf"
+log_dir="/var/log/singbox.log"
 
 # 检查是否为root下运行
 [[ $EUID -ne 0 ]] && echo -e "${red}注意: 请在root用户下运行脚本${re}" && exit 1
@@ -47,13 +48,13 @@ check_argo() {
 #根据系统类型安装依赖
 install_packages() {
     if [ $# -eq 0 ]; then
-        echo -e "${red}未提供软件包名称!${re}"
+        echo -e "${red}Unspecified package name${re}"
         return 1
     fi
 
     for package in "$@"; do
         if command -v "$package" &>/dev/null; then
-            echo -e "${green}${package}已经安装了！${re}"
+            echo -e "${green}${package} already installed${re}"
             continue
         fi
         echo -e "${yellow}正在安装 ${package}...${re}"
@@ -67,7 +68,7 @@ install_packages() {
             apk update
             apk add "$package"
         else
-            echo -e"${red}暂不支持你的系统!${re}"
+            echo -e"${red}Unknown system!${re}"
             return 1
         fi
     done
@@ -327,7 +328,7 @@ EOF
 }
 
 get_info() {  
-  server_ip=$(curl -s -4 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | awk -F "[=]" '{print $2}')
+  server_ip=$(curl -s ipv4.ip.sb || curl -s --max-time 1 ipv6.ip.sb)
 
   isp=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g')
 
@@ -445,7 +446,6 @@ restart_argo() {
     fi
    if [ $? -eq 0 ]; then
        echo -e "${green}Argo 服务已成功重启${re}"
-       sleep 3
    else
        echo -e "${red}Argo 服务重启失败${re}"
    fi
@@ -565,7 +565,7 @@ change_config() {
                     echo -e "${green}\ntuic端口已修改为：${purple}${new_port}${re}${green},请更新订阅或手动更改tuic端口${re}"
                     ;;
                 4)
-                    menu
+                    change_config
                     ;;
                 *)
                     echo -e "${red}无效的选项，请输入 1 到 4${re}"
@@ -597,7 +597,7 @@ change_config() {
             clear
             echo -e "${green}1. itunes.apple.com\n2. addons.mozilla.org${re}"
             read -p $'\033[1;35m请输入新的Reality伪装域名(可自定义输入,回车留空将使用默认1): \033[0m' new_sni
-                if [ -z "$new_sni" ]; then
+                if [ -z "$new_sni" ]; then    
                     new_sni="itunes.apple.com"
                 elif [[ "$new_sni" == "1" ]]; then
                     new_sni="itunes.apple.com"
@@ -711,6 +711,7 @@ while true; do
        8)
            clear
            restart_argo
+           sleep 3
            argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
            echo ""
            echo -e "${green}ArgoDomain：${re}${purple}$argodomain${re}"
@@ -724,5 +725,5 @@ while true; do
            echo -e "${red}无效的选项，请输入 0 到 7${re}"
            ;;
    esac
-   read -p $'\033[1;91m按 回车键 继续...\033[0m'
+   read -n 1 -s -r -p $'\033[1;91m按任意键继续...\033[0m'
 done

@@ -13,6 +13,7 @@ server_name="sing-box"
 work_dir="/etc/sing-box"
 config_dir="${work_dir}/config.json"
 log_dir="/var/log/singbox.log"
+client_dir="${work_dir}/url.txt"
 
 # 检查是否为root下运行
 [[ $EUID -ne 0 ]] && echo -e "${red}注意: 请在root用户下运行脚本${re}" && exit 1
@@ -45,33 +46,33 @@ check_argo() {
 
 #根据系统类型安装依赖
 install_packages() {
-    packages="nginx jq tar iptables openssl coreutils qrencode"
-    install=""
+    if [ $# -eq 0 ]; then
+        echo -e "${red}未提供软件包名称!${re}"
+        return 1
+    fi
 
-    for pkg in $packages; do
-        if ! command -v $pkg &>/dev/null; then
-            install="$install $pkg"
+    for package in "$@"; do
+        if command -v "$package" &>/dev/null; then
+            echo -e "${green}${package}已经安装了！${re}"
+            continue
+        fi
+        echo -e "${yellow}正在安装 ${package}...${re}"
+        if command -v apt &>/dev/null; then
+            apt install -y "$package"
+        elif command -v dnf &>/dev/null; then
+            dnf install -y "$package"
+        elif command -v yum &>/dev/null; then
+            yum install -y "$package"
+        elif command -v apk &>/dev/null; then
+            apk update
+            apk add "$package"
+        else
+            echo -e"${red}暂不支持你的系统!${re}"
+            return 1
         fi
     done
 
-    if [ -z "$install" ]; then
-        echo -e "${green}All packages are already installed${re}"
-        return
-    fi
-
-    if command -v apt &>/dev/null; then
-        cmd="apt-get install -y -q"
-    elif command -v yum &>/dev/null; then
-        cmd="yum install -y"
-    elif command -v dnf &>/dev/null; then
-        cmd="dnf install -y"
-    elif command -v apk &>/dev/null; then
-        cmd="apk update && apk add"
-    else
-        echo -e "${red}暂不支持的系统!${re}"
-        exit 1
-    fi
-    $cmd $install
+    return 0
 }
 
 # 下载并安装 sing-box,cloudflared
@@ -114,7 +115,7 @@ install_singbox() {
     iptables -A INPUT -p tcp --dport $vless_port -j ACCEPT
     iptables -A INPUT -p tcp --dport $nginx_port -j ACCEPT
     iptables -A INPUT -p udp --dport $hy2_port -j ACCEPT
-    iptables -A INPUT -p tcp --dport $tuic_port -j ACCEPT
+    iptables -A INPUT -p udp --dport $tuic_port -j ACCEPT
 
     # 生成自签名证书
     openssl ecparam -genkey -name prime256v1 -out "${work_dir}/private.key"
@@ -208,7 +209,7 @@ cat > "${config_dir}" << EOF
     },
 
     {
-      "tag": "tuic=in",
+      "tag": "tuic-in",
       "type": "tuic",
       "listen": "::",
       "listen_port": ${tuic_port},
@@ -421,12 +422,10 @@ stop_singbox() {
 restart_singbox() {
    echo -e "${yellow}正在重启 ${server_name} 服务${re}"
     if [ -f /etc/alpine-release ]; then
-        rc-service sing-box restart
-        rc-service argo restart
+        rc-service ${server_name} restart
     else
         systemctl daemon-reload
         systemctl restart "${server_name}"
-        systemctl restart argo
     fi
    if [ $? -eq 0 ]; then
        echo -e "${green}${server_name} 服务已成功重启${re}"
@@ -434,6 +433,24 @@ restart_singbox() {
        echo -e "${red}${server_name} 服务重启失败${re}"
    fi
 }
+
+# 重启 argo
+restart_argo() {
+   echo -e "${yellow}正在重启 ${server_name} 服务${re}"
+    if [ -f /etc/alpine-release ]; then
+        rc-service argo restart
+    else
+        systemctl daemon-reload
+        systemctl restart argo
+    fi
+   if [ $? -eq 0 ]; then
+       echo -e "${green}Argo 服务已成功重启${re}"
+       sleep 3
+   else
+       echo -e "${red}Argo 服务重启失败${re}"
+   fi
+}
+
 
 # 卸载 sing-box
 uninstall_singbox() {
@@ -476,7 +493,7 @@ create_shortcut() {
   cat > "$work_dir/sb.sh" << EOF
 #!/usr/bin/env bash
 
-bash <(curl -Ls https://raw.githubusercontent.com/eooce/scripts/master/sing-box.sh) \$1
+bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sing-box.sh) \$1
 EOF
   chmod +x "$work_dir/sb.sh"
   sudo ln -sf "$work_dir/sb.sh" /usr/bin/sb
@@ -488,12 +505,127 @@ EOF
 }
 
 # 适配alpine运行argo报错用户组和dns的问题
-change_alpine_dns() {
+change_hosts() {
     sh -c 'echo "0 0" > /proc/sys/net/ipv4/ping_group_range'
     sed -i '1s/.*/127.0.0.1   localhost/' /etc/hosts
     sed -i '2s/.*/::1         localhost/' /etc/hosts
 }
- 
+
+change_config() {
+    echo ""
+    echo -e "${green}1. 修改端口${re}"
+    echo "------------"
+    echo -e "${green}2. 修改UUID${re}"
+    echo "------------"
+    echo -e "${green}3. 修改Reality伪装域名${re}"
+    echo "------------"
+    echo -e "${purple}4. 返回主菜单${re}"
+    echo "------------"
+    read -p $'\033[1;91m请输入选择: \033[0m' choice
+    case "${choice}" in
+        1)
+            echo ""
+            echo -e "${green}1. 修改vless-reality端口${re}"
+            echo "------------"
+            echo -e "${green}2. 修改hysteria2端口${re}"
+            echo "------------"
+            echo -e "${green}3. 修改tuic端口${re}"
+            echo "------------"
+            echo -e "${purple}4. 返回上一级菜单${re}"
+            read -p $'\033[1;91m请输入选择: \033[0m' choice
+            case "${choice}" in
+                1)
+                    read -p $'\033[1;35m请输入vless-reality端口 (回车跳过将使用随机端口): \033[0m' new_port
+                    [ -z "$new_port" ] && new_port=$(shuf -i 2000-65000 -n 1)
+                    sed -i '/"type": "vless"/,/listen_port/ s/"listen_port": [0-9]\+/"listen_port": '"$new_port"'/' $config_dir
+                    restart_singbox
+                    sed -i 's/\(vless:\/\/[^@]*@[^:]*:\)[0-9]\{1,\}/\1'"$new_port"'/' $client_dir
+                    base64 -w0 /etc/sing-box/url.txt > /etc/sing-box/sub.txt
+                    while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
+                    echo -e "${green}\nvless-reality端口已修改成：${purple}$new_port${re}${green},请更新订阅或手动更改vless-reality端口${re}"
+                    ;;
+                2)
+                    read -p $'\033[1;35m请输入hysteria2端口 (回车跳过将使用随机端口): \033[0m' new_port
+                    [ -z "$new_port" ] && new_port=$(shuf -i 2000-65000 -n 1)
+                    sed -i '/"type": "hysteria2"/,/listen_port/ s/"listen_port": [0-9]\+/"listen_port": '"$new_port"'/' $config_dir
+                    restart_singbox
+                    sed -i 's/\(hysteria2:\/\/[^@]*@[^:]*:\)[0-9]\{1,\}/\1'"$new_port"'/' $client_dir
+                    base64 -w0 $client_dir > /etc/sing-box/sub.txt
+                    while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
+                    echo -e "${green}\nhysteria2端口已修改为：${purple}${new_port}${re}${green},请更新订阅或手动更改hysteria2端口${re}"
+                    ;;
+                3)
+                    read -p $'\033[1;35m请输入tuic端口 (回车跳过将使用随机端口): \033[0m' new_port
+                    [ -z "$new_port" ] && new_port=$(shuf -i 2000-65000 -n 1)
+                    sed -i '/"type": "tuic"/,/listen_port/ s/"listen_port": [0-9]\+/"listen_port": '"$new_port"'/' $config_dir
+                    restart_singbox
+                    sed -i 's/\(tuic:\/\/[^@]*@[^:]*:\)[0-9]\{1,\}/\1'"$new_port"'/' $client_dir
+                    base64 -w0 $client_dir > /etc/sing-box/sub.txt
+                    while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
+                    echo -e "${green}\ntuic端口已修改为：${purple}${new_port}${re}${green},请更新订阅或手动更改tuic端口${re}"
+                    ;;
+                4)
+                    menu
+                    ;;
+                *)
+                    echo -e "${red}无效的选项，请输入 1 到 4${re}"
+                    ;;
+            esac
+            ;;
+        2)
+            read -p $'\033[1;35m请输入新的UUID: \033[0m' new_uuid
+            [ -z "$new_uuid" ] && new_uuid=$(cat /proc/sys/kernel/random/uuid)
+            sed -i -E '
+                s/"uuid": "([a-f0-9-]+)"/"uuid": "'"$new_uuid"'"/g;
+                s/"uuid": "([a-f0-9-]+)"$/\"uuid\": \"'$new_uuid'\"/g;
+                s/"password": "([a-f0-9-]+)"/"password": "'"$new_uuid"'"/g
+            ' $config_dir
+
+            restart_singbox
+            sed -i -E 's/(vless:\/\/|hysteria2:\/\/)[^@]*(@.*)/\1'"$new_uuid"'\2/' $client_dir
+            sed -i "s/tuic:\/\/[0-9a-f\-]\{36\}/tuic:\/\/$new_uuid/" /etc/sing-box/url.txt
+            isp=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g')
+            argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
+            VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"www.visa.com.sg\", \"port\": \"443\", \"id\": \"${new_uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess?ed=2048\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"randomized\", \"allowlnsecure\": \"flase\"}"
+            encoded_vmess=$(echo "$VMESS" | base64 -w0)
+            sed -i -E '/vmess:\/\//{s@vmess://.*@vmess://'"$encoded_vmess"'@}' $client_dir
+            base64 -w0 $client_dir > /etc/sing-box/sub.txt
+            while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
+            echo -e "${green}\nUUID已修改为：${re}${purple}${new_uuid}${re}${green},请更新订阅或手动更改所有节点的UUID${re}"
+            ;;
+        3)  
+            clear
+            echo -e "${green}1. itunes.apple.com\n2. addons.mozilla.org${re}"
+            read -p $'\033[1;35m请输入新的Reality伪装域名(可自定义输入,回车留空将使用默认1): \033[0m' new_sni
+                if [ -z "$new_sni" ]; then
+                    new_sni="itunes.apple.com"
+                elif [[ "$new_sni" == "1" ]]; then
+                    new_sni="itunes.apple.com"
+                elif [[ "$new_sni" == "2" ]]; then
+                    new_sni="addons.mozilla.org"
+                else
+                    new_sni="$new_sni"
+                fi
+                jq --arg new_sni "$new_sni" '
+                (.inbounds[] | select(.type == "vless") | .tls.server_name) = $new_sni |
+                (.inbounds[] | select(.type == "vless") | .tls.reality.handshake.server) = $new_sni
+                ' "$config_dir" > "$config_file.tmp" && mv "$config_file.tmp" "$config_dir"
+                restart_singbox
+                sed -i "s/\(vless:\/\/[^\?]*\?\([^\&]*\&\)*sni=\)[^&]*/\1$new_sni/" $client_dir
+                base64 -w0 $client_dir > /etc/sing-box/sub.txt
+                while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
+                echo -e "${green}\nUUID已修改为：${re}${purple}${new_sni}${re}${green},请更新订阅或手动更改reality节点的sni域名${re}"
+            ;; 
+        4)
+            menu
+            ;; 
+        *)
+            echo -e "${red}无效的选项，请输入 1 或 2${re}"
+            ;; 
+    esac
+}
+
+
 menu() {
    check_singbox
    check_singbox=$?
@@ -511,7 +643,8 @@ menu() {
    echo -e "${green}5. 重启 sing-box${re}"
    echo -e "${green}=================${re}"
    echo -e "${green}6. 查看节点信息${re}"
-   echo -e "${green}7. 重新获取Argo域名${re}"
+   echo -e "${green}7. 修改节点配置${re}"
+   echo -e "${green}8. 重新获取Argo域名${re}"
    echo -e "${green}=================${re}"
    echo -e "${red}0. 退出脚本${re}"
    echo -e "${green}=================${re}"
@@ -530,17 +663,17 @@ while true; do
            if [ ${check_singbox} -eq 0 ]; then
                 echo -e "${green}sing-box 已经安装！${re}"
            else
-                install_packages
+                install_packages nginx jq tar iptables openssl coreutils qrencode
                 install_singbox
 
                 if [ -x "$(command -v systemctl)" ]; then
                     main_systemd_services
                 elif [ -x "$(command -v rc-update)" ]; then
                     alpine_openrc_services
-                    change_alpine_dns
+                    change_hosts
                     rc-service sing-box restart
                     rc-service argo restart
-                    sleep 3
+
                 else
                     echo "Unsupported init system"
                     exit 1 
@@ -572,6 +705,10 @@ while true; do
            while IFS= read -r line; do echo -e "${purple}$line${re}"; done < ${work_dir}/url.txt
            ;;
        7)
+           clear
+           change_config
+           ;;
+       8)
            clear
            restart_singbox
            sleep 3

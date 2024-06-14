@@ -710,8 +710,7 @@ while true; do
            ;;
        8)
            clear
-           restart_singbox
-           sleep 3
+           restart_argo
            argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
            echo ""
            echo -e "${green}ArgoDomain：${re}${purple}$argodomain${re}"

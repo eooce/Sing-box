@@ -431,7 +431,6 @@ else
 fi
 }
 
-
 # 重启 sing-box
 restart_singbox() {
 if [ ${check_singbox} -eq 0 ]; then
@@ -475,7 +474,6 @@ else
     menu
 fi
 }
-
 
 # 卸载 sing-box
 uninstall_singbox() {
@@ -664,7 +662,7 @@ else
 fi
 }
 
-
+# 主菜单
 menu() {
    check_singbox
    check_singbox=$?

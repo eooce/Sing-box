@@ -386,6 +386,7 @@ fi
 
 # 启动 sing-box
 start_singbox() {
+if [ ${check_singbox} -eq 0 ]; then
     echo -e "${yellow}正在启动 ${server_name} 服务${re}"
     if [ -f /etc/alpine-release ]; then
         rc-service sing-box start
@@ -400,10 +401,16 @@ start_singbox() {
    else
        echo -e "${red}${server_name} 服务启动失败${re}"
    fi
+else
+    echo -e "${yellow}sing-box 尚未安装！${re}"
+    sleep 1
+    menu
+fi
 }
 
 # 停止 sing-box
 stop_singbox() {
+if [ ${check_singbox} -eq 0 ]; then
    echo -e "${yellow}正在停止 ${server_name} 服务${re}"
     if [ -f /etc/alpine-release ]; then
         rc-service sing-box stop
@@ -417,10 +424,17 @@ stop_singbox() {
    else
        echo -e "${red}${server_name} 服务停止失败${re}"
    fi
+else
+    echo -e "${yellow}sing-box 尚未安装！${re}"
+    sleep 1
+    menu
+fi
 }
+
 
 # 重启 sing-box
 restart_singbox() {
+if [ ${check_singbox} -eq 0 ]; then
    echo -e "${yellow}正在重启 ${server_name} 服务${re}"
     if [ -f /etc/alpine-release ]; then
         rc-service ${server_name} restart
@@ -428,32 +442,44 @@ restart_singbox() {
         systemctl daemon-reload
         systemctl restart "${server_name}"
     fi
-   if [ $? -eq 0 ]; then
-       echo -e "${green}${server_name} 服务已成功重启${re}"
-   else
-       echo -e "${red}${server_name} 服务重启失败${re}"
-   fi
+    if [ $? -eq 0 ]; then
+        echo -e "${green}${server_name} 服务已成功重启${re}"
+    else
+        echo -e "${red}${server_name} 服务重启失败${re}"
+    fi
+else
+    echo -e "${yellow}sing-box 尚未安装！${re}"
+    sleep 1
+    menu
+fi
 }
 
 # 重启 argo
 restart_argo() {
-   echo -e "${yellow}正在重启 ${server_name} 服务${re}"
+if [ ${check_singbox} -eq 0 ]; then
+   echo -e "${yellow}正在重启 Argo 服务${re}"
     if [ -f /etc/alpine-release ]; then
         rc-service argo restart
     else
         systemctl daemon-reload
         systemctl restart argo
     fi
-   if [ $? -eq 0 ]; then
-       echo -e "${green}Argo 服务已成功重启${re}"
-   else
-       echo -e "${red}Argo 服务重启失败${re}"
-   fi
+    if [ $? -eq 0 ]; then
+        echo -e "${green}Argo 服务已成功重启${re}"
+    else
+        echo -e "${red}Argo 服务重启失败${re}"
+    fi
+else
+    echo -e "${yellow}sing-box 尚未安装！${re}"
+    sleep 1
+    menu
+fi
 }
 
 
 # 卸载 sing-box
 uninstall_singbox() {
+if [ ${check_singbox} -eq 0 ]; then
    read -p "$(echo -e "${red}确定要卸载 sing-box 吗? (y/n) ${re}")" choice
    case "${choice}" in
        y|Y)
@@ -486,6 +512,11 @@ uninstall_singbox() {
            echo -e "${yellow}已取消卸载操作${re}"
            ;;
    esac
+else
+    echo -e "${yellow}sing-box 尚未安装！${re}"
+    sleep 1
+    menu
+fi
 }
 
 # 创建快捷指令
@@ -512,6 +543,8 @@ change_hosts() {
 }
 
 change_config() {
+if [ ${check_singbox} -eq 0 ]; then
+    clear
     echo ""
     echo -e "${green}1. 修改端口${re}"
     echo "------------"
@@ -542,7 +575,7 @@ change_config() {
                     sed -i 's/\(vless:\/\/[^@]*@[^:]*:\)[0-9]\{1,\}/\1'"$new_port"'/' $client_dir
                     base64 -w0 /etc/sing-box/url.txt > /etc/sing-box/sub.txt
                     while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
-                    echo -e "${green}\nvless-reality端口已修改成：${purple}$new_port${re}${green},请更新订阅或手动更改vless-reality端口${re}"
+                    echo -e "${green}\nvless-reality端口已修改成：${purple}$new_port${re}${green} 请更新订阅或手动更改vless-reality端口\n${re}"
                     ;;
                 2)
                     read -p $'\033[1;35m请输入hysteria2端口 (回车跳过将使用随机端口): \033[0m' new_port
@@ -552,7 +585,7 @@ change_config() {
                     sed -i 's/\(hysteria2:\/\/[^@]*@[^:]*:\)[0-9]\{1,\}/\1'"$new_port"'/' $client_dir
                     base64 -w0 $client_dir > /etc/sing-box/sub.txt
                     while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
-                    echo -e "${green}\nhysteria2端口已修改为：${purple}${new_port}${re}${green},请更新订阅或手动更改hysteria2端口${re}"
+                    echo -e "${green}\nhysteria2端口已修改为：${purple}${new_port}${re}${green} 请更新订阅或手动更改hysteria2端口\n${re}"
                     ;;
                 3)
                     read -p $'\033[1;35m请输入tuic端口 (回车跳过将使用随机端口): \033[0m' new_port
@@ -562,7 +595,7 @@ change_config() {
                     sed -i 's/\(tuic:\/\/[^@]*@[^:]*:\)[0-9]\{1,\}/\1'"$new_port"'/' $client_dir
                     base64 -w0 $client_dir > /etc/sing-box/sub.txt
                     while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
-                    echo -e "${green}\ntuic端口已修改为：${purple}${new_port}${re}${green},请更新订阅或手动更改tuic端口${re}"
+                    echo -e "${green}\ntuic端口已修改为：${purple}${new_port}${re}${green} 请更新订阅或手动更改tuic端口\n${re}"
                     ;;
                 4)
                     change_config
@@ -591,7 +624,7 @@ change_config() {
             sed -i -E '/vmess:\/\//{s@vmess://.*@vmess://'"$encoded_vmess"'@}' $client_dir
             base64 -w0 $client_dir > /etc/sing-box/sub.txt
             while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
-            echo -e "${green}\nUUID已修改为：${re}${purple}${new_uuid}${re}${green},请更新订阅或手动更改所有节点的UUID${re}"
+            echo -e "${green}\nUUID已修改为：${re}${purple}${new_uuid}${re}${green} 请更新订阅或手动更改所有节点的UUID\n${re}"
             ;;
         3)  
             clear
@@ -614,7 +647,8 @@ change_config() {
                 sed -i "s/\(vless:\/\/[^\?]*\?\([^\&]*\&\)*sni=\)[^&]*/\1$new_sni/" $client_dir
                 base64 -w0 $client_dir > /etc/sing-box/sub.txt
                 while IFS= read -r line; do echo -e "${yellow}$line${re}"; done < ${work_dir}/url.txt
-                echo -e "${green}\nUUID已修改为：${re}${purple}${new_sni}${re}${green},请更新订阅或手动更改reality节点的sni域名${re}"
+                echo ""
+                echo -e "${green}\nReality sni已修改为：${re}${purple}${new_sni}${re}${green} 请更新订阅或手动更改reality节点的sni域名\n${re}"
             ;; 
         4)
             menu
@@ -623,6 +657,11 @@ change_config() {
             echo -e "${red}无效的选项，请输入 1 或 2${re}"
             ;; 
     esac
+else
+    echo -e "${yellow}sing-box 尚未安装！${re}"
+    sleep 1
+    menu
+fi
 }
 
 
@@ -659,10 +698,10 @@ trap 'echo "已取消操作"; exit' INT
 while true; do
    menu
    case "${choice}" in
-       1)
-           if [ ${check_singbox} -eq 0 ]; then
+        1)
+            if [ ${check_singbox} -eq 0 ]; then
                 echo -e "${green}sing-box 已经安装！${re}"
-           else
+            else
                 install_packages nginx jq tar iptables openssl coreutils qrencode
                 install_singbox
 
@@ -683,45 +722,48 @@ while true; do
                 get_info
                 add_nginx_conf
                 create_shortcut
-           fi
+            fi
            ;;
-       2)
+        2) uninstall_singbox ;;
+        3) start_singbox ;;
+        4) stop_singbox ;;
+        5) restart_singbox ;;
+        6)
            if [ ${check_singbox} -eq 0 ]; then
-               uninstall_singbox
-           else
+               while IFS= read -r line; do echo -e "${purple}$line${re}"; done < ${work_dir}/url.txt
+               echo ""
+           else 
                echo -e "${yellow}sing-box 尚未安装！${re}"
+               sleep 1
+               menu
            fi
            ;;
-       3)
-           start_singbox
-           ;;
-       4)
-           stop_singbox
-           ;;
-       5)
-           restart_singbox
-           ;;
-       6)
-           while IFS= read -r line; do echo -e "${purple}$line${re}"; done < ${work_dir}/url.txt
-           ;;
-       7)
+        7) change_config ;;
+        8)
            clear
-           change_config
+            restart_argo
+            sleep 3
+              
+            get_argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
+            echo -e "${green}ArgoDomain：${re}${purple}$get_argodomain${re}"
+            ArgoDomain=$get_argodomain
+            content=$(cat "$client_dir")
+            vmess_url=$(grep -o 'vmess://[^ ]*' "$client_dir")
+            vmess_prefix="vmess://"
+            encoded_vmess="${vmess_url#"$vmess_prefix"}"
+            decoded_vmess=$(echo "$encoded_vmess" | base64 --decode)
+            updated_vmess=$(echo "$decoded_vmess" | jq --arg new_domain "$ArgoDomain" '.host = $new_domain | .sni = $new_domain')
+            encoded_updated_vmess=$(echo "$updated_vmess" | base64 | tr -d '\n')
+            new_vmess_url="$vmess_prefix$encoded_updated_vmess"
+            new_content=$(echo "$content" | sed "s|$vmess_url|$new_vmess_url|")
+            echo "$new_content" > "$client_dir"
+            echo -e "${green}\nvmess已更新到节点文件中,更新订阅或手动复制以下vmess-argo节点\n${re}"
+            echo -e "${yellow}$new_vmess_url\n${re}"              
            ;;
-       8)
-           clear
-           restart_argo
-           sleep 3
-           argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
-           echo ""
-           echo -e "${green}ArgoDomain：${re}${purple}$argodomain${re}"
-           echo ""
-           echo -e "${yellow}请自行修改客户端vmess节点伪装域名${re}"
-           ;;
-       0)
+        0)
            exit 0
            ;;
-       *)
+        *)
            echo -e "${red}无效的选项，请输入 0 到 7${re}"
            ;;
    esac

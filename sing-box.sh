@@ -710,7 +710,7 @@ while true; do
                     exit 1 
                 fi
 
-                sleep 3
+                sleep 2
                 get_info
                 add_nginx_conf
                 create_shortcut

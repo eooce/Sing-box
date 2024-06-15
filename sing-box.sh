@@ -679,7 +679,7 @@ menu() {
    echo -e "${green}=================${re}"
    echo -e "${red}0. 退出脚本${re}"
    echo -e "${green}=================${re}"
-   read -p $'\033[1;91m请输入选择(0-7): \033[0m' choice
+   read -p $'\033[1;91m请输入选择(0-8): \033[0m' choice
    echo ""
 }
 

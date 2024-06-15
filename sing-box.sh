@@ -359,12 +359,6 @@ echo ""
 
 # 配置nginx订阅配置
 add_nginx_conf() {
-sed -i '/location \/ {/ {
-n
-a\
-\n        location \/sub {\n            alias \/etc\/sing-box\/sub.txt;\n            default_type "text/plain; charset=utf-8";\n        }
-}' /etc/nginx/nginx.conf
-
 new_config="server {
     listen $nginx_port;
 

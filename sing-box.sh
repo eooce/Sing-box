@@ -477,7 +477,6 @@ fi
 
 # 卸载 sing-box
 uninstall_singbox() {
-if [ ${check_singbox} -eq 0 ]; then
    read -p "$(echo -e "${red}确定要卸载 sing-box 吗? (y/n) ${re}")" choice
    case "${choice}" in
        y|Y)
@@ -510,11 +509,6 @@ if [ ${check_singbox} -eq 0 ]; then
            echo -e "${yellow}已取消卸载操作${re}"
            ;;
    esac
-else
-    echo -e "${yellow}sing-box 尚未安装！${re}"
-    sleep 1
-    menu
-fi
 }
 
 # 创建快捷指令
@@ -763,7 +757,7 @@ while true; do
            exit 0
            ;;
         *)
-           echo -e "${red}无效的选项，请输入 0 到 7${re}"
+           echo -e "${red}无效的选项，请输入 0 到 8${re}"
            ;;
    esac
    read -n 1 -s -r -p $'\033[1;91m按任意键继续...\033[0m'

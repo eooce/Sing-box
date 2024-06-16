@@ -34,7 +34,7 @@ check_singbox() {
 
 # 检查 argo 是否已安装
 check_argo() {
-    if [ -f "${work_dir}/${server_name}" ]; then
+    if [ -f "${work_dir}/argo" ]; then
         if [ -f /etc/alpine-release ]; then
             rc-service argo status | grep -q "started" && echo -e "${green}running${re}" || echo -e "${red}not running${re}"
         else 
@@ -105,16 +105,14 @@ install_singbox() {
     vless_port=$(shuf -i 1000-65535 -n 1) 
     tuic_port=$(($vless_port + 1))
     hy2_port=$(($vless_port + 2)) 
-    nginx_port=$(($vless_port + 3)) 
     password=$(tr -dc A-Za-z < /dev/urandom | head -c 8) 
     uuid=$(cat /proc/sys/kernel/random/uuid)
     output=$(/etc/sing-box/sing-box generate reality-keypair)
     private_key=$(echo "${output}" | grep -oP 'PrivateKey:\s*\K.*')
     public_key=$(echo "${output}" | grep -oP 'PublicKey:\s*\K.*')
 
-    iptables -A INPUT -p tcp --dport 8001 -j ACCEPT
+    iptables -A INPUT -p tcp --dport 8088 -j ACCEPT
     iptables -A INPUT -p tcp --dport $vless_port -j ACCEPT
-    iptables -A INPUT -p tcp --dport $nginx_port -j ACCEPT
     iptables -A INPUT -p udp --dport $hy2_port -j ACCEPT
     iptables -A INPUT -p udp --dport $tuic_port -j ACCEPT
 
@@ -175,7 +173,7 @@ cat > "${config_dir}" << EOF
       "tag": "vmess-ws-in",
       "type": "vmess",
       "listen": "::",
-      "listen_port": 8001,
+      "listen_port": 8088,
       "users": [
       {
         "uuid": "${uuid}"
@@ -276,7 +274,7 @@ After=network.target
 Type=simple
 NoNewPrivileges=yes
 TimeoutStartSec=0
-ExecStart=/bin/sh -c "/etc/sing-box/argo tunnel --url http://localhost:8001 --no-autoupdate --edge-ip-version auto --protocol http2 > /etc/sing-box/argo.log 2>&1"
+ExecStart=/bin/sh -c "/etc/sing-box/argo tunnel --url http://localhost:8088 --no-autoupdate --edge-ip-version auto --protocol http2 > /etc/sing-box/argo.log 2>&1"
 Restart=on-failure
 RestartSec=5s
 
@@ -314,7 +312,7 @@ EOF
 
 description="Cloudflare Tunnel"
 command="/bin/sh"
-command_args="-c '/etc/sing-box/argo tunnel --url http://localhost:8001 --no-autoupdate --edge-ip-version auto --protocol http2 > /etc/sing-box/argo.log 2>&1'"
+command_args="-c '/etc/sing-box/argo tunnel --url http://localhost:8088 --no-autoupdate --edge-ip-version auto --protocol http2 > /etc/sing-box/argo.log 2>&1'"
 command_background=true
 pidfile="/var/run/argo.pid"
 EOF
@@ -351,36 +349,63 @@ echo ""
 while IFS= read -r line; do echo -e "${purple}$line${re}"; done < ${work_dir}/url.txt
 base64 -w0 ${work_dir}/url.txt > ${work_dir}/sub.txt
 echo ""
-echo -e "${green}节点订阅链接：http://${server_ip}:${nginx_port}/sub  适用于V2rayN,Nekbox,Sterisand,小火箭,圈X等${re}"
+echo -e "${green}节点订阅链接：http://${server_ip}/${uuid}  适用于V2rayN,Nekbox,Sterisand,小火箭,圈X等${re}"
 echo ""
-qrencode -t ANSIUTF8 -m 2 "http://${server_ip}:${nginx_port}/sub"
+qrencode -t ANSIUTF8 -m 2 "http://${server_ip}/${uuid}"
 echo ""
 }
 
-# 配置nginx订阅配置
-add_nginx_conf() {
-new_config="server {
-    listen $nginx_port;
+# 修复nginx因host无法安装的问题
+fix_nginx() {
+    HOSTNAME=$(hostname)
+    NGINX_CONFIG_FILE="/etc/nginx/nginx.conf"
 
-    location /sub {
+    # 修改 /etc/hosts 文件
+    grep -q "127.0.1.1 $HOSTNAME" /etc/hosts || echo "127.0.1.1 $HOSTNAME" | tee -a /etc/hosts >/dev/null
+
+    # 创建 nginx 用户
+    id -u nginx >/dev/null 2>&1 || useradd -r -d /var/www -s /sbin/nologin nginx >/dev/null 2>&1
+
+    # 验证并修复 nginx 配置文件中的用户设置
+    grep -q "^user nginx;" $NGINX_CONFIG_FILE || sed -i "s/^user .*/user nginx;/" $NGINX_CONFIG_FILE >/dev/null 2>&1
+}
+
+# nginx订阅配置
+add_nginx_conf() {
+cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak
+    cat > /etc/nginx/nginx.conf << EOF
+# nginx_conf
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    server {
+	listen 80;
+
+        location /$uuid {
         alias /etc/sing-box/sub.txt;
         default_type 'text/plain; charset=utf-8';
+        }
     }
-}"
-
-echo "$new_config" | tee /etc/nginx/server_config_temp.conf > /dev/null
-sed -i '/http {/r /etc/nginx/server_config_temp.conf' /etc/nginx/nginx.conf
-rm /etc/nginx/server_config_temp.conf
+}
+EOF
 
 nginx -t
 
 if [ $? -eq 0 ]; then
     if [ -f /etc/alpine-release ]; then
         nginx -s reload
+        rc-service enable nginx
         rc-service nginx restart
     else
-        systemctl reload nginx
-        systemctl restart nginx
+        rm /run/nginx.pid
+        systemctl nginx restart
     fi
 fi
 }
@@ -457,7 +482,7 @@ fi
 # 重启 argo
 restart_argo() {
 if [ ${check_singbox} -eq 0 ]; then
-   echo -e "${yellow}正在重启 Argo 服务${re}"
+    echo -e "${yellow}正在重启 Argo 服务${re}"
     if [ -f /etc/alpine-release ]; then
         rc-service argo restart
     else
@@ -475,6 +500,7 @@ else
     menu
 fi
 }
+
 
 # 卸载 sing-box
 uninstall_singbox() {
@@ -522,9 +548,9 @@ EOF
   chmod +x "$work_dir/sb.sh"
   sudo ln -sf "$work_dir/sb.sh" /usr/bin/sb
   if [ -s /usr/bin/sb ]; then
-    echo -e "${green}\nsb 快捷指令创建成功${re}"
+    echo -e "${green}\nsb 快捷指令创建成功\n${re}"
   else
-    echo -e "${red}\nsb 快捷指令创建失败${re}"
+    echo -e "${red}\nsb 快捷指令创建失败\n${re}"
   fi
 }
 
@@ -535,6 +561,7 @@ change_hosts() {
     sed -i '2s/.*/::1         localhost/' /etc/hosts
 }
 
+# 变更配置
 change_config() {
 if [ ${check_singbox} -eq 0 ]; then
     clear
@@ -695,6 +722,7 @@ while true; do
             if [ ${check_singbox} -eq 0 ]; then
                 echo -e "${green}sing-box 已经安装！${re}"
             else
+                fix_nginx
                 install_packages nginx jq tar iptables openssl coreutils qrencode
                 install_singbox
 

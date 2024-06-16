@@ -406,7 +406,7 @@ if [ $? -eq 0 ]; then
         rc-service nginx restart
     else
         rm /run/nginx.pid
-        systemctl nginx restart
+        systemctl restart nginx
     fi
 fi
 }

@@ -325,6 +325,7 @@ EOF
 
 }
 
+# 获取节点信息
 get_info() {  
   server_ip=$(curl -s ipv4.ip.sb || curl -s --max-time 1 ipv6.ip.sb)
 
@@ -355,7 +356,7 @@ qrencode -t ANSIUTF8 -m 2 "http://${server_ip}/${uuid}"
 echo ""
 }
 
-# 修复nginx因host无法安装的问题
+# 修复nginx因host无法安装和启动的问题
 fix_nginx() {
     HOSTNAME=$(hostname)
     NGINX_CONFIG_FILE="/etc/nginx/nginx.conf"
@@ -500,7 +501,6 @@ else
     menu
 fi
 }
-
 
 # 卸载 sing-box
 uninstall_singbox() {

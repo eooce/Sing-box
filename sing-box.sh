@@ -17,18 +17,19 @@ nginx_dir="/etc/nginx/nginx.conf"
 log_dir="/var/log/singbox.log"
 
 # 检查是否为root下运行
-[[ $EUID -ne 0 ]] && echo -e "${red}注意: 请在root用户下运行脚本${re}" && exit 1
+[[ $EUID -ne 0 ]] && echo -e "${red}请在root用户下运行脚本${re}" && exit 1
 
 # 检查 sing-box 是否已安装
 check_singbox() {
     if [ -f "${work_dir}/${server_name}" ]; then
         if [ -f /etc/alpine-release ]; then
-            rc-service sing-box status | grep -q "started" && return 0 || return 1
+            rc-service sing-box status | grep -q "started" && echo -e "${green}running${re}" && return 0 || echo -e "${yellow}not running${re}" && return 1
         else 
-            [ "$(systemctl is-active sing-box)" = "active" ] && return 0 || return 1
+            [ "$(systemctl is-active sing-box)" = "active" ] && echo -e "${green}running${re}" && return 0 || echo -e "${yellow}not running${re}" && return 1
         fi
     else
-        return 1
+        echo -e "${red}not installed${re}"
+        return 2
     fi
 }
 
@@ -36,39 +37,66 @@ check_singbox() {
 check_argo() {
     if [ -f "${work_dir}/argo" ]; then
         if [ -f /etc/alpine-release ]; then
-            rc-service argo status | grep -q "started" && echo -e "${green}running${re}" || echo -e "${red}not running${re}"
+            rc-service argo status | grep -q "started" && echo -e "${green}running${re}" && return 0 || echo -e "${yellow}not running${re}" && return 1
         else 
-            [ "$(systemctl is-active argo)" = "active" ] && echo -e "${green}running${re}" || echo -e "${red}not running${re}"
+            [ "$(systemctl is-active argo)" = "active" ] && echo -e "${green}running${re}" && return 0 || echo -e "${ywllow}not running${re}" && return 1
         fi
     else
         echo -e "${red}not installed${re}"
+        return 2
     fi
 }
 
-#根据系统类型安装依赖
-install_packages() {
-    if [ $# -eq 0 ]; then
-        echo -e "${red}Unspecified package name${re}"
+#根据系统类型安装、卸载依赖
+manage_packages() {
+    if [ $# -lt 2 ]; then
+        echo -e "${red}Unspecified package name or action${re}"
         return 1
     fi
 
+    action=$1
+    shift
+
     for package in "$@"; do
-        if command -v "$package" &>/dev/null; then
-            echo -e "${green}${package} already installed${re}"
-            continue
-        fi
-        echo -e "${yellow}正在安装 ${package}...${re}"
-        if command -v apt &>/dev/null; then
-            apt install -y "$package"
-        elif command -v dnf &>/dev/null; then
-            dnf install -y "$package"
-        elif command -v yum &>/dev/null; then
-            yum install -y "$package"
-        elif command -v apk &>/dev/null; then
-            apk update
-            apk add "$package"
+        if [ "$action" == "install" ]; then
+            if command -v "$package" &>/dev/null; then
+                echo -e "${green}${package} already installed${re}"
+                continue
+            fi
+            echo -e "${yellow}正在安装 ${package}...${re}"
+            if command -v apt &>/dev/null; then
+                apt install -y "$package"
+            elif command -v dnf &>/dev/null; then
+                dnf install -y "$package"
+            elif command -v yum &>/dev/null; then
+                yum install -y "$package"
+            elif command -v apk &>/dev/null; then
+                apk update
+                apk add "$package"
+            else
+                echo -e "${red}Unknown system!${re}"
+                return 1
+            fi
+        elif [ "$action" == "uninstall" ]; then
+            if ! command -v "$package" &>/dev/null; then
+                echo -e "${green}${package} is not installed${re}"
+                continue
+            fi
+            echo -e "${yellow}正在卸载 ${package}...${re}"
+            if command -v apt &>/dev/null; then
+                apt remove -y "$package"
+            elif command -v dnf &>/dev/null; then
+                dnf remove -y "$package"
+            elif command -v yum &>/dev/null; then
+                yum remove -y "$package"
+            elif command -v apk &>/dev/null; then
+                apk del "$package"
+            else
+                echo -e "${red}Unknown system!${re}"
+                return 1
+            fi
         else
-            echo -e"${red}Unknown system!${re}"
+            echo -e "${red}Unknown action: $action${re}"
             return 1
         fi
     done
@@ -105,7 +133,7 @@ install_singbox() {
     vless_port=$(shuf -i 1000-65535 -n 1) 
     tuic_port=$(($vless_port + 1))
     hy2_port=$(($vless_port + 2)) 
-    password=$(tr -dc A-Za-z < /dev/urandom | head -c 8) 
+    password=$(tr -dc A-Za-z < /dev/urandom | head -c 24)
     uuid=$(cat /proc/sys/kernel/random/uuid)
     output=$(/etc/sing-box/sing-box generate reality-keypair)
     private_key=$(echo "${output}" | grep -oP 'PrivateKey:\s*\K.*')
@@ -325,7 +353,6 @@ EOF
 
 }
 
-# 获取节点信息
 get_info() {  
   server_ip=$(curl -s ipv4.ip.sb || curl -s --max-time 1 ipv6.ip.sb)
 
@@ -350,24 +377,16 @@ echo ""
 while IFS= read -r line; do echo -e "${purple}$line${re}"; done < ${work_dir}/url.txt
 base64 -w0 ${work_dir}/url.txt > ${work_dir}/sub.txt
 echo ""
-echo -e "${green}节点订阅链接：http://${server_ip}/${uuid}  适用于V2rayN,Nekbox,Sterisand,小火箭,圈X等${re}"
-echo ""
-qrencode -t ANSIUTF8 -m 2 "http://${server_ip}/${uuid}"
-echo ""
+echo -e "${green}节点订阅链接：http://${server_ip}/${password}\n适用于V2rayN,Nekbox,Sterisand,小火箭,圈X等\n${re}"
+qrencode -t ANSIUTF8 -m 2 "http://${server_ip}/${password}\n"
 }
 
-# 修复nginx因host无法安装和启动的问题
+# 修复nginx因host无法安装的问题
 fix_nginx() {
     HOSTNAME=$(hostname)
     NGINX_CONFIG_FILE="/etc/nginx/nginx.conf"
-
-    # 修改 /etc/hosts 文件
     grep -q "127.0.1.1 $HOSTNAME" /etc/hosts || echo "127.0.1.1 $HOSTNAME" | tee -a /etc/hosts >/dev/null
-
-    # 创建 nginx 用户
     id -u nginx >/dev/null 2>&1 || useradd -r -d /var/www -s /sbin/nologin nginx >/dev/null 2>&1
-
-    # 验证并修复 nginx 配置文件中的用户设置
     grep -q "^user nginx;" $NGINX_CONFIG_FILE || sed -i "s/^user .*/user nginx;/" $NGINX_CONFIG_FILE >/dev/null 2>&1
 }
 
@@ -389,7 +408,7 @@ http {
     server {
 	listen 80;
 
-        location /$uuid {
+        location /$password {
         alias /etc/sing-box/sub.txt;
         default_type 'text/plain; charset=utf-8';
         }
@@ -406,7 +425,7 @@ if [ $? -eq 0 ]; then
         rc-service nginx restart
     else
         rm /run/nginx.pid
-	systemctl daemon-reload
+        systemctl daemon-reload
         systemctl restart nginx
     fi
 fi
@@ -414,23 +433,25 @@ fi
 
 # 启动 sing-box
 start_singbox() {
-if [ ${check_singbox} -eq 0 ]; then
-    echo -e "${yellow}正在启动 ${server_name} 服务${re}"
+if [ ${check_singbox} -eq 1 ]; then
+    echo -e "${yellow}正在启动 ${server_name} 服务\n${re}"
     if [ -f /etc/alpine-release ]; then
         rc-service sing-box start
-        rc-service argo start
     else
         systemctl daemon-reload
         systemctl start "${server_name}"
-        systemctl start argo
     fi
    if [ $? -eq 0 ]; then
-       echo -e "${green}${server_name} 服务已成功启动${re}"
+       echo -e "${green}${server_name} 服务已成功启动\n${re}"
    else
-       echo -e "${red}${server_name} 服务启动失败${re}"
+       echo -e "${red}${server_name} 服务启动失败\n${re}"
    fi
+elif [ ${check_singbox} -eq 0 ]; then
+    echo -e "${yellow}sing-box 正在运行\n${re}"
+    sleep 1
+    menu
 else
-    echo -e "${yellow}sing-box 尚未安装！${re}"
+    echo -e "${yellow}sing-box 尚未安装！\n${re}"
     sleep 1
     menu
 fi
@@ -439,21 +460,24 @@ fi
 # 停止 sing-box
 stop_singbox() {
 if [ ${check_singbox} -eq 0 ]; then
-   echo -e "${yellow}正在停止 ${server_name} 服务${re}"
+   echo -e "${yellow}正在停止 ${server_name} 服务\n${re}"
     if [ -f /etc/alpine-release ]; then
         rc-service sing-box stop
-        rc-service argo stop
     else
         systemctl stop "${server_name}"
-        systemctl stop argo
     fi
    if [ $? -eq 0 ]; then
-       echo -e "${green}${server_name} 服务已成功停止${re}"
+       echo -e "${green}${server_name} 服务已成功停止\n${re}"
    else
-       echo -e "${red}${server_name} 服务停止失败${re}"
+       echo -e "${red}${server_name} 服务停止失败\n${re}"
    fi
+
+elif [ ${check_singbox} -eq 1 ]; then
+    echo -e "${yellow}sing-box 未运行\n${re}"
+    sleep 1
+    menu
 else
-    echo -e "${yellow}sing-box 尚未安装！${re}"
+    echo -e "${yellow}sing-box 尚未安装！\n${re}"
     sleep 1
     menu
 fi
@@ -462,7 +486,7 @@ fi
 # 重启 sing-box
 restart_singbox() {
 if [ ${check_singbox} -eq 0 ]; then
-   echo -e "${yellow}正在重启 ${server_name} 服务${re}"
+   echo -e "${yellow}正在重启 ${server_name} 服务\n${re}"
     if [ -f /etc/alpine-release ]; then
         rc-service ${server_name} restart
     else
@@ -470,12 +494,16 @@ if [ ${check_singbox} -eq 0 ]; then
         systemctl restart "${server_name}"
     fi
     if [ $? -eq 0 ]; then
-        echo -e "${green}${server_name} 服务已成功重启${re}"
+        echo -e "${green}${server_name} 服务已成功重启\n${re}"
     else
-        echo -e "${red}${server_name} 服务重启失败${re}"
+        echo -e "${red}${server_name} 服务重启失败\n${re}"
     fi
+elif [ ${check_singbox} -eq 1 ]; then
+    echo -e "${yellow}sing-box 未运行\n${re}"
+    sleep 1
+    menu
 else
-    echo -e "${yellow}sing-box 尚未安装！${re}"
+    echo -e "${yellow}sing-box 尚未安装！\n${re}"
     sleep 1
     menu
 fi
@@ -483,8 +511,8 @@ fi
 
 # 重启 argo
 restart_argo() {
-if [ ${check_singbox} -eq 0 ]; then
-    echo -e "${yellow}正在重启 Argo 服务${re}"
+if [ ${check_argo} -eq 0 ]; then
+    echo -e "${yellow}正在重启 Argo 服务\n${re}"
     if [ -f /etc/alpine-release ]; then
         rc-service argo restart
     else
@@ -492,12 +520,38 @@ if [ ${check_singbox} -eq 0 ]; then
         systemctl restart argo
     fi
     if [ $? -eq 0 ]; then
-        echo -e "${green}Argo 服务已成功重启${re}"
+        echo -e "${green}Argo 服务已成功重启\n${re}"
     else
-        echo -e "${red}Argo 服务重启失败${re}"
+        echo -e "${red}Argo 服务重启失败\n${re}"
+    fi
+elif [ ${check_argo} -eq 1 ]; then
+    echo -e "${yellow}Argo 服务未运行\n${re}"
+    sleep 1
+    menu
+else
+    echo -e "${yellow}Argo 尚未安装！\n${re}"
+    sleep 1
+    menu
+fi
+}
+
+# 启动 nginx
+start_nginx() {
+if command -v nginx &>/dev/null; then
+    echo -e "${yellow}正在启动 nginx 服务\n${re}"
+    if [ -f /etc/alpine-release ]; then
+        rc-service nginx start
+    else
+        systemctl daemon-reload
+        systemctl start nginx
+    fi
+    if [ $? -eq 0 ]; then
+        echo -e "${green}Nginx 服务已成功启动\n${re}"
+    else
+        echo -e "${red}Nginx 启动失败\n${re}"
     fi
 else
-    echo -e "${yellow}sing-box 尚未安装！${re}"
+    echo -e "${yellow}Nginx 尚未安装！\n${re}"
     sleep 1
     menu
 fi
@@ -529,12 +583,22 @@ uninstall_singbox() {
            # 删除配置文件和日志
            rm -rf "${work_dir}" || true
            rm -f "${log_dir}" || true
+           
+           # 卸载Nginx
+           read -p "$(echo -e "${red}\n是否卸载 Nginx？(回车跳过卸载Nginx) (y/n) ${re}")" choice
+            case "${choice}" in
+                y|Y)
+                    manage_packages uninstall nginx
+                    ;;
+                 *)
+                    echo -e "${yellow}取消卸载Nginx\n${re}"
+                    ;;
+            esac
 
-           echo -e "${green}sing-box 卸载成功${re}"
-           echo ""
+            echo -e "${green}\nsing-box 卸载成功\n${re}"
            ;;
        *)
-           echo -e "${yellow}已取消卸载操作${re}"
+           echo -e "${yellow}已取消卸载操作\n${re}"
            ;;
    esac
 }
@@ -675,7 +739,54 @@ if [ ${check_singbox} -eq 0 ]; then
             menu
             ;; 
         *)
-            echo -e "${red}无效的选项，请输入 1 或 2${re}"
+            echo -e "${red}无效的选项！${re}"
+            ;; 
+    esac
+else
+    echo -e "${yellow}sing-box 尚未安装！${re}"
+    sleep 1
+    menu
+fi
+}
+
+disable_open_sub() {
+if [ ${check_singbox} -eq 0 ]; then
+    clear
+    echo ""
+    echo -e "${green}1. 关闭节点订阅${re}"
+    echo "------------"
+    echo -e "${green}2. 开启节点订阅${re}"
+    echo "------------"
+    echo -e "${purple}3. 返回主菜单${re}"
+    echo "------------"
+    read -p $'\033[1;91m请输入选择: \033[0m' choice
+    case "${choice}" in
+        1)
+            if command -v nginx &>/dev/null; then
+                if [ -f /etc/alpine-release ]; then
+                    rc-service argo status | grep -q "started" && rc-service nginx stop || echo -e "${red}nginx not running${re}"
+                else 
+                    [ "$(systemctl is-active argo)" = "active" ] && systemctl stop nginx || echo -e "${red}ngixn not running${re}"
+                fi
+            else
+                echo -e "${red}Nginx is not installed${re}"
+            fi
+
+            echo -e "${green}\n已关闭节点订阅\n${re}"     
+            ;; 
+        2)
+            echo -e "${green}\n已开启节点订阅\n${re}"
+            server_ip=$(curl -s ipv4.ip.sb || curl -s --max-time 1 ipv6.ip.sb)
+            password=$(tr -dc A-Za-z < /dev/urandom | head -c 32) 
+            sed -i -E "s/(location \/)[^ ]+/\1${password//\//\\/}/" /etc/nginx/nginx.conf
+            start_nginx
+            echo -e "${green}\n新的节点订阅链接：http://${server_ip}/${password}\n${re}"
+            ;; 
+        3)
+            menu
+            ;; 
+        *)
+            echo -e "${red}无效的选项！${re}"
             ;; 
     esac
 else
@@ -687,13 +798,14 @@ fi
 
 # 主菜单
 menu() {
-   check_singbox
-   check_singbox=$?
+   check_singbox &>/dev/null; check_singbox=$?
+   check_argo &>/dev/null; check_argo=$?
+   check_singbox_status=$(check_singbox)
    check_argo_status=$(check_argo)
    clear
    echo ""
    echo -e "${purple}=== 老王sing-box一键安装脚本 ===${re}"
-   echo -e "${green}sing-box 状态: $(if [ ${check_singbox} -eq 0 ]; then echo -e "${green}running${re}"; else echo -e "${red}not running${re}"; fi)${re}   ${green}Argo 状态: ${check_argo_status}${re}"
+   echo -e "${green}sing-box 状态: ${check_singbox_status}${re}   ${green}Argo 状态: ${check_argo_status}${re}"
    echo ""
    echo -e "${green}1. 安装 sing-box${re}"
    echo -e "${red}2. 卸载 sing-box${re}"
@@ -706,9 +818,12 @@ menu() {
    echo -e "${green}7. 修改节点配置${re}"
    echo -e "${green}8. 重新获取Argo域名${re}"
    echo -e "${green}=================${re}"
+   echo -e "${green}9. 管理节点订阅${re}"
+   echo -e "${purple}w. ssh综合工具箱${re}"
+   echo -e "${green}=================${re}"
    echo -e "${red}0. 退出脚本${re}"
    echo -e "${green}=================${re}"
-   read -p $'\033[1;91m请输入选择(0-8): \033[0m' choice
+   read -p $'\033[1;91m请输入选择(0-w): \033[0m' choice
    echo ""
 }
 
@@ -719,12 +834,12 @@ trap 'echo "已取消操作"; exit' INT
 while true; do
    menu
    case "${choice}" in
-        1)
+        1)  
             if [ ${check_singbox} -eq 0 ]; then
                 echo -e "${green}sing-box 已经安装！${re}"
             else
                 fix_nginx
-                install_packages nginx jq tar iptables openssl coreutils qrencode
+                manage_packages install nginx jq tar iptables openssl coreutils qrencode
                 install_singbox
 
                 if [ -x "$(command -v systemctl)" ]; then
@@ -734,7 +849,6 @@ while true; do
                     change_hosts
                     rc-service sing-box restart
                     rc-service argo restart
-
                 else
                     echo "Unsupported init system"
                     exit 1 
@@ -764,8 +878,8 @@ while true; do
         8)
            clear
             restart_argo
+            echo -e "${yellow}获取argo域名中，请稍等...\n${re}"
             sleep 3
-              
             get_argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
             echo -e "${green}ArgoDomain：${re}${purple}$get_argodomain${re}"
             ArgoDomain=$get_argodomain
@@ -783,11 +897,18 @@ while true; do
             echo -e "${green}\nvmess已更新到节点文件中,更新订阅或手动复制以下vmess-argo节点\n${re}"
             echo -e "${yellow}$new_vmess_url\n${re}"              
            ;;
+        9)
+           disable_open_sub
+           ;;
+        w|W)
+           clear
+           curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o ssh_tool.sh && chmod +x ssh_tool.sh && ./ssh_tool.sh
+           ;;           
         0)
            exit 0
            ;;
         *)
-           echo -e "${red}无效的选项，请输入 0 到 8${re}"
+           echo -e "${red}无效的选项，请输入 0 到 w${re}"
            ;;
    esac
    read -n 1 -s -r -p $'\033[1;91m按任意键继续...\033[0m'

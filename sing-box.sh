@@ -421,7 +421,6 @@ nginx -t
 if [ $? -eq 0 ]; then
     if [ -f /etc/alpine-release ]; then
         nginx -s reload
-        rc-service enable nginx
         rc-service nginx restart
     else
         rm /run/nginx.pid

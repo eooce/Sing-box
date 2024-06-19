@@ -139,7 +139,6 @@ install_singbox() {
     vless_bru_port=$(($vless_port + 1)) 
     tuic_port=$(($vless_port + 2))
     hy2_port=$(($vless_port + 3)) 
-    shadowtls_port=$(($vless_port + 4)) 
     uuid=$(cat /proc/sys/kernel/random/uuid)
     password=$(< /dev/urandom tr -dc 'A-Za-z0-9' | head -c 24)
     output=$(/etc/sing-box/sing-box generate reality-keypair)
@@ -148,7 +147,6 @@ install_singbox() {
 
     iptables -A INPUT -p tcp --dport 8001 -j ACCEPT
     iptables -A INPUT -p tcp --dport $vless_port -j ACCEPT
-    iptables -A INPUT -p tcp --dport $vless_bru_port -j ACCEPT
     iptables -A INPUT -p udp --dport $hy2_port -j ACCEPT
     iptables -A INPUT -p udp --dport $tuic_port -j ACCEPT
 
@@ -801,7 +799,7 @@ change_hosts() {
     sed -i '2s/.*/::1         localhost/' /etc/hosts
 }
 
-# 变更配置
+# 变更配置子菜单
 change_config() {
 if [ ${check_singbox} -eq 0 ]; then
     clear
@@ -925,6 +923,7 @@ else
 fi
 }
 
+# 订阅管理子菜单
 disable_open_sub() {
 if [ ${check_singbox} -eq 0 ]; then
     clear
@@ -972,7 +971,7 @@ else
 fi
 }
 
-# singbox 管理
+# singbox 管理子菜单
 manage_singbox() {
     green "1. 启动sing-box服务"
     skyblue "------------"
@@ -989,7 +988,7 @@ manage_singbox() {
     esac
 }
 
-# Argo 管理
+# Argo 管理子菜单
 manage_argo() {
 if [ ${check_argo} -eq 2 ]; then
     yellow "Argo 尚未安装！"

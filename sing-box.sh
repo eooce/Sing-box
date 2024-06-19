@@ -52,6 +52,20 @@ else
 fi
 }
 
+# 检查 nginx 是否已安装
+check_nginx() {
+if command -v nginx &>/dev/null; then
+    if [ -f /etc/alpine-release ]; then
+        rc-service nginx status | grep -q "started" && green "running" && return 0 || yellow "not running" && return 1
+    else 
+        [ "$(systemctl is-active nginx)" = "active" ] && green "running" && return 0 || yellow "not running" && return 1
+    fi
+else
+    red "not installed"
+    return 2
+fi
+}
+
 #根据系统类型安装、卸载依赖
 manage_packages() {
     if [ $# -lt 2 ]; then
@@ -799,7 +813,7 @@ change_hosts() {
     sed -i '2s/.*/::1         localhost/' /etc/hosts
 }
 
-# 变更配置子菜单
+# 变更配置
 change_config() {
 if [ ${check_singbox} -eq 0 ]; then
     clear
@@ -923,7 +937,6 @@ else
 fi
 }
 
-# 订阅管理子菜单
 disable_open_sub() {
 if [ ${check_singbox} -eq 0 ]; then
     clear
@@ -971,24 +984,27 @@ else
 fi
 }
 
-# singbox 管理子菜单
+# singbox 管理
 manage_singbox() {
     green "1. 启动sing-box服务"
-    skyblue "------------"
+    skyblue "-------------------"
     green "2. 停止sing-box服务"
-    skyblue "------------"
+    skyblue "-------------------"
     green "3. 重启sing-box服务"
+    skyblue "-------------------"
+    purple "4. 返回主菜单"
     skyblue "------------"
     reading "\n请输入选择: " choice
     case "${choice}" in
         1) start_singbox ;;  
         2) stop_singbox ;;
         3) restart_singbox ;;
+        4) menu ;;
         *) red "无效的选项！" ;;
     esac
 }
 
-# Argo 管理子菜单
+# Argo 管理
 manage_argo() {
 if [ ${check_argo} -eq 2 ]; then
     yellow "Argo 尚未安装！"
@@ -1004,13 +1020,13 @@ else
     green "3. 重启Argo服务"
     skyblue "------------"
     green "4. 添加Argo固定隧道"
-    skyblue "------------"
+    skyblue "----------------"
     green "5. 切换回Argo临时隧道"
-    skyblue "------------"
+    skyblue "------------------"
     green "6. 重获获取Argo临时域名"
-    skyblue "------------"
+    skyblue "-------------------"
     purple "7. 返回主菜单"
-    skyblue "------------"
+    skyblue "-----------"
     reading "\n请输入选择: " choice
     case "${choice}" in
         1)
@@ -1021,7 +1037,7 @@ else
             restart_argo ;; 
         4)
             clear
-            yellow "\n固定隧道可为json或token，固定隧道端口为8001，自行在cloudflare后台设置\n\njson在f佬维护的站点里获取，获取地址：${purple}https://fscarmen.cloudflare.now.cc${re}\n"
+            yellow "\n固定隧道可为json或token，固定隧道端口为8001，自行在cf后台设置\n\njson在f佬维护的站点里获取，获取地址：${purple}https://fscarmen.cloudflare.now.cc${re}\n"
             reading "\n请输入你的argo域名: " argo_domain
             ArgoDomain=$argo_domain
             reading "\n请输入你的argo密钥(token或json): " argo_auth
@@ -1139,28 +1155,31 @@ fi
 # 主菜单
 menu() {
    check_singbox &>/dev/null; check_singbox=$?
+   check_nginx &>/dev/null; check_nginx=$?
    check_argo &>/dev/null; check_argo=$?
    check_singbox_status=$(check_singbox)
+   check_nginx_status=$(check_nginx)
    check_argo_status=$(check_argo)
    clear
    echo ""
-   purple "=== 老王sing-box一键安装脚本 ==="
-   green "sing-box 状态: ${check_singbox_status}   ${green}Argo 状态:${re} ${check_argo_status}"
-   echo ""
-   green "1. 安装 sing-box"
-   red "2. 卸载 sing-box"
-   echo "================="
+   purple "=== 老王sing-box一键安装脚本 ===\n"
+   green "singbox状态: ${check_singbox_status}"
+   green "Nginx  状态: ${check_nginx_status}"
+   green "Argo   状态: ${check_argo_status}\n"
+   green "1. 安装sing-box"
+   red "2. 卸载sing-box"
+   echo "==============="
    green "3. sing-box管理"
    green "4. Argo隧道管理"
-   echo  "================="
+   echo  "==============="
    green  "5. 查看节点信息"
    green  "6. 修改节点配置"
    green  "7. 管理节点订阅"
-   echo  "================="
+   echo  "==============="
    purple "8. ssh综合工具箱"
-   echo  "================="
+   echo  "==============="
    red "0. 退出脚本"
-   echo "================="
+   echo "==========="
    reading "请输入选择(0-8): " choice
    echo ""
 }
@@ -1191,7 +1210,7 @@ while true; do
                     echo "Unsupported init system"
                     exit 1 
                 fi
-		
+
                 sleep 2
                 get_info
                 add_nginx_conf

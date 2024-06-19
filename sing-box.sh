@@ -1192,7 +1192,7 @@ while true; do
                     echo "Unsupported init system"
                     exit 1 
                 fi
-
+		
                 sleep 2
                 get_info
                 add_nginx_conf

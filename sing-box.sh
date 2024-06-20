@@ -1171,7 +1171,7 @@ if [ ${check_singbox} -eq 0 ]; then
     lujing=$(grep -oP 'location /\K[^ ]+' "/etc/nginx/nginx.conf")
     green "\n节点订阅链接：http://${server_ip}/${lujing}\n"
 else 
-    yellow "sing-box 尚未安装或未运行,请先安装或启动singbox"
+    yellow "sing-box 尚未安装或未运行,请先安装或启动sing-box"
     sleep 1
     menu
 fi

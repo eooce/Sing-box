@@ -19,7 +19,6 @@ server_name="sing-box"
 work_dir="/etc/sing-box"
 config_dir="${work_dir}/config.json"
 client_dir="${work_dir}/url.txt"
-nginx_dir="/etc/nginx/nginx.conf"
 
 # 检查是否为root下运行
 [[ $EUID -ne 0 ]] && red "请在root用户下运行脚本" && exit 1
@@ -149,10 +148,11 @@ install_singbox() {
     chown root:root ${work_dir} && chmod +x ${work_dir}/${server_name} ${work_dir}/argo
 
    # 生成随机端口和密码
-    vless_port=$(shuf -i 1000-65535 -n 1) 
+    vless_port=$(shuf -i 1000-65000 -n 1) 
     vless_bru_port=$(($vless_port + 1)) 
     tuic_port=$(($vless_port + 2))
     hy2_port=$(($vless_port + 3)) 
+    grpc_port=$(($vless_port + 4)) 
     uuid=$(cat /proc/sys/kernel/random/uuid)
     password=$(< /dev/urandom tr -dc 'A-Za-z0-9' | head -c 24)
     output=$(/etc/sing-box/sing-box generate reality-keypair)
@@ -161,6 +161,7 @@ install_singbox() {
 
     iptables -A INPUT -p tcp --dport 8001 -j ACCEPT
     iptables -A INPUT -p tcp --dport $vless_port -j ACCEPT
+    iptables -A INPUT -p tcp --dport $grpc_port -j ACCEPT
     iptables -A INPUT -p udp --dport $hy2_port -j ACCEPT
     iptables -A INPUT -p udp --dport $tuic_port -j ACCEPT
 
@@ -229,17 +230,59 @@ cat > "${config_dir}" << EOF
         ],
         "tls": {
             "enabled": true,
-            "server_name": "www.yahoo.com",
+            "server_name": "www.zara.com",
             "reality": {
                 "enabled": true,
                 "handshake": {
-                    "server": "www.yahoo.com",
+                    "server": "www.zara.com",
                     "server_port": 443
                 },
                 "private_key": "$private_key",
                 "short_id": [
                   ""
                 ]
+            }
+        }
+    },
+
+    {
+        "tag":"vless-grpc-reality",
+        "type":"vless",
+        "sniff":true,
+        "sniff_override_destination":true,
+        "listen":"::",
+        "listen_port":$grpc_port,
+        "users":[
+            {
+                "uuid":"$uuid"
+            }
+        ],
+        "tls":{
+            "enabled":true,
+            "server_name":"www.zara.com",
+            "reality":{
+                "enabled":true,
+                "handshake":{
+                    "server":"www.zara.com",
+                    "server_port":443
+                },
+                "private_key":"$private_key",
+                "short_id":[
+                    ""
+                ]
+            }
+        },
+        "transport": {
+            "type": "grpc",
+            "service_name": "grpc"
+        },
+        "multiplex":{
+            "enabled":true,
+            "padding":true,
+            "brutal":{
+                "enabled":true,
+                "up_mbps":1000,
+                "down_mbps":1000
             }
         }
     },
@@ -487,7 +530,7 @@ EOF
 }
 
 get_info() {  
-  server_ip=$(curl -s ipv4.ip.sb || curl -s --max-time 1 ipv6.ip.sb)
+  server_ip=$(curl -s ipv4.ip.sb || { ipv6=$(curl -s --max-time 1 ipv6.ip.sb); echo "[$ipv6]"; })
 
   isp=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g')
 
@@ -495,14 +538,16 @@ get_info() {
 
   echo -e "${green}\nArgoDomain：${re}${purple}$argodomain${re}"
 
-  yellow "\n温馨提醒：如节点不通，请打开V2rayN里的 “跳过证书验证”，或将节点的跳过证书验证设置为“true”\n"
+  yellow "\n温馨提醒：如某个节点不通，请打开V2rayN里的 “跳过证书验证”，或将节点的跳过证书验证设置为“true”\n"
 
-  VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"www.visa.com.sg\", \"port\": \"443\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess?ed=2048\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"randomized\", \"allowlnsecure\": \"flase\"}"
+  VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"8.210.200.31\", \"port\": \"11991\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess?ed=2048\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"randomized\", \"allowlnsecure\": \"flase\"}"
 
   cat > ${work_dir}/url.txt <<EOF
-vless://${uuid}@${server_ip}:${vless_port}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.yahoo.com&fp=chrome&pbk=${public_key}&type=tcp&headerType=none#${isp}
+vless://${uuid}@${server_ip}:${vless_port}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.zara.com&fp=chrome&pbk=${public_key}&type=tcp&headerType=none#${isp}
 
-vmess://$(echo "$VMESS" | base64 -w0)
+vless://${uuid}@${server_ip}:${grpc_port}?encryption=none&security=reality&sni=www.zara.com&fp=chrome&pbk=${public_key}&type=grpc&authority=www.zara.com&serviceName=grpc&mode=gun#${isp}
+
+vmess://$(echo "$VMESS" | base64 -w0)  
 
 hysteria2://${uuid}@${server_ip}:${hy2_port}/?sni=www.bing.com&alpn=h3&insecure=1#${isp}
 
@@ -815,7 +860,7 @@ change_hosts() {
 
 # 变更配置
 change_config() {
-if [ ${check_singbox} -eq 0 ]; then
+if [ ${check_singbox} -ne 2 ]; then
     clear
     echo ""
     green "1. 修改端口"
@@ -830,27 +875,39 @@ if [ ${check_singbox} -eq 0 ]; then
     case "${choice}" in
         1)
             echo ""
-            green "1. 修改vless-reality端口"
+            green "1. 修改tcp-reality端口"
             skyblue "------------"
-            green "2. 修改hysteria2端口"
+            green "1. 修改grpc-reality端口"
             skyblue "------------"
-            green "3. 修改tuic端口"
+            green "3. 修改hysteria2端口"
             skyblue "------------"
-            purple "4. 返回上一级菜单"
+            green "4. 修改tuic端口"
+            skyblue "------------"
+            purple "5. 返回上一级菜单"
             skyblue "------------"
             reading "请输入选择: " choice
             case "${choice}" in
                 1)
-                    reading "\n请输入vless-reality端口 (回车跳过将使用随机端口): " new_port
+                    reading "\n请输入vless-tcp-reality端口 (回车跳过将使用随机端口): " new_port
                     [ -z "$new_port" ] && new_port=$(shuf -i 2000-65000 -n 1)
-                    sed -i '/"type": "vless"/,/listen_port/ s/"listen_port": [0-9]\+/"listen_port": '"$new_port"'/' $config_dir
+                    sed -i '/"tag": "vless-reality-vesion"/,/listen_port/ s/"listen_port": [0-9]\+/"listen_port": '"$new_port"'/' $config_dir
                     restart_singbox
-                    sed -i 's/\(vless:\/\/[^@]*@[^:]*:\)[0-9]\{1,\}/\1'"$new_port"'/' $client_dir
+                    sed -i '0,/vless:\/\/\([^@]*@[^:]*:\)[0-9]\{1,\}/s//vless:\/\/\1'"$new_port"'/' /etc/sing-box/url.txt
                     base64 -w0 /etc/sing-box/url.txt > /etc/sing-box/sub.txt
                     while IFS= read -r line; do yellow "$line"; done < ${work_dir}/url.txt
-                    green "\nvless-reality端口已修改成：${purple}$new_port${re} ${green}请更新订阅或手动更改vless-reality端口${re}\n"
+                    green "\nvless-tcp-reality端口已修改成：${purple}$new_port${re} ${green}请更新订阅或手动更改vless-tcp-reality端口${re}\n"
                     ;;
                 2)
+                    reading "\n请输入vless-grpc-reality端口 (回车跳过将使用随机端口): " new_port
+                    [ -z "$new_port" ] && new_port=$(shuf -i 2000-65000 -n 1)
+                    sed -i '/"tag":"vless-grpc-reality"/,/listen_port/s/"listen_port":[0-9]\{1,\}/"listen_port":'"$new_port"'/' $config_dir
+                    restart_singbox
+                    sed -i '0,/vless:\/\/\([^@]*@[^:]*:\)[0-9]\{1,\}/! {0,/vless:\/\/\([^@]*@[^:]*:\)[0-9]\{1,\}/s//vless:\/\/\1'"$new_port"'/}' $client_dir
+                    base64 -w0 /etc/sing-box/url.txt > /etc/sing-box/sub.txt
+                    while IFS= read -r line; do yellow "$line"; done < ${work_dir}/url.txt
+                    green "\nvless-grpc-reality端口已修改成：${purple}$new_port${re} ${green}请更新订阅或手动更改vless-grpc-reality端口${re}\n"
+                    ;;
+                3)
                     reading "\n请输入hysteria2端口 (回车跳过将使用随机端口): " new_port
                     [ -z "$new_port" ] && new_port=$(shuf -i 2000-65000 -n 1)
                     sed -i '/"type": "hysteria2"/,/listen_port/ s/"listen_port": [0-9]\+/"listen_port": '"$new_port"'/' $config_dir
@@ -860,7 +917,7 @@ if [ ${check_singbox} -eq 0 ]; then
                     while IFS= read -r line; do yellow "$line"; done < ${work_dir}/url.txt
                     green "\nhysteria2端口已修改为：${purple}${new_port}${re} ${green}请更新订阅或手动更改hysteria2端口${re}\n"
                     ;;
-                3)
+                4)
                     reading "\n请输入tuic端口 (回车跳过将使用随机端口): " new_port
                     [ -z "$new_port" ] && new_port=$(shuf -i 2000-65000 -n 1)
                     sed -i '/"type": "tuic"/,/listen_port/ s/"listen_port": [0-9]\+/"listen_port": '"$new_port"'/' $config_dir
@@ -870,7 +927,7 @@ if [ ${check_singbox} -eq 0 ]; then
                     while IFS= read -r line; do yellow "$line"; done < ${work_dir}/url.txt
                     green "\ntuic端口已修改为：${purple}${new_port}${re} ${green}请更新订阅或手动更改tuic端口${re}\n"
                     ;;
-                4)
+                5)
                     change_config
                     ;;
                 *)
@@ -901,14 +958,16 @@ if [ ${check_singbox} -eq 0 ]; then
             ;;
         3)  
             clear
-            green "\n1. itunes.apple.com\n2. addons.mozilla.org"
+            green "\n1. www.svix.com\n\n2. www.asurion.com\n\n3. www.latamairlines.com"
             reading "\n请输入新的Reality伪装域名(可自定义输入,回车留空将使用默认1): " new_sni
                 if [ -z "$new_sni" ]; then    
-                    new_sni="itunes.apple.com"
+                    new_sni="www.svix.com"
                 elif [[ "$new_sni" == "1" ]]; then
-                    new_sni="itunes.apple.com"
+                    new_sni="www.svix.com"
                 elif [[ "$new_sni" == "2" ]]; then
-                    new_sni="addons.mozilla.org"
+                    new_sni="www.asurion.com"
+                elif [[ "$new_sni" == "3" ]]; then
+                    new_sni="www.latamairlines.com"
                 else
                     new_sni="$new_sni"
                 fi
@@ -918,6 +977,7 @@ if [ ${check_singbox} -eq 0 ]; then
                 ' "$config_dir" > "$config_file.tmp" && mv "$config_file.tmp" "$config_dir"
                 restart_singbox
                 sed -i "s/\(vless:\/\/[^\?]*\?\([^\&]*\&\)*sni=\)[^&]*/\1$new_sni/" $client_dir
+                sed -i "s/\(vless:\/\/[^\?]*\?\([^\&]*\&\)*authority=\)[^&]*/\1$new_sni/" $client_dir
                 base64 -w0 $client_dir > /etc/sing-box/sub.txt
                 while IFS= read -r line; do yellow "$line"; done < ${work_dir}/url.txt
                 echo ""
@@ -927,7 +987,7 @@ if [ ${check_singbox} -eq 0 ]; then
             menu
             ;; 
         *)
-            read "无效的选项！"
+            red "无效的选项！"
             ;; 
     esac
 else
@@ -1014,19 +1074,19 @@ else
     clear
     echo ""
     green "1. 启动Argo服务"
-    skyblue "------------"
+    skyblue "--------------"
     green "2. 停止Argo服务"
-    skyblue "------------"
+    skyblue "--------------"
     green "3. 重启Argo服务"
-    skyblue "------------"
+    skyblue "--------------"
     green "4. 添加Argo固定隧道"
-    skyblue "----------------"
-    green "5. 切换回Argo临时隧道"
     skyblue "------------------"
+    green "5. 切换回Argo临时隧道"
+    skyblue "--------------------"
     green "6. 重新获取Argo临时域名"
-    skyblue "-------------------"
+    skyblue "---------------------"
     purple "7. 返回主菜单"
-    skyblue "-----------"
+    skyblue "-------------"
     reading "\n请输入选择: " choice
     case "${choice}" in
         1)
@@ -1037,12 +1097,12 @@ else
             restart_argo ;; 
         4)
             clear
-            yellow "\n固定隧道可为json或token，固定隧道端口为8001，自行在cf后台设置\n\njson在f佬维护的站点里获取，获取地址：${purple}https://fscarmen.cloudflare.now.cc${re}\n"
+            yellow "\n固定隧道可为json或token，若使用token，隧道端口为8001，自行在cloudflare后台设置\n\njson在f佬维护的站点里获取，获取地址：${purple}https://fscarmen.cloudflare.now.cc${re}\n"
             reading "\n请输入你的argo域名: " argo_domain
             ArgoDomain=$argo_domain
             reading "\n请输入你的argo密钥(token或json): " argo_auth
             if [[ $argo_auth =~ TunnelSecret ]]; then
-                echo $argo_auth > ${work_dir}/tunnel.json
+                echo $argo_auth > ${work_dir}/tunnel.json 
                 cat > ${work_dir}/tunnel.yml << EOF
 tunnel: $(cut -d\" -f12 <<< "$argo_auth")
 credentials-file: ${work_dir}/tunnel.json
@@ -1142,7 +1202,7 @@ check_nodes() {
 if [ ${check_singbox} -eq 0 ]; then
     while IFS= read -r line; do purple "${purple}$line"; done < ${work_dir}/url.txt
     echo ""
-    server_ip=$(curl -s ipv4.ip.sb || curl -s --max-time 1 ipv6.ip.sb)
+    server_ip=$(curl -s ipv4.ip.sb || { ipv6=$(curl -s --max-time 1 ipv6.ip.sb); echo "[$ipv6]"; })
     lujing=$(grep -oP 'location /\K[^ ]+' "/etc/nginx/nginx.conf")
     green "\n节点订阅链接：http://${server_ip}/${lujing}\n"
 else 
@@ -1185,7 +1245,7 @@ menu() {
 }
 
 # 捕获 Ctrl+C 信号
-trap 'red "已取消操作"; exit' INT
+trap 'yellow "已取消操作"; exit' INT
 
 # 主循环
 while true; do

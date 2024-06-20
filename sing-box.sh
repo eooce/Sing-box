@@ -744,6 +744,27 @@ else
 fi
 }
 
+# 重启 nginx
+restart_nginx() {
+if command -v nginx &>/dev/null; then
+    yellow "正在重启 nginx 服务\n"
+    if [ -f /etc/alpine-release ]; then
+        rc-service nginx restart
+    else
+        systemctl restart nginx
+    fi
+    if [ $? -eq 0 ]; then
+        green "Nginx 服务已成功重启\n"
+    else
+        red "Nginx 重启失败\n"
+    fi
+else
+    yellow "Nginx 尚未安装！\n"
+    sleep 1
+    menu
+fi
+}
+
 # 卸载 sing-box
 uninstall_singbox() {
    reading "确定要卸载 sing-box 吗? (y/n): " choice
@@ -937,7 +958,9 @@ if [ ${check_singbox} -eq 0 ]; then
     skyblue "------------"
     green "2. 开启节点订阅"
     skyblue "------------"
-    purple "3. 返回主菜单"
+    green "3. 更换订阅端口"
+    skyblue "------------"
+    purple "4. 返回主菜单"
     skyblue "------------"
     reading "请输入选择: " choice
     case "${choice}" in
@@ -956,13 +979,31 @@ if [ ${check_singbox} -eq 0 ]; then
             ;; 
         2)
             green "\n已开启节点订阅\n"
-            server_ip=$(curl -s ipv4.ip.sb || curl -s --max-time 1 ipv6.ip.sb)
+            server_ip=$(curl -s ipv4.ip.sb || { ipv6=$(curl -s --max-time 1 ipv6.ip.sb); echo "[$ipv6]"; })
             password=$(tr -dc A-Za-z < /dev/urandom | head -c 32) 
             sed -i -E "s/(location \/)[^ ]+/\1${password//\//\\/}/" /etc/nginx/nginx.conf
             start_nginx
             green "\n新的节点订阅链接：http://${server_ip}/${password}\n"
             ;; 
-        3)  menu ;; 
+
+        *)
+            reading "请输入新的订阅端口(1-65535):" sub_port
+            [ -z "$sub_port" ] && sub_port=$(shuf -i 2000-65000 -n 1)
+            until [[ -z $(netstat -tuln | grep -w tcp | awk '{print $4}' | sed 's/.*://g' | grep -w "$sub_port") ]]; do
+                if [[ -n $(netstat -tuln | grep -w tcp | awk '{print $4}' | sed 's/.*://g' | grep -w "$sub_port") ]]; then
+                    echo -e "${red}${new_port}端口已经被其他程序占用，请更换端口重试${re}"
+                    reading "请输入新的订阅端口(1-65535):" sub_port
+                    [[ -z $sub_port ]] && sub_port=$(shuf -i 2000-65000 -n 1)
+                fi
+            done
+            sed -i 's/listen [0-9]\+;/listen '$sub_port';/g' /etc/nginx/nginx.conf
+            path=$(sed -n 's/.*location \/\([^ ]*\).*/\1/p' /etc/nginx/nginx.conf)
+            server_ip=$(curl -s ipv4.ip.sb || { ipv6=$(curl -s --max-time 1 ipv6.ip.sb); echo "[$ipv6]"; })
+            restart_nginx
+            green "\n订阅端口更换成功\n"
+            green "新的订阅链接为：http://$server_ip:$sub_port/$path\n"
+            ;; 
+        4)  menu ;; 
         *)  red "无效的选项！" ;;
     esac
 else

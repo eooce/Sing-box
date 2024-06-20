@@ -229,11 +229,11 @@ cat > "${config_dir}" << EOF
         ],
         "tls": {
             "enabled": true,
-            "server_name": "www.yahoo.com",
+            "server_name": "www.zara.com",
             "reality": {
                 "enabled": true,
                 "handshake": {
-                    "server": "www.yahoo.com",
+                    "server": "www.zara.com",
                     "server_port": 443
                 },
                 "private_key": "$private_key",
@@ -500,7 +500,7 @@ get_info() {
   VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"www.visa.com.sg\", \"port\": \"443\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess?ed=2048\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"randomized\", \"allowlnsecure\": \"flase\"}"
 
   cat > ${work_dir}/url.txt <<EOF
-vless://${uuid}@${server_ip}:${vless_port}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.yahoo.com&fp=chrome&pbk=${public_key}&type=tcp&headerType=none#${isp}
+vless://${uuid}@${server_ip}:${vless_port}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.zara.com&fp=chrome&pbk=${public_key}&type=tcp&headerType=none#${isp}
 
 vmess://$(echo "$VMESS" | base64 -w0)
 
@@ -918,14 +918,16 @@ if [ ${check_singbox} -eq 0 ]; then
             ;;
         3)  
             clear
-            green "\n1. itunes.apple.com\n2. addons.mozilla.org"
+            green "\n1. www.svix.com\n\n2. www.asurion.com\n\n3. www.latamairlines.com"
             reading "\n请输入新的Reality伪装域名(可自定义输入,回车留空将使用默认1): " new_sni
                 if [ -z "$new_sni" ]; then    
-                    new_sni="itunes.apple.com"
+                    new_sni="www.svix.com"
                 elif [[ "$new_sni" == "1" ]]; then
-                    new_sni="itunes.apple.com"
+                    new_sni="www.svix.com"
                 elif [[ "$new_sni" == "2" ]]; then
-                    new_sni="addons.mozilla.org"
+                    new_sni="www.asurion.com"
+                elif [[ "$new_sni" == "3" ]]; then
+                    new_sni="www.latamairlines.com"
                 else
                     new_sni="$new_sni"
                 fi

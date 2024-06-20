@@ -870,12 +870,8 @@ if [ ${check_singbox} -eq 0 ]; then
                     while IFS= read -r line; do yellow "$line"; done < ${work_dir}/url.txt
                     green "\ntuic端口已修改为：${purple}${new_port}${re} ${green}请更新订阅或手动更改tuic端口${re}\n"
                     ;;
-                4)
-                    change_config
-                    ;;
-                *)
-                    red "无效的选项，请输入 1 到 4"
-                    ;;
+                4)  change_config ;;
+                *)  red "无效的选项，请输入 1 到 4" ;;
             esac
             ;;
         2)
@@ -923,12 +919,8 @@ if [ ${check_singbox} -eq 0 ]; then
                 echo ""
                 green "\nReality sni已修改为：${purple}${new_sni}${re} ${green}请更新订阅或手动更改reality节点的sni域名${re}\n"
             ;; 
-        4)
-            menu
-            ;; 
-        *)
-            read "无效的选项！"
-            ;; 
+        4)  menu ;;
+        *)  read "无效的选项！" ;; 
     esac
 else
     yellow "sing-box 尚未安装！"
@@ -970,12 +962,8 @@ if [ ${check_singbox} -eq 0 ]; then
             start_nginx
             green "\n新的节点订阅链接：http://${server_ip}/${password}\n"
             ;; 
-        3)
-            menu
-            ;; 
-        *)
-            red "无效的选项！"
-            ;; 
+        3)  menu ;; 
+        *)  red "无效的选项！" ;;
     esac
 else
     yellow "sing-box 尚未安装！"
@@ -1029,12 +1017,9 @@ else
     skyblue "-----------"
     reading "\n请输入选择: " choice
     case "${choice}" in
-        1)
-            start_argo ;; 
-        2)
-            stop_argo ;;  
-        3)
-            restart_argo ;; 
+        1)  start_argo ;;
+        2)  stop_argo ;; 
+        3)  restart_argo ;; 
         4)
             clear
             yellow "\n固定隧道可为json或token，固定隧道端口为8001，自行在cf后台设置\n\njson在f佬维护的站点里获取，获取地址：${purple}https://fscarmen.cloudflare.now.cc${re}\n"
@@ -1106,7 +1091,6 @@ EOF
         7)  menu ;; 
         *)  red "无效的选项！" ;;
     esac
-
 fi
 }
 

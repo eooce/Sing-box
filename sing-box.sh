@@ -143,10 +143,11 @@ install_singbox() {
     latest_version=$(curl -s "https://api.github.com/repos/SagerNet/sing-box/releases" | jq -r '[.[] | select(.prerelease==false)][0].tag_name | sub("^v"; "")')
     curl -sLo "${work_dir}/${server_name}.tar.gz" "https://github.com/SagerNet/sing-box/releases/download/v${latest_version}/sing-box-${latest_version}-linux-${ARCH}.tar.gz"
     curl -sLo "${work_dir}/argo" "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}"
+    curl -L -sS -o "${work_dir}/qrencode" "https://github.com/eooce/test/releases/download/${ARCH}/qrencode-linux-amd64"
     tar -xzf "${work_dir}/${server_name}.tar.gz" -C "${work_dir}/" && \
     mv "${work_dir}/sing-box-${latest_version}-linux-${ARCH}/sing-box" "${work_dir}/" && \
     rm -rf "${work_dir}/${server_name}.tar.gz" "${work_dir}/sing-box-${latest_version}-linux-${ARCH}"
-    chown root:root ${work_dir} && chmod +x ${work_dir}/${server_name} ${work_dir}/argo
+    chown root:root ${work_dir} && chmod +x ${work_dir}/${server_name} ${work_dir}/argo ${work_dir}/qrencode
 
    # 生成随机端口和密码
     vless_port=$(shuf -i 1000-65535 -n 1) 
@@ -369,24 +370,21 @@ cat > "${config_dir}" << EOF
         "type": "remote",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-netflix.srs",
-        "download_detour": "direct",
-        "update_interval": "1d"
+        "download_detour": "direct"
       },
       {
         "tag": "geosite-openai",
         "type": "remote",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs",
-        "download_detour": "direct",
-        "update_interval": "1d"
+        "download_detour": "direct"
       },      
       {
         "tag": "geosite-category-ads-all",
         "type": "remote",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ads-all.srs",
-        "download_detour": "direct",
-        "update_interval": "1d"
+        "download_detour": "direct"
       }
     ],
     "auto_detect_interface": true,
@@ -513,7 +511,7 @@ while IFS= read -r line; do echo -e "${purple}$line"; done < ${work_dir}/url.txt
 base64 -w0 ${work_dir}/url.txt > ${work_dir}/sub.txt
 echo ""
 green "节点订阅链接：http://${server_ip}/${password}\n\n订阅链接适用于V2rayN,Nekbox,Sterisand,Loon,小火箭,圈X等\n"
-qrencode -t ANSIUTF8 -m 2 "http://${server_ip}/${password}"
+$work_dir/qrencode "http://${server_ip}/${password}"
 echo ""
 }
 
@@ -1223,7 +1221,7 @@ while true; do
                 yellow "sing-box 已经安装！"
             else
                 fix_nginx
-                manage_packages install nginx jq tar iptables openssl coreutils qrencode
+                manage_packages install nginx jq tar iptables openssl coreutils
                 install_singbox
 
                 if [ -x "$(command -v systemctl)" ]; then

@@ -986,7 +986,7 @@ if [ ${check_singbox} -eq 0 ]; then
             green "\n新的节点订阅链接：http://${server_ip}/${password}\n"
             ;; 
 
-        *)
+        3)
             reading "请输入新的订阅端口(1-65535):" sub_port
             [ -z "$sub_port" ] && sub_port=$(shuf -i 2000-65000 -n 1)
             until [[ -z $(netstat -tuln | grep -w tcp | awk '{print $4}' | sed 's/.*://g' | grep -w "$sub_port") ]]; do

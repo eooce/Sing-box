@@ -19,7 +19,6 @@ server_name="sing-box"
 work_dir="/etc/sing-box"
 config_dir="${work_dir}/config.json"
 client_dir="${work_dir}/url.txt"
-nginx_dir="/etc/nginx/nginx.conf"
 
 # 检查是否为root下运行
 [[ $EUID -ne 0 ]] && red "请在root用户下运行脚本" && exit 1
@@ -916,16 +915,18 @@ if [ ${check_singbox} -eq 0 ]; then
             ;;
         3)  
             clear
-            green "\n1. www.svix.com\n\n2. www.asurion.com\n\n3. www.latamairlines.com"
+            green "\n1. www.ups.com\n\n2. www.svix.com\n\n3. www.apple.com\n\n4. www.hubspot.com\n"
             reading "\n请输入新的Reality伪装域名(可自定义输入,回车留空将使用默认1): " new_sni
                 if [ -z "$new_sni" ]; then    
-                    new_sni="www.svix.com"
+                    new_sni="www.ups.com"
                 elif [[ "$new_sni" == "1" ]]; then
-                    new_sni="www.svix.com"
+                    new_sni="www.ups.com"
                 elif [[ "$new_sni" == "2" ]]; then
-                    new_sni="www.asurion.com"
+                    new_sni="www.svix.com"
                 elif [[ "$new_sni" == "3" ]]; then
-                    new_sni="www.latamairlines.com"
+                    new_sni="www.apple.com"
+                elif [[ "$new_sni" == "3" ]]; then
+                    new_sni="www.hubspot.com"
                 else
                     new_sni="$new_sni"
                 fi

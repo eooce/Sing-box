@@ -102,11 +102,11 @@ manage_packages() {
             fi
             yellow "正在卸载 ${package}..."
             if command -v apt &>/dev/null; then
-                apt remove -y "$package"
+                apt remove -y "$package" && apt autoremove -y
             elif command -v dnf &>/dev/null; then
-                dnf remove -y "$package"
+                dnf remove -y "$package" && dnf autoremove -y
             elif command -v yum &>/dev/null; then
-                yum remove -y "$package"
+                yum remove -y "$package" && yum autoremove -y
             elif command -v apk &>/dev/null; then
                 apk del "$package"
             else
@@ -553,6 +553,8 @@ nginx -t
 
 if [ $? -eq 0 ]; then
     if [ -f /etc/alpine-release ]; then
+    	touch /run/nginx.pid
+     	pkill -f '[n]ginx'
         nginx -s reload
         rc-service nginx restart
     else

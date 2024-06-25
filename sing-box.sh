@@ -126,13 +126,12 @@ manage_packages() {
 get_realip() {
   ip=$(curl -s ipv4.ip.sb)
   if [ -z "$ip" ]; then
-      server_ip=$(curl -s --max-time 1 ipv6.ip.sb)
-      echo "[$server_ip]"
+      ipv6=$(curl -s --max-time 1 ipv6.ip.sb)
+      echo "[$ipv6]"
   else
-      org=$(curl -s http://ipinfo.io/$ip | grep '"org":' | awk -F'"' '{print $4}')
-      if echo "$org" | grep -qE 'Cloudflare|UnReal'; then
-          server_ip=$(curl -s --max-time 1 ipv6.ip.sb)
-          echo "[$server_ip]"
+      if echo "$(curl -s http://ipinfo.io/org)" | grep -qE 'Cloudflare|UnReal'; then
+          ipv6=$(curl -s --max-time 1 ipv6.ip.sb)
+          echo "[$ipv6]"
       else
           echo "$ip"
       fi

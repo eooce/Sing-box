@@ -122,6 +122,23 @@ manage_packages() {
     return 0
 }
 
+# 获取ip
+get_realip() {
+  ip=$(curl -s ipv4.ip.sb)
+  if [ -z "$ip" ]; then
+      server_ip=$(curl -s --max-time 1 ipv6.ip.sb)
+      echo "[$server_ip]"
+  else
+      org=$(curl -s http://ipinfo.io/$ip | grep '"org":' | awk -F'"' '{print $4}')
+      if echo "$org" | grep -qE 'Cloudflare|UnReal'; then
+          server_ip=$(curl -s --max-time 1 ipv6.ip.sb)
+          echo "[$server_ip]"
+      else
+          echo "$ip"
+      fi
+  fi
+}
+
 # 下载并安装 sing-box,cloudflared
 install_singbox() {
     clear
@@ -156,8 +173,8 @@ install_singbox() {
     uuid=$(cat /proc/sys/kernel/random/uuid)
     password=$(< /dev/urandom tr -dc 'A-Za-z0-9' | head -c 24)
     output=$(/etc/sing-box/sing-box generate reality-keypair)
-    private_key=$(echo "${output}" | grep -oP 'PrivateKey:\s*\K.*')
-    public_key=$(echo "${output}" | grep -oP 'PublicKey:\s*\K.*')
+    private_key=$(echo "${output}" | awk '/PrivateKey:/ {print $2}')
+    public_key=$(echo "${output}" | awk '/PublicKey:/ {print $2}')
 
     iptables -A INPUT -p tcp --dport 8001 -j ACCEPT
     iptables -A INPUT -p tcp --dport $vless_port -j ACCEPT
@@ -484,7 +501,7 @@ EOF
 }
 
 get_info() {  
-  server_ip=$(curl -s ipv4.ip.sb || curl -s --max-time 1 ipv6.ip.sb)
+  server_ip=$(get_realip)
 
   isp=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g')
 
@@ -540,12 +557,13 @@ events {
 http {
     server {
 	listen 80;
+    listen [::]:80;
 
-        location /$password {
-        alias /etc/sing-box/sub.txt;
-        default_type 'text/plain; charset=utf-8';
-        }
+    location /$password {
+      alias /etc/sing-box/sub.txt;
+      default_type 'text/plain; charset=utf-8';
     }
+  }
 }
 EOF
 
@@ -982,7 +1000,7 @@ if [ ${check_singbox} -eq 0 ]; then
             ;; 
         2)
             green "\n已开启节点订阅\n"
-            server_ip=$(curl -s ipv4.ip.sb || { ipv6=$(curl -s --max-time 1 ipv6.ip.sb); echo "[$ipv6]"; })
+            server_ip=$(get_realip)
             password=$(tr -dc A-Za-z < /dev/urandom | head -c 32) 
             sed -i -E "s/(location \/)[^ ]+/\1${password//\//\\/}/" /etc/nginx/nginx.conf
             start_nginx
@@ -1001,7 +1019,7 @@ if [ ${check_singbox} -eq 0 ]; then
             done
             sed -i 's/listen [0-9]\+;/listen '$sub_port';/g' /etc/nginx/nginx.conf
             path=$(sed -n 's/.*location \/\([^ ]*\).*/\1/p' /etc/nginx/nginx.conf)
-            server_ip=$(curl -s ipv4.ip.sb || { ipv6=$(curl -s --max-time 1 ipv6.ip.sb); echo "[$ipv6]"; })
+            server_ip=$(get_realip)
             restart_nginx
             green "\n订阅端口更换成功\n"
             green "新的订阅链接为：http://$server_ip:$sub_port/$path\n"
@@ -1170,7 +1188,7 @@ check_nodes() {
 if [ ${check_singbox} -eq 0 ]; then
     while IFS= read -r line; do purple "${purple}$line"; done < ${work_dir}/url.txt
     echo ""
-    server_ip=$(curl -s ipv4.ip.sb || curl -s --max-time 1 ipv6.ip.sb)
+    server_ip=$(get_realip)
     lujing=$(grep -oP 'location /\K[^ ]+' "/etc/nginx/nginx.conf")
     green "\n节点订阅链接：http://${server_ip}/${lujing}\n"
 else 

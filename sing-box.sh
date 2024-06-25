@@ -129,7 +129,7 @@ get_realip() {
       ipv6=$(curl -s --max-time 1 ipv6.ip.sb)
       echo "[$ipv6]"
   else
-      if echo "$(curl -s http://ipinfo.io/org)" | grep -qE 'Cloudflare|UnReal'; then
+      if echo "$(curl -s http://ipinfo.io/org)" | grep -qE 'Cloudflare|UnReal|AEZA'; then
           ipv6=$(curl -s --max-time 1 ipv6.ip.sb)
           echo "[$ipv6]"
       else

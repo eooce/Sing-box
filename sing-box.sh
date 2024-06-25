@@ -1258,5 +1258,5 @@ while true; do
         0) exit 0 ;;
         *) red "无效的选项，请输入 0 到 8" ;; 
    esac
-   read -n 1 -s -r -p $'\033[1;91m按任意键继续...\033[0m'
+   read -n 1 -s -r -p yellow "按任意键继续..."
 done

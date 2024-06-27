@@ -500,6 +500,7 @@ EOF
 }
 
 get_info() {  
+  clear
   server_ip=$(get_realip)
 
   isp=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g')
@@ -835,7 +836,7 @@ create_shortcut() {
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sing-box.sh) \$1
 EOF
   chmod +x "$work_dir/sb.sh"
-  sudo ln -sf "$work_dir/sb.sh" /usr/bin/sb
+  ln -sf "$work_dir/sb.sh" /usr/bin/sb
   if [ -s /usr/bin/sb ]; then
     green "\nsb 快捷指令创建成功\n"
   else

@@ -556,8 +556,8 @@ events {
 
 http {
     server {
-	listen 80;
-    listen [::]:80;
+      listen 80;
+      listen [::]:80;
 
     location /$password {
       alias /etc/sing-box/sub.txt;
@@ -1003,8 +1003,9 @@ if [ ${check_singbox} -eq 0 ]; then
             server_ip=$(get_realip)
             password=$(tr -dc A-Za-z < /dev/urandom | head -c 32) 
             sed -i -E "s/(location \/)[^ ]+/\1${password//\//\\/}/" /etc/nginx/nginx.conf
+	    sub_port=$(port=$(grep -E 'listen [0-9]+;' /etc/nginx/nginx.conf | awk '{print $2}' | sed 's/;//'); if [ "$port" -eq 80 ]; then echo ""; else echo "$port"; fi)
             start_nginx
-            green "\n新的节点订阅链接：http://${server_ip}/${password}\n"
+            (port=$(grep -E 'listen [0-9]+;' /etc/nginx/nginx.conf | awk '{print $2}' | sed 's/;//'); if [ "$port" -eq 80 ]; then echo ""; else echo "$port"; fi); link=$(if [ -z "$sub_port" ]; then echo "http://$server_ip/$password"; else echo "http://$server_ip:$sub_port/$password"; fi); green "\n新的节点订阅链接：$link\n"
             ;; 
 
         3)

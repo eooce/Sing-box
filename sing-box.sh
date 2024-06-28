@@ -1005,7 +1005,7 @@ if [ ${check_singbox} -eq 0 ]; then
             sed -i -E "s/(location \/)[^ ]+/\1${password//\//\\/}/" /etc/nginx/nginx.conf
 	    sub_port=$(port=$(grep -E 'listen [0-9]+;' /etc/nginx/nginx.conf | awk '{print $2}' | sed 's/;//'); if [ "$port" -eq 80 ]; then echo ""; else echo "$port"; fi)
             start_nginx
-            (port=$(grep -E 'listen [0-9]+;' /etc/nginx/nginx.conf | awk '{print $2}' | sed 's/;//'); if [ "$port" -eq 80 ]; then echo ""; else echo "$port"; fi); link=$(if [ -z "$sub_port" ]; then echo "http://$server_ip/$password"; else echo "http://$server_ip:$sub_port/$password"; fi); green "\n新的节点订阅链接：$link\n"
+            (port=$(grep -E 'listen [0-9]+;' /etc/nginx/nginx.conf | awk '{print $2}' | sed 's/;//'); if [ "$port" -eq 80 ]; then echo ""; else green "订阅端口：$port"; fi); link=$(if [ -z "$sub_port" ]; then echo "http://$server_ip/$password"; else echo "http://$server_ip:$sub_port/$password"; fi); green "\n新的节点订阅链接：$link\n"
             ;; 
 
         3)

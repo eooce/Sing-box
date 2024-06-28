@@ -988,9 +988,9 @@ if [ ${check_singbox} -eq 0 ]; then
         1)
             if command -v nginx &>/dev/null; then
                 if [ -f /etc/alpine-release ]; then
-                    rc-service argo status | grep -q "started" && rc-service nginx stop || red "nginx not running"
+                    rc-service nginx status | grep -q "started" && rc-service nginx stop || red "nginx not running"
                 else 
-                    [ "$(systemctl is-active argo)" = "active" ] && systemctl stop nginx || red "ngixn not running"
+                    [ "$(systemctl is-active nginx)" = "active" ] && systemctl stop nginx || red "ngixn not running"
                 fi
             else
                 yellow "Nginx is not installed"

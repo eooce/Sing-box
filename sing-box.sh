@@ -945,7 +945,7 @@ if [ ${check_singbox} -eq 0 ]; then
                     new_sni="www.svix.com"
                 elif [[ "$new_sni" == "3" ]]; then
                     new_sni="www.cboe.com"
-                elif [[ "$new_sni" == "3" ]]; then
+                elif [[ "$new_sni" == "4" ]]; then
                     new_sni="www.hubspot.com"
                 else
                     new_sni="$new_sni"

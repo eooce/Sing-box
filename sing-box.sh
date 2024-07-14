@@ -175,10 +175,15 @@ install_singbox() {
     private_key=$(echo "${output}" | awk '/PrivateKey:/ {print $2}')
     public_key=$(echo "${output}" | awk '/PublicKey:/ {print $2}')
 
-    iptables -A INPUT -p tcp --dport 8001 -j ACCEPT
-    iptables -A INPUT -p tcp --dport $vless_port -j ACCEPT
+    iptables -A INPUT -p tcp --dport 8001 -j ACCEPT 
+    iptables -A INPUT -p tcp --dport $vless_port -j ACCEPT 
+    iptables -A INPUT -p tcp --dport $nginx_port -j ACCEPT 
+    iptables -A INPUT -p udp --dport $tuic_port -j ACCEPT 
     iptables -A INPUT -p udp --dport $hy2_port -j ACCEPT
-    iptables -A INPUT -p udp --dport $tuic_port -j ACCEPT
+    iptables -P FORWARD ACCEPT 
+    iptables -P OUTPUT ACCEPT
+    iptables -F
+    manage_packages uninstall ufw firewalld iptables-persistent iptables-services > /dev/null 2>&1
 
     # 生成自签名证书
     openssl ecparam -genkey -name prime256v1 -out "${work_dir}/private.key"
@@ -1161,7 +1166,7 @@ fi
 get_quick_tunnel() {
 restart_argo
 yellow "获取临时argo域名中，请稍等...\n"
-sleep 3
+sleep 4
 get_argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
 green "ArgoDomain：${purple}$get_argodomain${re}"
 ArgoDomain=$get_argodomain
@@ -1258,7 +1263,7 @@ while true; do
                     exit 1 
                 fi
 
-                sleep 2
+                sleep 4
                 get_info
                 add_nginx_conf
                 create_shortcut

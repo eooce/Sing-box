@@ -166,7 +166,7 @@ install_singbox() {
 
    # 生成随机端口和密码
     vless_port=$(shuf -i 1000-65535 -n 1) 
-    vless_bru_port=$(($vless_port + 1)) 
+    nginx_port=$(($vless_port + 1)) 
     tuic_port=$(($vless_port + 2))
     hy2_port=$(($vless_port + 3)) 
     uuid=$(cat /proc/sys/kernel/random/uuid)

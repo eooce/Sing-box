@@ -20,7 +20,9 @@ export NEZHA_PORT=${NEZHA_PORT:-'5555'}
 export NEZHA_KEY=${NEZHA_KEY:-''} 
 export ARGO_DOMAIN=${ARGO_DOMAIN:-''}   
 export ARGO_AUTH=${ARGO_AUTH:-''} 
-  
+
+[ -d "$WORKDIR" ] || (mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR")
+
 read_vmess_port() {
     while true; do
         reading "请输入vmess端口 (面板开放的tcp端口): " vmess_port
@@ -142,7 +144,7 @@ download_singbox() {
   if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
       FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot" "https://github.com/eooce/test/releases/download/ARM/swith npm")
   elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
-      FILE_INFO=("https://github.com/eooce/Sing-box/releases/download/FreeBSD-amd64/sb-amd64 web" "https://github.com/eooce/test/releases/download/freebsd/bot bot" "https://github.com/eooce/test/releases/download/freebsd/swith npm")
+      FILE_INFO=("https://github.com/eooce/test/releases/download/freebsd/sb web" "https://github.com/eooce/test/releases/download/freebsd/bot bot" "https://github.com/eooce/test/releases/download/freebsd/swith npm")
   else
       echo "Unsupported architecture: $ARCH"
       exit 1

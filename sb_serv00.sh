@@ -59,37 +59,34 @@ read_tuic_port() {
     done
 }
 
-install_nz() {
+read_nz_variables() {
   if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
-    green "使用自定义变量哪吒运行哪吒探针"
-    return 0
+      green "使用自定义变量哪吒运行哪吒探针"
+      return
   else
-    reading "是否需要安装哪吒探针？【y/n】: " nz_choice
-      case "$nz_choice" in
-        [Yy])
-            reading "请输入哪吒探针域名或ip：" NEZHA_SERVER
-            green "你的哪吒域名为: $NEZHA_SERVER"
-            reading "请输入哪吒探针端口（回车跳过默认使用5555）：" NEZHA_PORT
-            [[ -z $NEZHA_PORT ]] && NEZHA_PORT="5555"
-            green "你的哪吒端口为: $NEZHA_PORT"
-            reading "请输入哪吒探针密钥：" NEZHA_KEY
-            green "你的哪吒密钥为: $NEZHA_KEY"
-            ;;
-        [Nn]) return 0 ;;
-        *) red "无效的选择，请输入y或n" ;;
-      esac
+      reading "是否需要安装哪吒探针？【y/n】: " nz_choice
+      [[ -z $nz_choice ]] && return
+      [[ "$nz_choice" != "y" && "$nz_choice" != "Y" ]] && return
+      reading "请输入哪吒探针域名或ip：" NEZHA_SERVER
+      green "你的哪吒域名为: $NEZHA_SERVER"
+      reading "请输入哪吒探针端口（回车跳过默认使用5555）：" NEZHA_PORT
+      [[ -z $NEZHA_PORT ]] && NEZHA_PORT="5555"
+      green "你的哪吒端口为: $NEZHA_PORT"
+      reading "请输入哪吒探针密钥：" NEZHA_KEY
+      green "你的哪吒密钥为: $NEZHA_KEY"
   fi
 }
 
+
 install_singbox() {
-yellow "本脚本同时3协议共存(vmess-ws-tls(argo),hysteria2,tuic)"
-yellow "开始运行前，请确保在面板已开放3个端口，一个tcp端口和两个udp端口"
-yellow "面板Additional services中的Run your own applications已开启为Enabled状态"
+echo -e "${yellow}本脚本同时四协议共存${purple}(vmess-ws,vmess-ws-tls(argo),hysteria2,tuic)${re}"
+echo -e "${yellow}开始运行前，请确保在面板${purple}已开放3个端口，一个tcp端口和两个udp端口${re}"
+echo -e "${yellow}面板${purple}Additional services中的Run your own applications${yellow}已开启为${purplw}Enabled${yellow}状态${re}"
 reading "\n确定继续安装吗？【y/n】: " choice
   case "$choice" in
     [Yy])
         cd $WORKDIR
-        install_nz
+        read_nz_variables
         read_vmess_port
         read_hy2_port
         read_tuic_port
@@ -114,8 +111,18 @@ uninstall_singbox() {
 
 argo_configure() {
   if [[ -z $ARGO_AUTH || -z $ARGO_DOMAIN ]]; then
-    green "ARGO隧道变量为空，将使用临时隧道"
-    return 
+      reading "是否需要使用固定argo隧道？【y/n】: " argo_choice
+      [[ -z $argo_choice ]] && return
+      [[ "$argo_choice" != "y" && "$argo_choice" != "Y" && "$argo_choice" != "n" && "$argo_choice" != "N" ]] && { red "无效的选择，请输入y或n"; return; }
+      if [[ "$argo_choice" == "y" || "$argo_choice" == "Y" ]]; then
+          reading "请输入argo固定隧道域名: " ARGO_DOMAIN
+          green "你的argo固定隧道域名为: $ARGO_DOMAIN"
+          reading "请输入argo固定隧道密钥（Json或Token）: " ARGO_AUTH
+          green "你的argo固定隧道密钥为: $ARGO_AUTH"
+      else
+          green "ARGO隧道变量未设置，将使用临时隧道"
+          return
+      fi
   fi
 
   if [[ $ARGO_AUTH =~ TunnelSecret ]]; then
@@ -139,12 +146,11 @@ EOF
 
 # Download Dependency Files
 download_singbox() {
-  
   ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
   if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
       FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot" "https://github.com/eooce/test/releases/download/ARM/swith npm")
   elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/freebsd/sb web" "https://github.com/eooce/test/releases/download/freebsd/bot bot" "https://github.com/eooce/test/releases/download/freebsd/swith npm")
+      FILE_INFO=("https://github.com/eooce/test/releases/download/freebsd/sb web" "https://github.com/eooce/test/releases/download/freebsd/bot bot" "https://github.com/eooce/test/releases/download/freebsd/agent npm")
   else
       echo "Unsupported architecture: $ARCH"
       exit 1
@@ -378,7 +384,7 @@ run_sb() {
     fi
     if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
         nohup ./npm -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &
-	    sleep 2
+	      sleep 2
         green "npm is running"
     else
         purple "NEZHA variable is empty,skiping runing"
@@ -406,7 +412,6 @@ run_sb() {
  
 }
 
-
 get_links(){
 get_argodomain() {
   if [[ -n $ARGO_AUTH ]]; then
@@ -424,10 +429,11 @@ sleep 1
 # get ipinfo
 ISP=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g') 
 sleep 1
-VMESS="{ \"v\": \"2\", \"ps\": \"$ISP\", \"add\": \"www.visa.com.tw\", \"port\": \"443\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"$argodomain\", \"path\": \"/vmess?ed=2048\", \"tls\": \"tls\", \"sni\": \"$argodomain\", \"alpn\": \"\", \"fp\": \"randomized\"}"
 
 cat > list.txt <<EOF
-vmess://$(echo "$VMESS" | base64 -w0)
+vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$ISP\", \"add\": \"$IP\", \"port\": \"$vmess_port\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"\", \"path\": \"/vmess?ed=2048\", \"tls\": \"\", \"sni\": \"\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)
+
+vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$ISP\", \"add\": \"www.visa.com.tw\", \"port\": \"443\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"$argodomain\", \"path\": \"/vmess?ed=2048\", \"tls\": \"tls\", \"sni\": \"$argodomain\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)
 
 hysteria2://$UUID@$IP:$hy2_port/?sni=www.bing.com&alpn=h3&insecure=1#$ISP
 
@@ -442,7 +448,6 @@ clear
 rm -rf web bot npm boot.log config.json sb.log core
 
 }
-
 
 menu() {
    clear

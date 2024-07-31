@@ -127,7 +127,7 @@ protocol: http2
 
 ingress:
   - hostname: $ARGO_DOMAIN
-    service: http://localhost:$ARGO_PORT
+    service: http://localhost:$vmess_port
     originRequest:
       noTLSVerify: true
   - service: http_status:404
@@ -256,6 +256,7 @@ generate_config() {
       "users": [
         {
           "uuid": "$UUID"
+          "password": "admin123"
         }
       ],
       "congestion_control": "bbr",
@@ -396,7 +397,7 @@ run_sb() {
     elif [[ $ARGO_AUTH =~ TunnelSecret ]]; then
       args="tunnel --edge-ip-version auto --config tunnel.yml run"
     else
-      args="tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile boot.log --loglevel info --url http://localhost:$ARGO_PORT"
+      args="tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile boot.log --loglevel info --url http://localhost:$vmess_port"
     fi
     nohup ./bot $args >/dev/null 2>&1 &
     sleep 2
@@ -430,7 +431,7 @@ vmess://$(echo "$VMESS" | base64 -w0)
 
 hysteria2://$UUID@$IP:$hy2_port/?sni=www.bing.com&alpn=h3&insecure=1#$ISP
 
-tuic://$UUID@$IP:$tuic_port?sni=www.bing.com&alpn=h3&congestion_control=bbr#$ISP
+tuic://$UUID:admin123@$IP:$tuic_port?sni=www.bing.com&alpn=h3&congestion_control=bbr#$ISP
 
 EOF
 cat list.txt

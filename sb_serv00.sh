@@ -86,7 +86,7 @@ yellow "面板Additional services中的Run your own applications已开启为Enab
 reading "\n确定继续安装吗？【y/n】: " choice
   case "$choice" in
     [Yy])
-        cd && cd $WORKDIR
+        cd $WORKDIR
         install_nz
         read_vmess_port
         read_hy2_port

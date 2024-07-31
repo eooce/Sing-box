@@ -77,7 +77,6 @@ read_nz_variables() {
   fi
 }
 
-
 install_singbox() {
 echo -e "${yellow}本脚本同时四协议共存${purple}(vmess-ws,vmess-ws-tls(argo),hysteria2,tuic)${re}"
 echo -e "${yellow}开始运行前，请确保在面板${purple}已开放3个端口，一个tcp端口和两个udp端口${re}"
@@ -454,6 +453,7 @@ menu() {
    echo ""
    purple "=== Serv00老王sing-box一键安装脚本 ===\n"
    echo -e "${green}脚本地址:${re}${yellow}https://github.com/eooce/Sing-box${re}\n"
+   purple "转载请著名出处，请勿滥用\n"
    green "1. 安装sing-box"
    echo  "==============="
    red "2. 卸载sing-box"

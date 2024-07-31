@@ -379,16 +379,16 @@ run_sb() {
     if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
         nohup ./npm -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &
 	    sleep 2
-        echo -e "\e[1;32mnpm is running\e[0m"
+        green "npm is running"
     else
-        echo -e "\e[1;35mNEZHA variable is empty,skiping runing\e[0m"
+        purple "NEZHA variable is empty,skiping runing"
     fi
   fi
 
   if [ -e web ]; then
     nohup ./web run -c config.json >/dev/null 2>&1 &
     sleep 2
-    echo -e "\e[1;32mweb is running\e[0m"
+    green "web is running"
   fi
 
   if [ -e bot ]; then
@@ -401,7 +401,7 @@ run_sb() {
     fi
     nohup ./bot $args >/dev/null 2>&1 &
     sleep 2
-    echo -e "\e[1;32mbot is running\e[0m"
+    green "bot is running"
   fi
  
 }

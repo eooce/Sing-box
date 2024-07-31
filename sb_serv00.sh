@@ -255,7 +255,7 @@ generate_config() {
       "listen_port": $tuic_port,
       "users": [
         {
-          "uuid": "$UUID"
+          "uuid": "$UUID",
           "password": "admin123"
         }
       ],

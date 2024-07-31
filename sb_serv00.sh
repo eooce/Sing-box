@@ -112,20 +112,8 @@ uninstall_singbox() {
 
 argo_configure() {
   if [[ -z $ARGO_AUTH || -z $ARGO_DOMAIN ]]; then
-    reading "是否需要使用固定argo隧道？【y/n】: " argo_choice
-      case "$nz_choice" in
-        [Yy])
-            reading "请输入argo固定隧道域名:" ARGO_DOMAIN
-            green "你的argo固定隧道域名为: $ARGO_DOMAIN"
-            reading "请输入argo固定隧道密钥（Json或Token）:" ARGO_AUTH
-            green "你的argo固定隧道密钥为: $ARGO_AUTH"
-            ;;
-        [Nn]) 
-            green "ARGO隧道变量为空，将使用临时隧道"
-            return 0
-         ;;
-        *) red "无效的选择，请输入y或n" ;;
-      esac
+    green "ARGO隧道变量为空，将使用临时隧道"
+    return 
   fi
 
   if [[ $ARGO_AUTH =~ TunnelSecret ]]; then

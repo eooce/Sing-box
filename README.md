@@ -18,6 +18,13 @@ ssh综合工具箱一键脚本
 curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o ssh_tool.sh && chmod +x ssh_tool.sh && ./ssh_tool.sh
 ```
 
+## Serv00一键3协议安装脚本
+支持自定义哪吒参数，Argo参数随脚本一起运行，列如：NEZHA_SERVER=nz.abcd.com NEZHA_PORT=5555 NEZHA_KEY=12345ABCDE 
+
+```
+bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh)
+```
+
 ## 可选环境变量
   | 变量名        | 是否必须 | 默认值 | 备注 |
   | ------------ | ------ | ------ | ------ |

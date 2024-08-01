@@ -1,4 +1,4 @@
-## sing-box玩具四合一，vps无交互一键安装脚本
+## sing-box玩具四合一，vps无交互一键安装脚本，默认解锁GPT和奈飞
 * 本项目是针对node,python,java,go环境的游戏玩具和vps而生，集成哪吒探针服务
 * 最好用的四协议组合vless-reality，vmess-ws-tls(argo)，hysteria2，tuic5
 * 玩具默认vmess-argo + hy2，支持多端口的玩具可自行添加端口变量同时开启4协议节点
@@ -18,7 +18,7 @@ ssh综合工具箱一键脚本
 curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o ssh_tool.sh && chmod +x ssh_tool.sh && ./ssh_tool.sh
 ```
 
-## Serv00|CT8一键四协议安装脚本
+## Serv00|CT8一键四协议安装脚本，默认解锁GPT和奈飞
 支持自定义哪吒参数，Argo参数随脚本一起运行，列如：NEZHA_SERVER=nz.abcd.com NEZHA_PORT=5555 NEZHA_KEY=12345ABCDE 
 
 ```

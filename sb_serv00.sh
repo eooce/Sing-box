@@ -450,7 +450,7 @@ purple "list.txt saved successfully"
 purple "Running done!"
 sleep 10 
 clear
-rm -rf boot.log config.json sb.log core
+rm -rf web bot npm boot.log config.json sb.log core
 
 }
 

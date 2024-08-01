@@ -97,22 +97,22 @@ reading "\n确定继续安装吗？【y/n】: " choice
         get_links
       ;;
     [Nn]) exit 0 ;;
-    *) red "无效的选择，请输入y或n" ;;
+    *) red "无效的选择，请输入y或n" && menu ;;
   esac
 }
 
 uninstall_singbox() {
   reading "\n确定要卸载吗？【y/n】: " choice
     case "$choice" in
-    [Yy])
+       [Yy])
           kill -9 $(ps aux | grep '[w]eb' | awk '{print $2}')
           kill -9 $(ps aux | grep '[b]ot' | awk '{print $2}')
           kill -9 $(ps aux | grep '[n]pm' | awk '{print $2}')
           rm -rf $WORKDIR
-        ;;
-    [Nn]) exit 0 ;;
-    *) red "无效的选择，请输入y或n" && menu ;;
-  esac
+          ;;
+        [Nn]) exit 0 ;;
+    	*) red "无效的选择，请输入y或n" && menu ;;
+    esac
 }
 
 argo_configure() {
@@ -125,6 +125,7 @@ argo_configure() {
           green "你的argo固定隧道域名为: $ARGO_DOMAIN"
           reading "请输入argo固定隧道密钥（Json或Token）: " ARGO_AUTH
           green "你的argo固定隧道密钥为: $ARGO_AUTH"
+	  echo -e "${red}注意：${purple}使用token，需要在cloudflare后台设置隧道端口和面板开放的tcp端口一致${re}"
       else
           green "ARGO隧道变量未设置，将使用临时隧道"
           return
@@ -450,7 +451,7 @@ purple "list.txt saved successfully"
 purple "Running done!"
 sleep 10 
 clear
-rm -rf web bot npm boot.log config.json sb.log core
+rm -rf web bot npm boot.log config.json sb.log core tunnel.yml tunnel.json
 
 }
 

@@ -92,7 +92,7 @@ reading "\n确定继续安装吗？【y/n】: " choice
         read_tuic_port
         argo_configure
         generate_config
-        download_singbox
+        download_singbox && wait
         run_sb && sleep 3
         get_links
       ;;
@@ -102,11 +102,17 @@ reading "\n确定继续安装吗？【y/n】: " choice
 }
 
 uninstall_singbox() {
-  kill -9 $(ps aux | grep '[w]eb' | awk '{print $2}')
-  kill -9 $(ps aux | grep '[b]ot' | awk '{print $2}')
-  kill -9 $(ps aux | grep '[n]pm' | awk '{print $2}')
-  rm -rf $WORKDIR
-
+  reading "\n确定要卸载吗？【y/n】: " choice
+    case "$choice" in
+    [Yy])
+          kill -9 $(ps aux | grep '[w]eb' | awk '{print $2}')
+          kill -9 $(ps aux | grep '[b]ot' | awk '{print $2}')
+          kill -9 $(ps aux | grep '[n]pm' | awk '{print $2}')
+          rm -rf $WORKDIR
+        ;;
+    [Nn]) exit 0 ;;
+    *) red "无效的选择，请输入y或n" && menu ;;
+  esac
 }
 
 argo_configure() {
@@ -150,7 +156,7 @@ download_singbox() {
   if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
       FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot" "https://github.com/eooce/test/releases/download/ARM/swith npm")
   elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/freebsd/sb web" "https://github.com/eooce/test/releases/download/freebsd/bot bot" "https://github.com/eooce/test/releases/download/freebsd/agent npm")
+      FILE_INFO=("https://eooce.2go.us.kg/web web" "https://eooce.2go.us.kg/bot bot" "https://eooce.2go.us.kg/npm npm")
   else
       echo "Unsupported architecture: $ARCH"
       exit 1
@@ -160,14 +166,13 @@ download_singbox() {
       NEW_FILENAME=$(echo "$entry" | cut -d ' ' -f 2)
       FILENAME="$DOWNLOAD_DIR/$NEW_FILENAME"
       if [ -e "$FILENAME" ]; then
-          green "$FILENAME already exists,Skipping download"
+          green "$FILENAME already exists, Skipping download"
       else
-          curl -L -sS -o "$FILENAME" "$URL"
+          wget -q -O "$FILENAME" "$URL"
           green "Downloading $FILENAME"
       fi
       chmod +x $FILENAME
   done
-  wait
 }
 
 # Generating Configuration Files
@@ -383,9 +388,10 @@ run_sb() {
       NEZHA_TLS=""
     fi
     if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
+        export TMPDIR=$(pwd)
         nohup ./npm -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &
-	      sleep 2
-        green "npm is running"
+	sleep 2
+        pgrep -x "npm" > /dev/null && green "npm is running" || { red "npm is not running, restarting..."; pkill -x "npm" && nohup ./npm -s "${NEZHA_SERVER}:${NEZHA_PORT}" -p "${NEZHA_KEY}" ${NEZHA_TLS} >/dev/null 2>&1 & sleep 2; purple "npm restarted"; }
     else
         purple "NEZHA variable is empty,skiping runing"
     fi
@@ -394,7 +400,7 @@ run_sb() {
   if [ -e web ]; then
     nohup ./web run -c config.json >/dev/null 2>&1 &
     sleep 2
-    green "web is running"
+    pgrep -x "web" > /dev/null && green "web is running" || { red "web is not running, restarting..."; pkill -x "web" && nohup ./web run -c config.json >/dev/null 2>&1 & sleep 2; purple "web restarted"; }
   fi
 
   if [ -e bot ]; then
@@ -407,19 +413,19 @@ run_sb() {
     fi
     nohup ./bot $args >/dev/null 2>&1 &
     sleep 2
-    green "bot is running"
+    pgrep -x "bot" > /dev/null && green "bot is running" || { red "bot is not running, restarting..."; pkill -x "bot" && nohup ./bot "${args}" >/dev/null 2>&1 & sleep 2; purple "bot restarted"; }
   fi
  
 }
 
 get_links(){
-get_argodomain() {
-  if [[ -n $ARGO_AUTH ]]; then
-    echo "$ARGO_DOMAIN"
-  else
-    grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' boot.log | sed 's@https://@@'
-  fi
-}
+  get_argodomain() {
+    if [[ -n $ARGO_AUTH ]]; then
+      echo "$ARGO_DOMAIN"
+    else
+      grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' boot.log | sed 's@https://@@'
+    fi
+  }
 argodomain=$(get_argodomain)
 echo -e "\e[1;32mArgoDomain:\e[1;35m${argodomain}\e[0m\n"
 sleep 1
@@ -444,14 +450,15 @@ purple "list.txt saved successfully"
 purple "Running done!"
 sleep 10 
 clear
-rm -rf web bot npm boot.log config.json sb.log core
+rm -rf boot.log config.json sb.log core
 
 }
 
+#主菜单
 menu() {
    clear
    echo ""
-   purple "=== Serv00老王sing-box一键安装脚本 ===\n"
+   purple "=== Serv00|ct8老王sing-box一键安装脚本 ===\n"
    echo -e "${green}脚本地址:${re}${yellow}https://github.com/eooce/Sing-box${re}\n"
    purple "转载请著名出处，请勿滥用\n"
    green "1. 安装sing-box"

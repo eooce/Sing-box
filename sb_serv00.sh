@@ -31,7 +31,7 @@ read_vmess_port() {
             green "你的vmess端口为: $vmess_port"
             break
         else
-            red "输入错误，请重新输入面板开放的TCP端口"
+            yellow "输入错误，请重新输入面板开放的TCP端口"
         fi
     done
 }
@@ -43,7 +43,7 @@ read_hy2_port() {
             green "你的hysteria2端口为: $hy2_port"
             break
         else
-            red "输入错误，请重新输入面板开放的UDP端口"
+            yellow "输入错误，请重新输入面板开放的UDP端口"
         fi
     done
 }
@@ -55,7 +55,7 @@ read_tuic_port() {
             green "你的tuic端口为: $tuic_port"
             break
         else
-            red "输入错误，请重新输入面板开放的UDP端口"
+            yellow "输入错误，请重新输入面板开放的UDP端口"
         fi
     done
 }

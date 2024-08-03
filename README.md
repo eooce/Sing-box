@@ -1,7 +1,7 @@
 # 1：vps一键命令，已集成到ssh工具箱中
 * 一键四协议安装脚本，支持纯v6，支持订阅，默认解锁GPT和奈飞
 * 最好用的四协议组合vless-reality|vmess-ws-tls(argo)|hysteria2|tuic5
-* 自持的系统：Ubuntu/Debian/CentOS/Alpine/Fedora/Rocky/Almalinux/kail
+* 支持的系统：Ubuntu/Debian/CentOS/Alpine/Fedora/Rocky/Almalinux/kail
 * 注意nat小鸡安装完一键脚本之后需手动更改订阅端口和节点端口在允许范围内的端口，否则节点不通
 
 vps一键脚本

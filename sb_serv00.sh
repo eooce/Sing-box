@@ -449,8 +449,7 @@ EOF
 cat list.txt
 purple "list.txt saved successfully"
 purple "Running done!"
-sleep 10 
-clear
+sleep 3 
 rm -rf web bot npm boot.log config.json sb.log core tunnel.yml tunnel.json
 
 }

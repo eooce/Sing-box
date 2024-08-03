@@ -16,7 +16,7 @@ curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o 
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/sb_00.sh)
 ```
 
-# 3：玩具
+# 3：游戏机hosting
 * 本项目是针对node,python,java,go环境的游戏玩具和vps而生，集成哪吒探针服务
 * 最好用的四协议组合vless-reality，vmess-ws-tls(argo)，hysteria2，tuic5
 * 默认vmess-argo + hy2，支持多端口的玩具可自行添加端口变量同时开启4协议节点

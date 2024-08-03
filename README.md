@@ -17,7 +17,7 @@ curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o 
 # 2：Serv00|CT8一键四协议安装脚本
 * 一键四协议安装脚本，vmess-ws|vmess-tls(argo)|hysteria2|tuic5默认解锁GPT和奈飞
 * 支持自定义哪吒参数，Argo参数随脚本一起运行，
-* 列如：NEZHA_SERVER=nz.abcd.com NEZHA_PORT=5555 NEZHA_KEY=12345ABCDE 
+* 列如：UUID=123456 NEZHA_SERVER=nz.abcd.com NEZHA_PORT=5555 NEZHA_KEY=123ABC
 
 一键命令
 ```

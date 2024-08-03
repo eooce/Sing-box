@@ -26,9 +26,9 @@ bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.
 
 # 3：游戏机hosting
 ## sing-box玩具四合一，默认解锁GPT和奈飞
-* 本项目是针对node,python,java,go环境的游戏玩具搭建singbox节点，集成哪吒探针服务
+* node,python,java,go环境的游戏玩具搭建singbox节点，集成哪吒探针服务
 * 玩具默认vmess-argo + hy2，支持多端口的玩具可自行添加端口变量同时开启4协议节点
-* 对应环境请下载对应文件夹里的文件上传并赋予权限，修改变量后运行
+* 对应文件夹即对应环境请下载对应文件夹里的文件上传并赋予权限，修改变量后运行
 * ARGO_DOMAIN和ARGO_AUTH两个变量其中之一为空即启用临时隧道，反之则使用固定隧道
 * 无需设置NEZHA_TLS,当哪吒端口为{443,8443,2096,2087,2083,2053}其中之一时，自动开启tls
 

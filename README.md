@@ -3,7 +3,7 @@
 * 最好用的四协议组合vless-reality|vmess-ws-tls(argo)|hysteria2|tuic5
 * 自持的系统：Ubuntu/Debian/CentOS/Alpine/Fedora/Rocky/Almalinux/kail
 * 注意nat小鸡安装完一键脚本之后需手动更改订阅端口和节点端口在允许范围内的端口，否则节点不通
-* 
+
 vps一键脚本
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sing-box.sh)
@@ -14,9 +14,12 @@ ssh综合工具箱一键脚本
 curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o ssh_tool.sh && chmod +x ssh_tool.sh && ./ssh_tool.sh
 ```
 
-# 2：Serv00|CT8一键四协议安装脚本，默认解锁GPT和奈飞
-支持自定义哪吒参数，Argo参数随脚本一起运行，列如：NEZHA_SERVER=nz.abcd.com NEZHA_PORT=5555 NEZHA_KEY=12345ABCDE 
+# 2：Serv00|CT8一键四协议安装脚本
+* 一键四协议安装脚本，默认解锁GPT和奈飞
+* 支持自定义哪吒参数，Argo参数随脚本一起运行，
+* 列如：NEZHA_SERVER=nz.abcd.com NEZHA_PORT=5555 NEZHA_KEY=12345ABCDE 
 
+一键命令
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh)
 ```

@@ -201,14 +201,13 @@ cat > "${config_dir}" << EOF
   "dns": {
     "servers": [
       {
-        "tag": "cloudflare",
-        "address": "https://1.1.1.1/dns-query",
-        "strategy": "ipv4_only",
-        "detour": "direct"
+        "tag": "Google",
+        "address": "https://dns.google/dns-query",
+        "address_resolver": "local"
       },
       {
-        "tag": "block",
-        "address": "rcode://success"
+        "tag": "local",
+        "address": "local"
       }
     ],
     "rules": [
@@ -231,8 +230,7 @@ cat > "${config_dir}" << EOF
         "server": "block"
       }
     ],
-    "final": "cloudflare",
-    "strategy": "",
+    "final": "local",
     "disable_cache": false,
     "disable_expire": false
   },
@@ -389,22 +387,19 @@ cat > "${config_dir}" << EOF
         "tag": "geosite-netflix",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-netflix.srs",
-        "download_detour": "direct"
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-netflix.srs"
       },
       {
         "tag": "geosite-openai",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs",
-        "download_detour": "direct"
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs"
       },      
       {
         "tag": "geosite-category-ads-all",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ads-all.srs",
-        "download_detour": "direct"
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ads-all.srs"
       }
     ],
     "auto_detect_interface": true,

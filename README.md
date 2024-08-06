@@ -14,7 +14,7 @@ ssh综合工具箱一键脚本
 curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o ssh_tool.sh && chmod +x ssh_tool.sh && ./ssh_tool.sh
 ```
 
-# 2：Serv00|CT8一键四协议安装脚本
+# 2：Serv00|CT8一键安装脚本,集成哪吒探针
 * 一键四协议安装脚本，vmess-ws|vmess-ws-tls(argo)|hy2|tuic5默认解锁GPT和奈飞
 * 支持自定义哪吒参数，Argo参数随脚本一起运行，
 * 列如：UUID=123456 NEZHA_SERVER=nz.abcd.com NEZHA_PORT=5555 NEZHA_KEY=123ABC ARGO_DOMAIN=2go.admin.com ARGO_AUTH=abc123  

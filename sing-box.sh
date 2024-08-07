@@ -201,38 +201,10 @@ cat > "${config_dir}" << EOF
   "dns": {
     "servers": [
       {
-        "tag": "Google",
-        "address": "https://dns.google/dns-query",
-        "address_resolver": "local"
-      },
-      {
-        "tag": "local",
-        "address": "local"
+        "tag": "google",
+        "address": "tls://8.8.8.8"
       }
-    ],
-    "rules": [
-      {
-        "rule_set": [
-          "geosite-openai"
-        ],
-        "server": "wireguard"
-      },
-      {
-        "rule_set": [
-          "geosite-netflix"
-        ],
-        "server": "wireguard"
-      },
-      {
-        "rule_set": [
-          "geosite-category-ads-all"
-        ],
-        "server": "block"
-      }
-    ],
-    "final": "local",
-    "disable_cache": false,
-    "disable_expire": false
+    ]
   },
   "inbounds": [
     {
@@ -308,7 +280,8 @@ cat > "${config_dir}" << EOF
         "listen_port": $tuic_port,
         "users": [
           {
-            "uuid": "$uuid"
+            "uuid": "$uuid",
+            "password": "$password"
           }
         ],
         "congestion_control": "bbr",
@@ -322,87 +295,117 @@ cat > "${config_dir}" << EOF
        }
     }
   ],
-    "outbounds": [
+  "outbounds": [
     {
       "type": "direct",
       "tag": "direct"
     },
     {
-      "type": "block",
-      "tag": "block"
+      "type": "direct",
+      "tag": "direct-ipv4-prefer-out",
+      "domain_strategy": "prefer_ipv4"
     },
     {
-      "type": "dns",
-      "tag": "dns-out"
+      "type": "direct",
+      "tag": "direct-ipv4-only-out",
+      "domain_strategy": "ipv4_only"
+    },
+    {
+      "type": "direct",
+      "tag": "direct-ipv6-prefer-out",
+      "domain_strategy": "prefer_ipv6"
+    },
+    {
+      "type": "direct",
+      "tag": "direct-ipv6-only-out",
+      "domain_strategy": "ipv6_only"
     },
     {
       "type": "wireguard",
       "tag": "wireguard-out",
-      "server": "162.159.195.100",
-      "server_port": 4500,
+      "server": "engage.cloudflareclient.com",
+      "server_port": 2408,
       "local_address": [
         "172.16.0.2/32",
-        "2606:4700:110:83c7:b31f:5858:b3a8:c6b1/128"
+        "2606:4700:110:812a:4929:7d2a:af62:351c/128"
       ],
-      "private_key": "mPZo+V9qlrMGCZ7+E6z2NI6NOV34PD++TpAR09PtCWI=",
+      "private_key": "gBthRjevHDGyV0KvYwYE52NIPy29sSrVr6rcQtYNcXA=",
       "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
       "reserved": [
-        26,
-        21,
-        228
+        6,
+        146,
+        6
       ]
+    },
+    {
+      "type": "direct",
+      "tag": "wireguard-ipv4-prefer-out",
+      "detour": "wireguard-out",
+      "domain_strategy": "prefer_ipv4"
+    },
+    {
+      "type": "direct",
+      "tag": "wireguard-ipv4-only-out",
+      "detour": "wireguard-out",
+      "domain_strategy": "ipv4_only"
+    },
+    {
+      "type": "direct",
+      "tag": "wireguard-ipv6-prefer-out",
+      "detour": "wireguard-out",
+      "domain_strategy": "prefer_ipv6"
+    },
+    {
+      "type": "direct",
+      "tag": "wireguard-ipv6-only-out",
+      "detour": "wireguard-out",
+      "domain_strategy": "ipv6_only"
     }
   ],
   "route": {
-    "rules": [
-      {
-        "protocol": "dns",
-        "outbound": "dns-out"
-      },
-      {
-        "ip_is_private": true,
-        "outbound": "direct"
-      },
-      {
-        "rule_set": [
-          "geosite-category-ads-all"
-        ],
-        "outbound": "block"
-      },
-      {
-        "rule_set": [
-          "geosite-openai"
-        ],
-        "outbound": "wireguard-out"
-      },
-      {
-        "rule_set": [
-          "geosite-netflix"
-        ],
-        "outbound": "wireguard-out"
-      }
-    ],
     "rule_set": [
       {
         "tag": "geosite-netflix",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-netflix.srs"
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-netflix.srs",
+        "update_interval": "1d"
       },
       {
         "tag": "geosite-openai",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs"
-      },      
-      {
-        "tag": "geosite-category-ads-all",
-        "type": "remote",
-        "format": "binary",
-        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ads-all.srs"
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs",
+        "update_interval": "1d"
       }
     ],
-    "auto_detect_interface": true,
+    "rules": [
+      {
+        "rule_set": [
+          "geosite-netflix"
+        ],
+        "outbound": "wireguard-ipv6-only-out"
+      },
+      {
+        "domain": [
+          "api.statsig.com",
+          "browser-intake-datadoghq.com",
+          "cdn.openai.com",
+          "chat.openai.com",
+          "chat.openai.com.cdn.cloudflare.net",
+          "ios.chat.openai.com"
+        ],
+        "domain_suffix": [
+          ".openai.com",
+          ".auth0.com",
+          ".chatgpt.com"
+        ],
+        "domain_keyword": [
+          "openaicom-api"
+        ],
+        "outbound": "wireguard-ipv6-prefer-out"
+      }
+    ],
     "final": "direct"
    },
    "experimental": {
@@ -518,9 +521,9 @@ vless://${uuid}@${server_ip}:${vless_port}?encryption=none&flow=xtls-rprx-vision
 
 vmess://$(echo "$VMESS" | base64 -w0)
 
-hysteria2://${uuid}@${server_ip}:${hy2_port}/?sni=www.bing.com&alpn=h3&insecure=1#${isp}
+hysteria2://${uuid}@${server_ip}:${hy2_port}/?sni=www.bing.com&insecure=1&alpn=h3&obfs=none#${isp}
 
-tuic://${uuid}:@${server_ip}:${tuic_port}?sni=www.bing.com&alpn=h3&insecure=1&congestion_control=bbr#${isp}
+tuic://${uuid}:${password}@${server_ip}:${tuic_port}?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#${isp}
 EOF
 echo ""
 while IFS= read -r line; do echo -e "${purple}$line"; done < ${work_dir}/url.txt

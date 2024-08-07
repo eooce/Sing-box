@@ -392,13 +392,37 @@ cat > "${config_dir}" << EOF
           "browser-intake-datadoghq.com",
           "cdn.openai.com",
           "chat.openai.com",
+          "auth.openai.com",
           "chat.openai.com.cdn.cloudflare.net",
-          "ios.chat.openai.com"
+          "ios.chat.openai.com",
+          "o33249.ingest.sentry.io",
+          "openai-api.arkoselabs.com",
+          "openaicom-api-bdcpf8c6d2e9atf6.z01.azurefd.net",
+          "openaicomproductionae4b.blob.core.windows.net",
+          "production-openaicom-storage.azureedge.net",
+          "static.cloudflareinsights.com"
         ],
         "domain_suffix": [
-          ".openai.com",
+          ".algolia.net",
           ".auth0.com",
-          ".chatgpt.com"
+          ".chatgpt.com",
+          ".challenges.cloudflare.com",
+          ".client-api.arkoselabs.com",
+          ".events.statsigapi.net",
+          ".featuregates.org",
+          ".identrust.com",
+          ".intercom.io",
+          ".intercomcdn.com",
+          ".launchdarkly.com",
+          ".oaistatic.com",
+          ".oaiusercontent.com",
+          ".observeit.net",
+          ".openai.com",
+          ".openaiapi-site.azureedge.net",
+          ".openaicom.imgix.net",
+          ".segment.io",
+          ".sentry.io",
+          ".stripe.com"
         ],
         "domain_keyword": [
           "openaicom-api"

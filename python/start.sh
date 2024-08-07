@@ -1,5 +1,5 @@
 #!/bin/bash  
-export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b9'}   # 节点UUID
+export UUID=${UUID:-'5d9aba72-8e9a-43db-ab2c-721b5b86259f'}   # 节点UUID
 export NEZHA_SERVER=${NEZHA_SERVER:-'nz.abc.com'}             # 哪吒客户端域名或ip,哪吒3个变量不全不运行
 export NEZHA_PORT=${NEZHA_PORT:-'5555'}                       # 哪吒端口为{443,8443,2053,2083,2087,2096}其中之一时自动开启tls
 export NEZHA_KEY=${NEZHA_KEY:-''}                             # 哪吒客户端密钥

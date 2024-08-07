@@ -202,7 +202,7 @@ cat > "${config_dir}" << EOF
     "servers": [
       {
         "tag": "Google",
-        "address": "tls://8.8.8.8",
+        "address": "https://dns.google/dns-query",
         "address_resolver": "local"
       },
       {
@@ -402,6 +402,7 @@ cat > "${config_dir}" << EOF
         "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ads-all.srs"
       }
     ],
+    "auto_detect_interface": true,
     "final": "direct"
    },
    "experimental": {

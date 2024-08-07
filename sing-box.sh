@@ -201,10 +201,13 @@ cat > "${config_dir}" << EOF
   "dns": {
     "servers": [
       {
-        "tag": "google",
+        "tag": "Google",
         "address": "tls://8.8.8.8",
-        "strategy": "ipv4_only",
-        "detour": "direct"
+        "address_resolver": "local"
+      },
+      {
+        "tag": "local",
+        "address": "local"
       }
     ],
     "rules": [
@@ -227,8 +230,7 @@ cat > "${config_dir}" << EOF
         "server": "block"
       }
     ],
-    "final": "google",
-    "strategy": "",
+    "final": "local",
     "disable_cache": false,
     "disable_expire": false
   },
@@ -320,7 +322,7 @@ cat > "${config_dir}" << EOF
        }
     }
   ],
-  "outbounds": [
+    "outbounds": [
     {
       "type": "direct",
       "tag": "direct"
@@ -363,6 +365,12 @@ cat > "${config_dir}" << EOF
       },
       {
         "rule_set": [
+          "geosite-category-ads-all"
+        ],
+        "outbound": "block"
+      },
+      {
+        "rule_set": [
           "geosite-openai"
         ],
         "outbound": "wireguard-out"
@@ -372,12 +380,6 @@ cat > "${config_dir}" << EOF
           "geosite-netflix"
         ],
         "outbound": "wireguard-out"
-      },
-      {
-        "rule_set": [
-          "geosite-category-ads-all"
-        ],
-        "outbound": "block"
       }
     ],
     "rule_set": [
@@ -385,22 +387,19 @@ cat > "${config_dir}" << EOF
         "tag": "geosite-netflix",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-netflix.srs",
-        "download_detour": "direct"
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-netflix.srs"
       },
       {
         "tag": "geosite-openai",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs",
-        "download_detour": "direct"
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs"
       },      
       {
         "tag": "geosite-category-ads-all",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ads-all.srs",
-        "download_detour": "direct"
+        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ads-all.srs"
       }
     ],
     "final": "direct"

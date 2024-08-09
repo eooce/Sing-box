@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# 定义颜色
 re="\033[0m"
 red="\033[1;91m"
 green="\e[1;32m"
@@ -10,7 +9,7 @@ red() { echo -e "\e[1;91m$1\033[0m"; }
 green() { echo -e "\e[1;32m$1\033[0m"; }
 yellow() { echo -e "\e[1;33m$1\033[0m"; }
 purple() { echo -e "\e[1;35m$1\033[0m"; }
-reading() { read -p "$(red "$1")" "$2"; }
+reading() { read -p "$(red "$1")" "$2"; } 
 
 USERNAME=$(whoami)
 HOSTNAME=$(hostname)

@@ -344,7 +344,7 @@ hysteria2://$UUID@$IP:$HY2_PORT/?sni=www.bing.com&alpn=h3&insecure=1#$ISP
 tuic://$UUID:admin123@$IP:$TUIC_PORT?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#$ISP
 EOF
 cat list.txt
-purple "list.txt saved successfully"
+purple "/$WORKDIR/list.txt saved successfully"
 purple "Running done!"
 yellow "Serv00|ct8老王sing-box一键四协议安装脚本(vmess-ws|vmess-ws-tls(argo)|hysteria2|tuic)\n"
 echo -e "${green}issues反馈：${re}${yellow}https://github.com/eooce/Sing-box/issues${re}\n"

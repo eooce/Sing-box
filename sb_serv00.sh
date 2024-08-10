@@ -429,11 +429,11 @@ run_sb() {
 
 get_ip() {
 ip=$(curl -s --max-time 2 ipv4.ip.sb)
-if [ -z "$IP" ]; then
+if [ -z "$ip" ]; then
     if [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]]; then
-        IP=${HOSTNAME/s/web}
+        ip=${HOSTNAME/s/web}
     else
-        IP="$HOSTNAME"
+        ip="$HOSTNAME"
     fi
 fi
 echo $ip

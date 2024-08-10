@@ -427,6 +427,18 @@ run_sb() {
  
 }
 
+get_ip() {
+ip=$(curl -s --max-time 2 ipv4.ip.sb)
+if [ -z "$IP" ]; then
+    if [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]]; then
+        IP=${HOSTNAME/s/web}
+    else
+        IP="$HOSTNAME"
+    fi
+fi
+echo $ip
+}
+
 get_links(){
   get_argodomain() {
     if [[ -n $ARGO_AUTH ]]; then
@@ -438,10 +450,7 @@ get_links(){
 argodomain=$(get_argodomain)
 echo -e "\e[1;32mArgoDomain:\e[1;35m${argodomain}\e[0m\n"
 sleep 1
-# get ip
-IP=$(curl -s ipv4.ip.sb || { ipv6=$(curl -s --max-time 1 ipv6.ip.sb); echo "[$ipv6]"; })
-sleep 1
-# get ipinfo
+IP=$(get_ip)
 ISP=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g') 
 sleep 1
 yellow "注意：v2ray或其他软件的跳过证书验证需设置为true,否则hy2或tuic节点可能不通\n"

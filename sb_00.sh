@@ -112,6 +112,14 @@ uninstall_singbox() {
     esac
 }
 
+kill_all_tasks() {
+reading "\n清理所有进程将退出ssh连接，确定继续清理吗？【y/n】: " choice
+  case "$choice" in
+    [Yy]) killall -9 -u $(whoami) ;;
+       *) menu ;;
+  esac
+}
+
 # Download Dependency Files
 download_singbox() {
   ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
@@ -420,6 +428,8 @@ menu() {
    echo  "==============="
    green "3. 查看节点信息"
    echo  "==============="
+   yellow "4. 清理所有进程"
+   echo  "==============="
    red "0. 退出脚本"
    echo "==========="
    reading "请输入选择(0-3): " choice
@@ -428,8 +438,9 @@ menu() {
         1) install_singbox ;;
         2) uninstall_singbox ;; 
         3) cat $WORKDIR/list.txt ;; 
-        0) exit 0 ;;
-        *) red "无效的选项，请输入 0 到 3" ;;
+        4) kill_all_tasks ;;
+	0) exit 0 ;;
+        *) red "无效的选项，请输入 0 到 4" ;;
     esac
 }
 menu

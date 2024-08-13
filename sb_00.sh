@@ -9,8 +9,8 @@ red() { echo -e "\e[1;91m$1\033[0m"; }
 green() { echo -e "\e[1;32m$1\033[0m"; }
 yellow() { echo -e "\e[1;33m$1\033[0m"; }
 purple() { echo -e "\e[1;35m$1\033[0m"; }
-reading() { read -p "$(red "$1")" "$2"; } 
-
+reading() { read -p "$(red "$1")" "$2"; }
+export LC_ALL=C
 USERNAME=$(whoami)
 HOSTNAME=$(hostname)
 export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b9'}
@@ -20,36 +20,36 @@ export NEZHA_KEY=${NEZHA_KEY:-''}
 export ARGO_DOMAIN=${ARGO_DOMAIN:-''}   
 export ARGO_AUTH=${ARGO_AUTH:-''}
 export VMESS_PORT=${VMESS_PORT:-'40000'}
-export TUIC_PORT=${TUIC_PORT:-'50000'}
-export HY2_PORT=${HY2_PORT:-'60000'}
+export TUIC_PORT=${TUIC_PORT:-'60000'}
+export HY2_PORT=${HY2_PORT:-'50000'}
 
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="domains/${USERNAME}.ct8.pl/logs" || WORKDIR="domains/${USERNAME}.serv00.net/logs"
 [ -d "$WORKDIR" ] || (mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR")
 ps -ef | grep $(whoami) | grep -v sshd | grep -v grep | awk '{print $2}' | xargs kill -9
 
-download_singbox() {
-  purple "正在安装中，请稍后..."
-  ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
-  if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot" "https://github.com/eooce/test/releases/download/ARM/swith npm")
-  elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
-      FILE_INFO=("https://eooce.2go.us.kg/web web" "https://eooce.2go.us.kg/bot bot" "https://eooce.2go.us.kg/npm npm")
-  else
-      echo "Unsupported architecture: $ARCH"
-      exit 1
+argo_configure() {
+  if [[ -z $ARGO_AUTH || -z $ARGO_DOMAIN ]]; then
+    green "ARGO_DOMAIN or ARGO_AUTH is empty,use quick tunnel"
+    return
   fi
-  for entry in "${FILE_INFO[@]}"; do
-      URL=$(echo "$entry" | cut -d ' ' -f 1)
-      NEW_FILENAME=$(echo "$entry" | cut -d ' ' -f 2)
-      FILENAME="$DOWNLOAD_DIR/$NEW_FILENAME"
-      if [ -e "$FILENAME" ]; then
-          green "$FILENAME already exists, Skipping download"
-      else
-          wget -q -O "$FILENAME" "$URL"
-          green "Downloading $FILENAME"
-      fi
-      chmod +x $FILENAME
-  done
+
+  if [[ $ARGO_AUTH =~ TunnelSecret ]]; then
+    echo $ARGO_AUTH > tunnel.json
+    cat > tunnel.yml << EOF
+tunnel: $(cut -d\" -f12 <<< "$ARGO_AUTH")
+credentials-file: tunnel.json
+protocol: http2
+
+ingress:
+  - hostname: $ARGO_DOMAIN
+    service: http://localhost:$VMESS_PORT
+    originRequest:
+      noTLSVerify: true
+  - service: http_status:404
+EOF
+  else
+    green "ARGO_AUTH mismatch TunnelSecret,use token connect to tunnel"
+  fi
 }
 
 generate_config() {
@@ -254,33 +254,44 @@ generate_config() {
 EOF
 }
 
-argo_configure() {
-  if [[ -z $ARGO_AUTH || -z $ARGO_DOMAIN ]]; then
-    green "ARGO_DOMAIN or ARGO_AUTH is empty,use quick tunnel"
-    return
-  fi
-
-  if [[ $ARGO_AUTH =~ TunnelSecret ]]; then
-    echo $ARGO_AUTH > tunnel.json
-    cat > tunnel.yml << EOF
-tunnel: $(cut -d\" -f12 <<< "$ARGO_AUTH")
-credentials-file: tunnel.json
-protocol: http2
-
-ingress:
-  - hostname: $ARGO_DOMAIN
-    service: http://localhost:$VMESS_PORT
-    originRequest:
-      noTLSVerify: true
-  - service: http_status:404
-EOF
+download_singbox() {
+  purple "正在安装中,请稍等..."
+  ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
+  if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
+      FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot" "https://github.com/eooce/test/releases/download/ARM/swith npm")
+  elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
+      FILE_INFO=("https://eooce.2go.us.kg/web web" "https://eooce.2go.us.kg/bot bot" "https://eooce.2go.us.kg/npm npm")
   else
-    green "ARGO_AUTH mismatch TunnelSecret,use token connect to tunnel"
+      echo "Unsupported architecture: $ARCH"
+      exit 1
   fi
+declare -A FILE_MAP
+generate_random_name() {
+    local chars=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890
+    local name=""
+    for i in {1..6}; do
+        name="$name${chars:RANDOM%${#chars}:1}"
+    done
+    echo "$name"
 }
 
-run_sb() {
-  if [ -e npm ]; then
+for entry in "${FILE_INFO[@]}"; do
+    URL=$(echo "$entry" | cut -d ' ' -f 1)
+    RANDOM_NAME=$(generate_random_name)
+    NEW_FILENAME="$DOWNLOAD_DIR/$RANDOM_NAME"
+    
+    if [ -e "$NEW_FILENAME" ]; then
+        green "$NEW_FILENAME already exists, Skipping download"
+    else
+        curl -L -sS -o "$NEW_FILENAME" "$URL"
+        green "Downloading $NEW_FILENAME"
+    fi
+    chmod +x "$NEW_FILENAME"
+    FILE_MAP[$(echo "$entry" | cut -d ' ' -f 2)]="$NEW_FILENAME"
+done
+wait
+
+if [ -e "${FILE_MAP[npm]}" ]; then
     tlsPorts=("443" "8443" "2096" "2087" "2083" "2053")
     if [[ "${tlsPorts[*]}" =~ "${NEZHA_PORT}" ]]; then
       NEZHA_TLS="--tls"
@@ -289,45 +300,46 @@ run_sb() {
     fi
     if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
         export TMPDIR=$(pwd)
-        nohup ./npm -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &
-	sleep 2
-        pgrep -x "npm" > /dev/null && green "npm is running" || { red "npm is not running, restarting..."; pkill -x "npm" && nohup ./npm -s "${NEZHA_SERVER}:${NEZHA_PORT}" -p "${NEZHA_KEY}" ${NEZHA_TLS} >/dev/null 2>&1 & sleep 2; purple "npm restarted"; }
+        nohup ./"${FILE_MAP[npm]}" -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &
+        sleep 2
+        pgrep -x "$(basename ${FILE_MAP[npm]})" > /dev/null && green "$(basename ${FILE_MAP[npm]}) is running" || { red "$(basename ${FILE_MAP[npm]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[npm]})" && nohup ./"${FILE_MAP[npm]}" -s "${NEZHA_SERVER}:${NEZHA_PORT}" -p "${NEZHA_KEY}" ${NEZHA_TLS} >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[npm]}) restarted"; }
     else
-        purple "NEZHA variable is empty,skiping runing"
+        purple "NEZHA variable is empty, skipping running"
     fi
-  fi
+fi
 
-  if [ -e web ]; then
-    nohup ./web run -c config.json >/dev/null 2>&1 &
+if [ -e "${FILE_MAP[web]}" ]; then
+    nohup ./"${FILE_MAP[web]}" run -c config.json >/dev/null 2>&1 &
     sleep 2
-    pgrep -x "web" > /dev/null && green "web is running" || { red "web is not running, restarting..."; pkill -x "web" && nohup ./web run -c config.json >/dev/null 2>&1 & sleep 2; purple "web restarted"; }
-  fi
+    pgrep -x "$(basename ${FILE_MAP[web]})" > /dev/null && green "$(basename ${FILE_MAP[web]}) is running" || { red "$(basename ${FILE_MAP[web]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[web]})" && nohup ./"${FILE_MAP[web]}" run -c config.json >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[web]}) restarted"; }
+fi
 
-  if [ -e bot ]; then
+if [ -e "${FILE_MAP[bot]}" ]; then
     if [[ $ARGO_AUTH =~ ^[A-Z0-9a-z=]{120,250}$ ]]; then
       args="tunnel --edge-ip-version auto --no-autoupdate --protocol http2 run --token ${ARGO_AUTH}"
     elif [[ $ARGO_AUTH =~ TunnelSecret ]]; then
       args="tunnel --edge-ip-version auto --config tunnel.yml run"
     else
-      args="tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile boot.log --loglevel info --url http://localhost:$VMESS_PORT"
+      args="tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile boot.log --loglevel info --url http://localhost:$vmess_port"
     fi
-    nohup ./bot $args >/dev/null 2>&1 &
+    nohup ./"${FILE_MAP[bot]}" $args >/dev/null 2>&1 &
     sleep 2
-    pgrep -x "bot" > /dev/null && green "bot is running" || { red "bot is not running, restarting..."; pkill -x "bot" && nohup ./bot "${args}" >/dev/null 2>&1 & sleep 2; purple "bot restarted"; }
-  fi
-
+    pgrep -x "$(basename ${FILE_MAP[bot]})" > /dev/null && green "$(basename ${FILE_MAP[bot]}) is running" || { red "$(basename ${FILE_MAP[bot]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[bot]})" && nohup ./"${FILE_MAP[bot]}" "${args}" >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[bot]}) restarted"; }
+fi
+sleep 3
+rm -f "$(basename ${FILE_MAP[npm]})" "$(basename ${FILE_MAP[web]})" "$(basename ${FILE_MAP[bot]})"
 }
 
 get_ip() {
-ip=$(curl -s --max-time 2 ipv4.ip.sb)
-if [ -z "$ip" ]; then
-    if [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]]; then
-        ip=${HOSTNAME/s/web}
-    else
-        ip="$HOSTNAME"
-    fi
-fi
-echo $ip
+  ip=$(curl -s --max-time 2 ipv4.ip.sb)
+  if [ -z "$ip" ]; then
+      if [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]]; then
+          ip=${HOSTNAME/s/web}
+      else
+          ip="$HOSTNAME"
+      fi
+  fi
+  echo $ip
 }
 
 get_links(){
@@ -355,7 +367,7 @@ hysteria2://$UUID@$IP:$HY2_PORT/?sni=www.bing.com&alpn=h3&insecure=1#$ISP
 tuic://$UUID:admin123@$IP:$TUIC_PORT?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#$ISP
 EOF
 cat list.txt
-purple "/$WORKDIR/list.txt saved successfully"
+purple "$$WORKDIR/list.txt saved successfully"
 purple "Running done!"
 yellow "Serv00|ct8老王sing-box一键四协议安装脚本(vmess-ws|vmess-ws-tls(argo)|hysteria2|tuic)\n"
 echo -e "${green}issues反馈：${re}${yellow}https://github.com/eooce/Sing-box/issues${re}\n"
@@ -363,17 +375,16 @@ echo -e "${green}反馈论坛：${re}${yellow}https://bbs.vps8.me${re}\n"
 echo -e "${green}TG反馈群组：${re}${yellow}https://t.me/vps888${re}\n"
 purple "转载请著名出处，请勿滥用\n"
 sleep 3 
-rm -rf web bot npm boot.log config.json sb.log core tunnel.yml tunnel.json fake_useragent_0.2.0.json
+rm -rf boot.log config.json sb.log core tunnel.yml tunnel.json fake_useragent_0.2.0.json
 
 }
 
 install_singbox() {
     clear
     cd $WORKDIR
-    download_singbox && wait
-    generate_config
     argo_configure
-    run_sb && sleep 3
+    generate_config
+    download_singbox
     get_links
 }
 install_singbox

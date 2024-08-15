@@ -15,6 +15,12 @@ curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o 
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/sb_00.sh)
 ```
+一键三协议无交互安装脚本vless-reality|vmess-splithttp|vmess-splithttp-tls(argo) 
+* 必填环境变量：VLESS_PORT ARGO_PORT
+* 可选环境变量：UUID CFIP CFPORT NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH 
+```
+bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/x00.sh)
+```
 
 # 3：游戏机hosting
 * 本项目是针对node,python,java,go环境的游戏玩具和vps而生，集成哪吒探针服务

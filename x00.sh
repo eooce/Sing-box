@@ -279,5 +279,7 @@ EOF
 generate_links
 echo -e "\n\e[1;96mRunning done!\e[0m"
 echo -e "\e[1;96mThank you for using this script,enjoy!\e[0m"
-echo -e "\e[1;35missues反馈：https://github.com/eooce/Sing-box/issues\e[0m\n"
+echo -e "\e[1;35m脚本地址：${re}${yellow}https://github.com/eooce/Sing-box\e[0m"
+echo -e "\e[1;35m反馈论坛：${re}${yellow}https://bbs.vps8.me\e[0m"
+echo -e "\e[1;35mTG反馈群组：${re}${yellow}https://t.me/vps888\e[0m"
 exit 0

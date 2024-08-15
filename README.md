@@ -19,7 +19,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/sb_00.sh)
 * 必填环境变量：VLESS_PORT ARGO_PORT
 * 可选环境变量：UUID CFIP CFPORT NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH 
 ```
-bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/x00.sh)
+VLESS_PORT=TCP端口 ARGO_PORT=TCP端口 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/x00.sh)
 ```
 
 # 3：游戏机hosting

@@ -1131,19 +1131,28 @@ ingress:
   - service: http_status:404
 EOF
 
-                sed -i '/^ExecStart=/c ExecStart=/bin/sh -c "/etc/sing-box/argo tunnel --edge-ip-version auto --config /etc/sing-box/tunnel.yml run 2>&1"' /etc/systemd/system/argo.service
+                if [ -f /etc/alpine-release ]; then
+                    sed -i '/^command_args=/c\command_args="-c '\''/etc/sing-box/argo tunnel --edge-ip-version auto --config /etc/sing-box/tunnel.yml run 2>&1'\''"' /etc/init.d/argo
+                else
+                    sed -i '/^ExecStart=/c ExecStart=/bin/sh -c "/etc/sing-box/argo tunnel --edge-ip-version auto --config /etc/sing-box/tunnel.yml run 2>&1"' /etc/systemd/system/argo.service
+                fi
                 restart_argo
                 sleep 1 
                 change_argo_domain
 
             elif [[ $argo_auth =~ ^[A-Z0-9a-z=]{120,250}$ ]]; then
-                sed -i '/^ExecStart=/c ExecStart=/bin/sh -c "/etc/sing-box/argo tunnel --edge-ip-version auto --no-autoupdate --protocol http2 run --token '$argo_auth' 2>&1"' /etc/systemd/system/argo.service
+                if [ -f /etc/alpine-release ]; then
+                    sed -i "/^command_args=/c\command_args=\"-c '/etc/sing-box/argo tunnel --edge-ip-version auto --no-autoupdate --protocol http2 run --token $argo_auth 2>&1'\"" /etc/init.d/argo
+                else
+
+                    sed -i '/^ExecStart=/c ExecStart=/bin/sh -c "/etc/sing-box/argo tunnel --edge-ip-version auto --no-autoupdate --protocol http2 run --token '$argo_auth' 2>&1"' /etc/systemd/system/argo.service
+                fi
                 restart_argo
                 sleep 1 
                 change_argo_domain
             else
                 yellow "你输入的argo域名或token不匹配，请重新输入"
-                manage_argo
+                manage_argo            
             fi
             ;; 
         5)

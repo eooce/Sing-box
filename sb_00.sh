@@ -392,7 +392,7 @@ if [ -e "$(basename ${FILE_MAP[web]})" ]; then
     sleep 2
     pgrep -x "$(basename ${FILE_MAP[web]})" > /dev/null && green "$(basename ${FILE_MAP[web]}) is running" || { red "$(basename ${FILE_MAP[web]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[web]})" && nohup ./"$(basename ${FILE_MAP[web]})" run -c config.json >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[web]}) restarted"; }
 fi
-sleep 4
+sleep 1
 rm -f "$(basename ${FILE_MAP[npm]})" "$(basename ${FILE_MAP[web]})"
 }
 

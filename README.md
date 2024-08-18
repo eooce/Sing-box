@@ -3,6 +3,7 @@
 * 最好用的四协议组合vless-reality|vmess-ws-tls(argo)|hysteria2|tuic5
 * 支持的系统：Ubuntu/Debian/CentOS/Alpine/Fedora/Rocky/Almalinux/kail
 * 注意nat小鸡安装完一键脚本之后需手动更改订阅端口和节点端口在允许范围内的端口，否则节点不通
+* 可在脚本前添加PORT变量，随脚本一起运行，即可定义端口，需确保PORT端口后面的3个端口可用，否则节点不通
 
 vps一键脚本
 ```

@@ -148,7 +148,7 @@ for entry in "${FILE_INFO[@]}"; do
     if [ -e "$NEW_FILENAME" ]; then
         green "$NEW_FILENAME already exists, Skipping download"
     else
-        curl -L -sS -o "$NEW_FILENAME" "$URL"
+        wget -q -O "$NEW_FILENAME" "$URL"
         green "Downloading $NEW_FILENAME"
     fi
     chmod +x "$NEW_FILENAME"

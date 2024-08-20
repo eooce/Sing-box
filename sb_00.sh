@@ -21,7 +21,7 @@ export NEZHA_KEY=${NEZHA_KEY:-''}
 
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="domains/${USERNAME}.ct8.pl/logs" || WORKDIR="domains/${USERNAME}.serv00.net/logs"
 [ -d "$WORKDIR" ] || (mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR")
-ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk '{print $2}' | xargs -r kill -9
+ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk '{print $2}' | xargs -r kill -9 2>/dev/null
 
 read_vless_port() {
     while true; do
@@ -152,7 +152,7 @@ download_with_fallback() {
     CURL_CURRENT_SIZE=$(stat -c%s "$NEW_FILENAME" 2>/dev/null || echo 0)
     
     if [ "$CURL_CURRENT_SIZE" -le "$CURL_START_SIZE" ]; then
-        kill $CURL_PID
+        kill $CURL_PID 2>/dev/null
         wait $CURL_PID 2>/dev/null
         wget -q -O "$NEW_FILENAME" "$URL"
         echo -e "\e[1;32mDownloading $NEW_FILENAME with wget\e[0m"
@@ -419,15 +419,20 @@ rm -f "$(basename ${FILE_MAP[npm]})" "$(basename ${FILE_MAP[web]})"
 }
 
 get_ip() {
-ip=$(curl -s --max-time 2 ipv4.ip.sb)
-if [ -z "$ip" ]; then
-    if [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]]; then
-        ip=${HOSTNAME/s/web}
-    else
-        ip="$HOSTNAME"
-    fi
-fi
-echo $ip
+  ip=$(curl -s --max-time 2 ipv4.ip.sb)
+  if [ -z "$ip" ]; then
+      ip=$( [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]] && echo "${HOSTNAME/s/web}" || echo "$HOSTNAME" )
+  else
+      accessible=false
+      response=$(ping -c 3 -W 3 www.baidu.com)
+      if echo "$response" | grep -q "time="; then
+          accessible=true
+      fi
+      if [ "$accessible" = false ]; then
+          ip=$( [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]] && echo "${HOSTNAME/s/web}" || echo "$ip" )
+      fi
+  fi
+  echo "$ip"
 }
 
 get_links(){

@@ -27,7 +27,7 @@ export CFPORT=${CFPORT:-'443'}
 
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="domains/${USERNAME}.ct8.pl/logs" || WORKDIR="domains/${USERNAME}.serv00.net/logs"
 [ -d "$WORKDIR" ] || (mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR")
-ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk '{print $2}' | xargs -r kill -9
+ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk '{print $2}' | xargs -r kill -9 2>/dev/null
 
 argo_configure() {
 clear
@@ -290,7 +290,7 @@ download_with_fallback() {
     CURL_CURRENT_SIZE=$(stat -c%s "$NEW_FILENAME" 2>/dev/null || echo 0)
     
     if [ "$CURL_CURRENT_SIZE" -le "$CURL_START_SIZE" ]; then
-        kill $CURL_PID
+        kill $CURL_PID 2>/dev/null
         wait $CURL_PID 2>/dev/null
         wget -q -O "$NEW_FILENAME" "$URL"
         echo -e "\e[1;32mDownloading $NEW_FILENAME with wget\e[0m"

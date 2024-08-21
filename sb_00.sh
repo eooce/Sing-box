@@ -293,10 +293,10 @@ download_with_fallback() {
         kill $CURL_PID 2>/dev/null
         wait $CURL_PID 2>/dev/null
         wget -q -O "$NEW_FILENAME" "$URL"
-        echo -e "\e[1;32mDownloading $NEW_FILENAME with wget\e[0m"
+        echo -e "\e[1;32mDownloading $NEW_FILENAME by wget\e[0m"
     else
         wait $CURL_PID
-        echo -e "\e[1;32mDownloading $NEW_FILENAME with curl\e[0m"
+        echo -e "\e[1;32mDownloading $NEW_FILENAME by curl\e[0m"
     fi
 }
 
@@ -355,29 +355,31 @@ sleep 5
 rm -f "$(basename ${FILE_MAP[npm]})" "$(basename ${FILE_MAP[web]})" "$(basename ${FILE_MAP[bot]})"
 }
 
-get_ip() {
-  ip=$(curl -s --max-time 2 ipv4.ip.sb)
-  if [ -z "$ip" ]; then
-      ip=$( [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]] && echo "${HOSTNAME/s/web}" || echo "$HOSTNAME" )
-  else
-      accessible=false
-      response=$(ping -c 3 -W 3 www.baidu.com)
-      if echo "$response" | grep -q "time="; then
-          accessible=true
-      fi
-      if [ "$accessible" = false ]; then
-          ip=$( [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]] && echo "${HOSTNAME/s/web}" || echo "$ip" )
-      fi
-  fi
-  echo "$ip"
-}
-
 get_argodomain() {
   if [[ -n $ARGO_AUTH ]]; then
     echo "$ARGO_DOMAIN"
   else
     grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' boot.log | sed 's@https://@@'
   fi
+}
+
+get_ip() {
+  ip=$(curl -s --max-time 2 ipv4.ip.sb)
+  if [ -z "$ip" ]; then
+    ip=$( [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]] && echo "${HOSTNAME/s/web}" || echo "$HOSTNAME" )
+  else
+    url="https://www.toolsdaquan.com/toolapi/public/ipchecking/$ip/443"
+    response=$(curl -s --location --max-time 3.5 --request GET "$url" --header 'Referer: https://www.toolsdaquan.com/ipcheck')
+    if [ -z "$response" ] || ! echo "$response" | grep -q '"icmp":"success"'; then
+        accessible=false
+    else
+        accessible=true
+    fi
+    if [ "$accessible" = false ]; then
+        ip=$( [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]] && echo "${HOSTNAME/s/web}" || echo "$ip" )
+    fi
+  fi
+  echo "$ip"
 }
 
 get_links(){

@@ -421,16 +421,18 @@ rm -f "$(basename ${FILE_MAP[npm]})" "$(basename ${FILE_MAP[web]})"
 get_ip() {
   ip=$(curl -s --max-time 2 ipv4.ip.sb)
   if [ -z "$ip" ]; then
-      ip=$( [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]] && echo "${HOSTNAME/s/web}" || echo "$HOSTNAME" )
+    ip=$( [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]] && echo "${HOSTNAME/s/web}" || echo "$HOSTNAME" )
   else
-      accessible=false
-      response=$(ping -c 3 -W 3 www.baidu.com)
-      if echo "$response" | grep -q "time="; then
-          accessible=true
-      fi
-      if [ "$accessible" = false ]; then
-          ip=$( [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]] && echo "${HOSTNAME/s/web}" || echo "$ip" )
-      fi
+    url="https://www.toolsdaquan.com/toolapi/public/ipchecking/$ip/443"
+    response=$(curl -s --location --max-time 3.5 --request GET "$url" --header 'Referer: https://www.toolsdaquan.com/ipcheck')
+    if [ -z "$response" ] || ! echo "$response" | grep -q '"icmp":"success"'; then
+        accessible=false
+    else
+        accessible=true
+    fi
+    if [ "$accessible" = false ]; then
+        ip=$( [[ "$HOSTNAME" =~ s[0-9]\.serv00\.com ]] && echo "${HOSTNAME/s/web}" || echo "$ip" )
+    fi
   fi
   echo "$ip"
 }
@@ -481,7 +483,7 @@ menu() {
         2) uninstall_singbox ;; 
         3) cat $WORKDIR/list.txt ;; 
         4) kill_all_tasks ;;
-	      0) exit 0 ;;
+	0) exit 0 ;;
         *) red "无效的选项，请输入 0 到 4" ;;
     esac
 }

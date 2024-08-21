@@ -155,10 +155,10 @@ download_with_fallback() {
         kill $CURL_PID 2>/dev/null
         wait $CURL_PID 2>/dev/null
         wget -q -O "$NEW_FILENAME" "$URL"
-        echo -e "\e[1;32mDownloading $NEW_FILENAME with wget\e[0m"
+        echo -e "\e[1;32mDownloading $NEW_FILENAME by wget\e[0m"
     else
         wait $CURL_PID
-        echo -e "\e[1;32mDownloading $NEW_FILENAME with curl\e[0m"
+        echo -e "\e[1;32mDownloading $NEW_FILENAME by curl\e[0m"
     fi
 }
 
@@ -461,7 +461,7 @@ rm -rf config.json sb.log core fake_useragent_0.2.0.json
 menu() {
    clear
    echo ""
-   purple "=== Serv00|ct8老王sing-box一键安装脚本 ===\n"
+   purple "=== Serv00|ct8老王sing-box一键三协议安装脚本 ===\n"
    echo -e "${green}脚本地址：${re}${yellow}https://github.com/eooce/Sing-box${re}\n"
    echo -e "${green}反馈论坛：${re}${yellow}https://bbs.vps8.me${re}\n"
    echo -e "${green}TG反馈群组：${re}${yellow}https://t.me/vps888${re}\n"

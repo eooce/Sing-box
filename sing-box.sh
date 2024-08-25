@@ -1201,7 +1201,7 @@ fi
 get_quick_tunnel() {
 restart_argo
 yellow "获取临时argo域名中，请稍等...\n"
-sleep 5
+sleep 6
 get_argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
 green "ArgoDomain：${purple}$get_argodomain${re}"
 ArgoDomain=$get_argodomain

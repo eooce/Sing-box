@@ -48,6 +48,30 @@ bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/sb_00.sh)
 VLESS_PORT=TCP端口 ARGO_PORT=TCP端口 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/x00.sh)
 ```
 
+## hysteria2无交互一键安装脚本
+* 必填变量：PORT=UDP端口
+* 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY
+```
+PORT=UDP端口 bash <(curl -Ls https://00.2go.us.kg/2.sh)
+```
+或
+```
+PORT=UDP端口 bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/2.sh)
+```
+
+## tuic无交互一键安装脚本
+* 必填变量：PORT=UDP端口
+* 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY
+
+```
+PORT=UDP端口 bash <(curl -Ls https://00.2go.us.kg/tu.sh)
+```
+或
+```
+PORT=UDP端口 bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/tu.sh)
+```
+
+
 # 3：游戏机hosting
 ## sing-box玩具四合一，默认解锁GPT和奈飞
 * node,python,java,go环境的游戏玩具搭建singbox节点，集成哪吒探针服务

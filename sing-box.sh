@@ -222,11 +222,11 @@ cat > "${config_dir}" << EOF
         ],
         "tls": {
             "enabled": true,
-            "server_name": "www.zara.com",
+            "server_name": "www.iij.ad.jp",
             "reality": {
                 "enabled": true,
                 "handshake": {
-                    "server": "www.zara.com",
+                    "server": "www.iij.ad.jp",
                     "server_port": 443
                 },
                 "private_key": "$private_key",
@@ -543,7 +543,7 @@ get_info() {
   VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"${CFIP}\", \"port\": \"${CFPORT}\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess?ed=2048\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"randomized\", \"allowlnsecure\": \"flase\"}"
 
   cat > ${work_dir}/url.txt <<EOF
-vless://${uuid}@${server_ip}:${vless_port}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.zara.com&fp=chrome&pbk=${public_key}&type=tcp&headerType=none#${isp}
+vless://${uuid}@${server_ip}:${vless_port}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=chrome&pbk=${public_key}&type=tcp&headerType=none#${isp}
 
 vmess://$(echo "$VMESS" | base64 -w0)
 
@@ -964,18 +964,20 @@ if [ ${check_singbox} -eq 0 ]; then
             ;;
         3)  
             clear
-            green "\n1. www.ups.com\n\n2. www.svix.com\n\n3. www.cboe.com\n\n4. www.hubspot.com\n"
+            green "\n1. www.joom.com\n\n2. www.stengg.com\n\n3. www.wedgehr.com\n\n4. www.cerebrium.ai\n\n5. www.nazhumi.com\n"
             reading "\n请输入新的Reality伪装域名(可自定义输入,回车留空将使用默认1): " new_sni
                 if [ -z "$new_sni" ]; then    
-                    new_sni="www.ups.com"
+                    new_sni="www.joom.com"
                 elif [[ "$new_sni" == "1" ]]; then
-                    new_sni="www.ups.com"
+                    new_sni="www.joom.com"
                 elif [[ "$new_sni" == "2" ]]; then
-                    new_sni="www.svix.com"
+                    new_sni="www.stengg.com"
                 elif [[ "$new_sni" == "3" ]]; then
-                    new_sni="www.cboe.com"
+                    new_sni="www.wedgehr.com"
                 elif [[ "$new_sni" == "4" ]]; then
-                    new_sni="www.hubspot.com"
+                    new_sni="www.cerebrium.ai"
+	        elif [[ "$new_sni" == "5" ]]; then
+                    new_sni="www.cerebrium.ai"
                 else
                     new_sni="$new_sni"
                 fi
@@ -1170,7 +1172,7 @@ EOF
 
         6)  
             if [ -f /etc/alpine-release ]; then
-                if grep -q '--url http://localhost:8001' /etc/init.d/argo; then
+                if grep -Fq -- '--url http://localhost:8001' /etc/init.d/argo; then
                     get_quick_tunnel
                     change_argo_domain 
                 else
@@ -1199,7 +1201,7 @@ fi
 get_quick_tunnel() {
 restart_argo
 yellow "获取临时argo域名中，请稍等...\n"
-sleep 4
+sleep 5
 get_argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
 green "ArgoDomain：${purple}$get_argodomain${re}"
 ArgoDomain=$get_argodomain

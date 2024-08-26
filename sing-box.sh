@@ -58,7 +58,7 @@ fi
 check_nginx() {
 if command -v nginx &>/dev/null; then
     if [ -f /etc/alpine-release ]; then
-        rc-service nginx status | grep -Eq "started|crashed" && green "running" && return 0 || yellow "not running" && return 1
+        rc-service nginx status | grep -q "stoped" && yellow "not running" && return 1 || green "running" && return 0
     else 
         [ "$(systemctl is-active nginx)" = "active" ] && green "running" && return 0 || yellow "not running" && return 1
     fi

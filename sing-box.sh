@@ -1201,8 +1201,9 @@ fi
 get_quick_tunnel() {
 restart_argo
 yellow "获取临时argo域名中，请稍等...\n"
-sleep 5
-get_argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "/etc/sing-box/argo.log" | sed 's@https://@@')
+sleep 6
+get_argodomain=$(sed -n 's|.*https://\([^/]*trycloudflare\.com\).*|\1|p' /etc/sing-box/argo.log) || true
+[ -z "$get_argodomain" ] && get_argodomain=$(grep -oP '(?<=https://)[^\s]+trycloudflare\.com' /etc/sing-box/argo.log)
 green "ArgoDomain：${purple}$get_argodomain${re}"
 ArgoDomain=$get_argodomain
 }
@@ -1298,7 +1299,7 @@ while true; do
                     exit 1 
                 fi
 
-                sleep 4
+                sleep 6
                 get_info
                 add_nginx_conf
                 create_shortcut

@@ -177,14 +177,14 @@ install_singbox() {
     private_key=$(echo "${output}" | awk '/PrivateKey:/ {print $2}')
     public_key=$(echo "${output}" | awk '/PublicKey:/ {print $2}')
 
-    iptables -A INPUT -p tcp --dport 8001 -j ACCEPT 
-    iptables -A INPUT -p tcp --dport $vless_port -j ACCEPT 
-    iptables -A INPUT -p tcp --dport $nginx_port -j ACCEPT 
-    iptables -A INPUT -p udp --dport $tuic_port -j ACCEPT 
-    iptables -A INPUT -p udp --dport $hy2_port -j ACCEPT
-    iptables -P FORWARD ACCEPT 
-    iptables -P OUTPUT ACCEPT
-    iptables -F
+    iptables -A INPUT -p tcp --dport 8001 -j ACCEPT > /dev/null 2>&1 
+    iptables -A INPUT -p tcp --dport $vless_port -j ACCEPT > /dev/null 2>&1 
+    iptables -A INPUT -p tcp --dport $nginx_port -j ACCEPT > /dev/null 2>&1 
+    iptables -A INPUT -p udp --dport $tuic_port -j ACCEPT > /dev/null 2>&1 
+    iptables -A INPUT -p udp --dport $hy2_port -j ACCEPT > /dev/null 2>&1
+    iptables -P FORWARD ACCEPT > /dev/null 2>&1 
+    iptables -P OUTPUT ACCEPT > /dev/null 2>&1
+    iptables -F > /dev/null 2>&1
     manage_packages uninstall ufw firewalld iptables-persistent iptables-services > /dev/null 2>&1
 
     # 生成自签名证书

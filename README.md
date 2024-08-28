@@ -73,7 +73,7 @@ PORT=UDP端口 bash <(curl -Ls https://github.com/eooce/Sing-box/releases/downlo
 
 ## Serv00|CT8 vmess-ws-tls(argo)一键脚本
 * 必填变量：PORT=TCP端口
-* 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY  CFIP CFPORT
+* 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY  CFIP CFPORT ARGO_DOMAIN  ARGO_AUTH
 
 ```
 PORT=TCP端口 bash <(curl -Ls https://raw.githubusercontent.com/eooce/scripts/master/containers-shell/00_vmess.sh)

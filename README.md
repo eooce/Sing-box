@@ -22,12 +22,12 @@ curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o 
 * 注意：面板开的端口必须符合脚本中提示的要求，并且与输入的对应，面板运行应用程序的权限必须打开，个别服务器ip被墙换到新增加的服务器即可，客户端跳过证书验证需设置为true，否则hy2和tuic不通
 * 详细图文教程地址：https://linux.do/t/topic/169670
 
-## 一键四协议安装脚本vmess-ws|vmess-ws-tls(argo)|hy2|tuic5
+## Serv00|CT8一键四协议安装脚本vmess-ws|vmess-ws-tls(argo)|hy2|tuic5
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh)
 ```
 
-## 一键四协议无交互安装脚本vmess-ws|vmess-ws-tls(argo)|hy2|tuic5，需设置环境变量
+## Serv00|CT8一键四协议无交互安装脚本vmess-ws|vmess-ws-tls(argo)|hy2|tuic5，需设置环境变量
 * 必填环境变量：VMESS_PORT HY2_PORT TUIC_PORT
 * 可选环境变量：UUID NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH CFIP CFPORT
 * ARGO_AUTH变量使用json时，ARGO_AUTH=‘json’  需用英文输入状态下的单引号包裹，例如：ARGO_AUTH='{"AccountTag":"123","TunnelSecret":"123","TunnelID":"123"}' 
@@ -35,12 +35,12 @@ bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.
 VMESS_PORT=tcp端口 HY2_PORT=udp端口 TUIC_PORT=udp端口 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_00.sh)
 ```
 
-## 一键三协议安装脚本vless-reality|hy2|tuic5 
+## Serv00|CT8一键三协议安装脚本vless-reality|hy2|tuic5 
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/sb_00.sh)
 ```
 
-## 一键三协议无交互安装脚本vless-reality|vmess-splithttp|vmess-splithttp-tls(argo) 
+## Serv00|CT8一键三协议无交互安装脚本vless-reality|vmess-splithttp|vmess-splithttp-tls(argo) 
 * 必填环境变量：VLESS_PORT ARGO_PORT
 * 可选环境变量：UUID CFIP CFPORT NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH
 * ARGO_AUTH变量使用json时，ARGO_AUTH=‘json’ 需英文输入状态下的单引号包裹，例如：ARGO_AUTH='{"AccountTag":"123","TunnelSecret":"123","TunnelID":"123"}' 
@@ -48,7 +48,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/sb_00.sh)
 VLESS_PORT=TCP端口 ARGO_PORT=TCP端口 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/x00.sh)
 ```
 
-## hysteria2无交互一键安装脚本
+## Serv00|CT8 hysteria2无交互一键安装脚本
 * 必填变量：PORT=UDP端口
 * 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY
 ```
@@ -59,7 +59,7 @@ PORT=UDP端口 bash <(curl -Ls https://00.2go.us.kg/2.sh)
 PORT=UDP端口 bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/2.sh)
 ```
 
-## tuic无交互一键安装脚本
+## Serv00|CT8 tuic无交互一键安装脚本
 * 必填变量：PORT=UDP端口
 * 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY
 
@@ -70,6 +70,16 @@ PORT=UDP端口 bash <(curl -Ls https://00.2go.us.kg/tu.sh)
 ```
 PORT=UDP端口 bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/tu.sh)
 ```
+
+## Serv00|CT8 vmess-ws-tls(argo)一键脚本
+* 必填变量：PORT=TCP端口
+* 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY  CFIP CFPORT
+
+```
+PORT=TCP端口 bash <(curl -Ls https://raw.githubusercontent.com/eooce/scripts/master/containers-shell/00_vmess.sh)
+```
+
+
 
 
 # 3：游戏机hosting

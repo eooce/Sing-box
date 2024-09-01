@@ -877,9 +877,9 @@ EOF
   chmod +x "$work_dir/sb.sh"
   ln -sf "$work_dir/sb.sh" /usr/bin/sb
   if [ -s /usr/bin/sb ]; then
-    green "\nsb 快捷指令创建成功\n"
+    green "\n快捷指令 sb 创建成功\n"
   else
-    red "\nsb 快捷指令创建失败\n"
+    red "\n快捷指令创建失败\n"
   fi
 }
 
@@ -1383,7 +1383,7 @@ while true; do
                 yellow "sing-box 已经安装！"
             else
                 fix_nginx
-                manage_packages install nginx jq tar openssl iptables  # coreutils
+                manage_packages install nginx jq tar openssl iptables
                 [ -n "$(curl -s --max-time 2 ipv6.ip.sb)" ] && manage_packages install ip6tables
                 install_singbox
 

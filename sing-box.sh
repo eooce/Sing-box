@@ -127,7 +127,7 @@ manage_packages() {
 
 # 获取ip
 get_realip() {
-  ip=$(curl -s ipv4.ip.sb)
+  ip=$(curl -s --max-time 2 ipv4.ip.sb)
   if [ -z "$ip" ]; then
       ipv6=$(curl -s --max-time 1 ipv6.ip.sb)
       echo "[$ipv6]"
@@ -231,7 +231,6 @@ cat > "${config_dir}" << EOF
             }
         }
     },
-
     {
         "tag": "vmess-ws",
         "type": "vmess",
@@ -248,12 +247,13 @@ cat > "${config_dir}" << EOF
         "early_data_header_name": "Sec-WebSocket-Protocol"
         }
     },
- 
     {
         "tag": "hysteria2",
         "type": "hysteria2",
         "listen": "::",
         "listen_port": $hy2_port,
+        "sniff": true,
+        "sniff_override_destination": false,
         "users": [
             {
                 "password": "$uuid"
@@ -273,7 +273,6 @@ cat > "${config_dir}" << EOF
         }
 
     },
- 
     {
         "tag": "tuic",
         "type": "tuic",
@@ -1344,9 +1343,9 @@ menu() {
    check_singbox &>/dev/null; check_singbox=$?
    check_nginx &>/dev/null; check_nginx=$?
    check_argo &>/dev/null; check_argo=$?
-   check_singbox_status=$(check_singbox)
-   check_nginx_status=$(check_nginx)
-   check_argo_status=$(check_argo)
+   check_singbox_status=$(check_singbox) > /dev/null 2>&1
+   check_nginx_status=$(check_nginx) > /dev/null 2>&1
+   check_argo_status=$(check_argo) > /dev/null 2>&1
    clear
    echo ""
    purple "=== 老王sing-box一键安装脚本 ===\n"

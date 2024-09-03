@@ -1,4 +1,5 @@
 #!/bin/bash
+
 export DEBIAN_FRONTEND=noninteractive
 export cfip=${cfip:-'www.visa.com.tw'}  # 优选域名或优选ip
 export cfport=${cfport:-'443'}     # 优选域名或优选ip对应端口

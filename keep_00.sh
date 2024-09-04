@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export TERM=xterm
 export DEBIAN_FRONTEND=noninteractive
 export cfip=${cfip:-'www.visa.com.tw'}  # 优选域名或优选ip
 export cfport=${cfport:-'443'}     # 优选域名或优选ip对应端口
@@ -42,8 +43,8 @@ clear
 
 # 添加定时任务的函数
 add_cron_job() {
-    if ! crontab -l | grep -q "$SCRIPT_PATH"; then
-        (crontab -l; echo "*/2 * * * * /bin/bash $SCRIPT_PATH >> /root/keep_00.log 2>&1") | crontab -
+    if ! crontab -l | grep -q "$SCRIPT_PATH" > /dev/null 2>&1; then
+        (crontab -l; echo "*/2 * * * * /bin/bash $SCRIPT_PATH >> /root/00_keep.log 2>&1") | crontab -
         echo -e "\e[1;32m已添加定时任务，每两分钟执行一次\e[0m"
     else
         echo -e "\e[1;35m定时任务已存在，跳过添加计划任务\e[0m"
@@ -82,13 +83,15 @@ for host in "${!servers[@]}"; do
     IFS=':' read -r ssh_user ssh_pass tcp_port udp1_port udp2_port nezha_server nezha_port nezha_key argo_domain argo_auth <<< "${servers[$host]}"
 
     attempt=0 
+    time=$(TZ="Asia/Hong_Kong" date +"%Y-%m-%d %H:%M")
 
     while [ $attempt -lt $MAX_ATTEMPTS ]; do
+        
         if check_tcp_port "$host" "$tcp_port"; then
-            echo -e "\e[1;32m程序已运行，TCP 端口 $tcp_port 通畅  \e[1;35m 服务器: $host   账户：$ssh_user\e[0m"
+            echo -e "\e[1;32m程序正在运行，TCP端口 $tcp_port 通畅  \e[1;35m 服务器: $host   账户：$ssh_user  [$time]\e[0m"
             break
         else
-            echo -e "\e[1;33mTCP 端口 $tcp_port 不通畅，进程可能不存在，休眠30s后重新检测  \e[1;35m 服务器: $host   账户：$ssh_user\e[0m"
+            echo -e "\e[1;33mTCP 端口 $tcp_port 不通畅，进程可能不存在，休眠30s后重新检测  \e[1;35m 服务器: $host   账户：$ssh_user  [$time]\e[0m"
             sleep 30
             attempt=$((attempt+1))
         fi
@@ -96,14 +99,14 @@ for host in "${!servers[@]}"; do
 
     # 如果达到最大尝试次数，连接服务器并执行远程命令
     if [ $attempt -ge $MAX_ATTEMPTS ]; then
-        echo -e "\e[1;33m多次检测失败，尝试通过SSH连接并远程执行命令  \e[1;35m 服务器: $host   账户：$ssh_user\e[0m"
+        echo -e "\e[1;33m多次检测失败，尝试通过SSH连接并远程执行命令  \e[1;35m 服务器: $host   账户：$ssh_user  [$time]\e[0m"
         if sshpass -p "$ssh_pass" ssh -o StrictHostKeyChecking=no "$ssh_user@$host" -q exit; then
-            echo -e "\e[1;32mSSH远程连接成功  \e[1;35m 服务器: $host   账户：$ssh_user\e[0m"
+            echo -e "\e[1;32mSSH远程连接成功  \e[1;35m 服务器: $host   账户：$ssh_user  [$time]\e[0m"
             output=$(run_remote_command "$host" "$ssh_user" "$ssh_pass" "$tcp_port" "$udp1_port" "$udp2_port" "$nezha_server" "$nezha_port" "$nezha_key" "$argo_domain" "$argo_auth")
             echo -e "\e[1;35m远程命令执行结果：\e[0m\n"
             echo "$output"
         else
-            echo -e "\e[1;33m连接失败，请检查你的账户和密码  \e[1;35m 服务器: $host   账户：$ssh_user\e[0m"
+            echo -e "\e[1;33m连接失败，请检查你的账户和密码  \e[1;35m 服务器: $host   账户：$ssh_user  [$time]\e[0m"
         fi
     fi
 done

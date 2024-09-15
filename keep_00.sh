@@ -2,7 +2,7 @@
 # 如果要检测哪吒是否在线，请将哪吒面板上agent名字以：S1,S2,S3,S4....形式命名 
 SCRIPT_PATH="/root/keep_00.sh"                 # 脚本路径
 NEZHA_URL="http://nezha.abcgefg.com"           # 哪吒面板地址 
-API_TOKEN="RtzwTHlXjG2RXHaVW5JUBMcO2DR9OIEp"   # 哪吒面板api token
+API_TOKEN="RtzwTHlXjG2RXHaVW5JUBMcO2DR9OI123"   # 哪吒面板api token
 
 export CFIP=${CFIP:-'www.visa.com.tw'}         # 优选域名或优选ip
 export CFPORT=${CFIPPORT:-'443'}               # 优选域名或优选ip对应端口

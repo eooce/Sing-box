@@ -1,6 +1,6 @@
 #!/bin/bash
 # 如果要检测哪吒是否在线，请将哪吒面板上agent名字以：S1,S2,S3,S4....形式命名 
-SCRIPT_PATH="/root/1.sh"                       # 脚本路径
+SCRIPT_PATH="/root/keep_00.sh"                       # 脚本路径
 NEZHA_URL="http://nezha.abcgefg.com"           # 哪吒面板地址 
 API_TOKEN="RtzwTHlXjG2RXHaVW5JUBMcO2DR9OIEp"   # 哪吒面板api token
 
@@ -55,7 +55,7 @@ add_cron_job() {
     fi
     # 检查定时任务是否已经存在
     if ! crontab -l 2>/dev/null | grep -q "$SCRIPT_PATH"; then
-        (crontab -l 2>/dev/null; echo "*/2 * * * * /bin/bash $SCRIPT_PATH >> /root/keep.log 2>&1") | crontab -
+        (crontab -l 2>/dev/null; echo "*/2 * * * * /bin/bash $SCRIPT_PATH >> /root/keep_00.log 2>&1") | crontab -
         green "已添加计划任务，每两分钟执行一次"
     else
         purple "计划任务已存在，跳过添加计划任务"

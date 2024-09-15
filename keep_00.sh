@@ -1,6 +1,6 @@
 #!/bin/bash
 # 如果要检测哪吒是否在线，请将哪吒面板上agent名字以：S1,S2,S3,S4....形式命名 
-SCRIPT_PATH="/root/keep_00.sh"                       # 脚本路径
+SCRIPT_PATH="/root/keep_00.sh"                 # 脚本路径
 NEZHA_URL="http://nezha.abcgefg.com"           # 哪吒面板地址 
 API_TOKEN="RtzwTHlXjG2RXHaVW5JUBMcO2DR9OIEp"   # 哪吒面板api token
 
@@ -8,15 +8,17 @@ export CFIP=${CFIP:-'www.visa.com.tw'}         # 优选域名或优选ip
 export CFPORT=${CFIPPORT:-'443'}               # 优选域名或优选ip对应端口
  
  # serv00或ct8服务器及端口配置, 哪吒，argo固定隧道可不填写
-declare -A servers=(  # 账号:密码:tcp端口:udp1端口:udp2端口:哪吒客户端域名:哪吒agent端口:哪吒密钥:argo域名:Argo隧道token 
-    ["s1.serv00.com"]='abcd:JPAyxIfODwjxKOV7wRoT:7167:7168:7169:nz.abcd.cn:5555:dLMCQtBFwzpHzJq1RK:argo.zzx.free.hr:eyJhIjoGI5NzI0MDgwZTU1ZTcwMzcwZmI3NDI4NzkyMmYzMWIiLCJ0IjoiNGNhNDUwZGItOTBiZS00MTMzLTljOWItYWY0YjE0MDNhNjQ5IiwicyI6InI5bkFPY0laRG5kMEdwV0NoS3ZsM1BQaDVOVStMNjRKRHVleGE1K2NsOW89In0='  
-    ["s2.serv00.com"]='bcda:jnJddX2RhfAVTisj97bs:6166:6167:6168:nz.abcd.cn:5555:1zOW9AVfhyFmKDBL1d'
-    ["s3.serv00.com"]='abcd:HirdnxS0Zy0vunayded:7777:8888:9999'
-    ["s4.serv00.com"]='abcd:HirdnxS0Zy0vunayded:7777:8888:9999'
-    ["s5.serv00.com"]='abcd:HirdnxS0Zy0vunayded:7777:8888:9999'
-    ["s6.serv00.com"]='abcd:HirdnxS0Zy0vunayded:7777:8888:9999'
-    ["s7.serv00.com"]='abcd:HirdnxS0Zy0vunayded:7777:8888:9999'
-    # 添加更多服务器
+declare -A servers=(  # 账号:密码:tcp端口:udp1端口:udp2端口:哪吒客户端域名:哪吒agent端口:哪吒密钥:argo域名:Argo隧道json或token 
+    ["s0.serv00.com"]='abcd:abd12345678:1234:2345:3455:nezha.abcd.com:5555:c234dfddsddd:s0.2go.ync,mn:{"AccountTag":"8b9724080e55e70370fb74287922f31b","TunnelSecret":"C+OA5/LjJz9UHZ0vOkCC5PVRkvXiPhrWNcnxJBrfTPc=","TunnelID":"28125b91-34309-44d2-94be-b5e718944dad"}'
+    ["s1.serv00.com"]='abcd:dbc12345678:1234:2345:3455:nezha.abcd.com:5555:c234dfddsddd:s1.2go.ync,mn:{"AccountTag":"8b9724080e55e70370fb74287922f31b","TunnelSecret":"C+OA5/LjJz9UHZ0vOkCC5PVRkvXiPhrWNcnxJBrfTPc=","TunnelID":"28125b91-34309-44d2-94be-b5e718944dad"}'
+    ["s2.serv00.com"]='abcd:avd12345678:1234:2345:3455:nezha.abcd.com:5555:c234dfddsddd:s2.2go.ync,mn:{"AccountTag":"8b9724080e55e70370fb74287922f31b","TunnelSecret":"C+OA5/LjJz9UHZ0vOkCC5PVRkvXiPhrWNcnxJBrfTPc=","TunnelID":"28125b91-34309-44d2-94be-b5e718944dad"}'
+    ["s3.serv00.com"]='abcd:dss12345678:1234:2345:3455:nezha.abcd.com:5555:c234dfddsddd:s3.2go.ync,mn:{"AccountTag":"8b9724080e55e70370fb74287922f31b","TunnelSecret":"C+OA5/LjJz9UHZ0vOkCC5PfRkvXiPhrWNcnxJBrfTPc=","TunnelID":"28125b91-34309-44d2-94be-b5e718944dad"}'
+    ["s4.serv00.com"]='abcd:sds12345678:1234:2345:3455:nezha.abcd.com:5555:c234dfddsddd:s4.2go.ync,mn:{"AccountTag":"8b9724080e55e70370fb74287922f31b","TunnelSecret":"C+OA5/LjJz9UHZ0vOkCC5PVRkvXiPhrWNcnxJBrfTPc=","TunnelID":"28125b91-34309-44d2-94be-b5e718944dad"}'
+    ["s5.serv00.com"]='abcd:dsd12345678:1234:2345:3455:nezha.abcd.com:5555:c234dfddsddd:s5.2go.ync,mn:{"AccountTag":"8b9724080e55e70370fb74287922f31b","TunnelSecret":"C+OA5/LjJz9UHZ0vOkCC5PVRkvXiPhrWNcnxJBrfTPc=","TunnelID":"28125b91-34309-44d2-94be-b5e718944dad"}'
+    ["s6.serv00.com"]='abcd:dsd12345678:1234:2345:3455:nezha.abcd.com:5555:c234dfddsddd:s6.2go.ync,mn:{"AccountTag":"8b9724080e55e70370fb74287922f31b","TunnelSecret":"C+OA5/LjJz9UHZ0vOkCC5PVRkvXiPhrWNcnxJBrfTPc=","TunnelID":"28125b91-34309-44d2-94be-b5e718944dad"}'
+    ["s7.serv00.com"]='abcd:dsd12345678:1234:2345:3455:nezha.abcd.com:5555:c234dfddsddd:s7.2go.ync,mn:{"AccountTag":"8b9724080e55e70370fb74287922f31b","TunnelSecret":"C+OA5/LjJz9UHZ0vOkCC5PVRkvXiPhrWNcnxJBrfTPc=","TunnelID":"28125b91-34309-44d2-94be-b5e718944dad"}'
+    ["s8.serv00.com"]='abcd:dss12345678:1234:2345:3455:nezha.abcd.com:5555:c234dfddsddd:s8.2go.ync,mn:{"AccountTag":"8b9724080e55e70370fb74287922f31b","TunnelSecret":"C+OA5/LjJz9UHZ0vOkCC5PVRkvXiPhrWNcnxJBrfTPc=","TunnelID":"28125b91-34309-44d2-94be-b5e718944dad"}'
+    # 添加更多服务器......
 )
 
 # 定义颜色

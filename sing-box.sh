@@ -803,6 +803,9 @@ restart_nginx() {
 if command -v nginx &>/dev/null; then
     yellow "正在重启 nginx 服务\n"
     if [ -f /etc/alpine-release ]; then
+     	pkill -f '[n]ginx'
+        touch /run/nginx.pid
+        nginx -s reload
         rc-service nginx restart
     else
         systemctl restart nginx
@@ -1328,7 +1331,7 @@ check_nodes() {
 if [ ${check_singbox} -eq 0 ]; then
     while IFS= read -r line; do purple "${purple}$line"; done < ${work_dir}/url.txt
     server_ip=$(get_realip)
-    lujing=$(grep -oP 'location /\K[^ ]+' "/etc/nginx/nginx.conf")
+    lujing=$(sed -n 's|.*location /||p' /etc/nginx/nginx.conf | awk '{print $1}'
     sub_port=$(sed -n 's/^\s*listen \([0-9]\+\);/\1/p' /etc/nginx/nginx.conf)
     green "\n节点订阅链接：http://${server_ip}:${sub_port}/${lujing}\n"
 else 
@@ -1382,7 +1385,7 @@ while true; do
                 yellow "sing-box 已经安装！"
             else
                 fix_nginx
-                manage_packages install nginx jq tar openssl iptables
+                manage_packages install nginx jq tar openssl iptables coreutils
                 [ -n "$(curl -s --max-time 2 ipv6.ip.sb)" ] && manage_packages install ip6tables
                 install_singbox
 

@@ -1331,7 +1331,7 @@ check_nodes() {
 if [ ${check_singbox} -eq 0 ]; then
     while IFS= read -r line; do purple "${purple}$line"; done < ${work_dir}/url.txt
     server_ip=$(get_realip)
-    lujing=$(sed -n 's|.*location /||p' /etc/nginx/nginx.conf | awk '{print $1}'
+    lujing=$(sed -n 's|.*location /||p' /etc/nginx/nginx.conf | awk '{print $1}')
     sub_port=$(sed -n 's/^\s*listen \([0-9]\+\);/\1/p' /etc/nginx/nginx.conf)
     green "\n节点订阅链接：http://${server_ip}:${sub_port}/${lujing}\n"
 else 

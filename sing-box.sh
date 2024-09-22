@@ -993,7 +993,7 @@ if [ ${check_singbox} -eq 0 ]; then
                 elif [[ "$new_sni" == "4" ]]; then
                     new_sni="www.cerebrium.ai"
 	        elif [[ "$new_sni" == "5" ]]; then
-                    new_sni="www.cerebrium.ai"
+                    new_sni="www.nazhumi.com"
                 else
                     new_sni="$new_sni"
                 fi

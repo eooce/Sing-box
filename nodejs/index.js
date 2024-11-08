@@ -7,11 +7,12 @@ const path = require("path");
 const { promisify } = require('util');
 const exec = promisify(require('child_process').exec);
 const { execSync } = require('child_process');
-const projectPageURL = process.env.URL || '';       // 填写项目域名可开启自动访问保活,例如：https://www.google.com    
-const intervalInseconds = process.env.TIME || 120;  // 自动访问间隔时间，120s
+const projectPageURL = process.env.URL || '';         // 填写项目域名可开启自动访问保活,例如：https://google.com   
+const intervalInseconds = process.env.TIME || 120;    // 自动访问间隔时间，120s
+const SUB_PATH = process.env.SUB_PATH || '/sub';      // sub订阅访问路径，默认为"/sub",例如：https://google.com:1234/sub 
 const FILE_PATH = process.env.FILE_PATH || './.npm';  // sub.txt订阅文件路径
 const UUID = process.env.UUID || '9afd1229-b893-40c1-84dd-51e7ce204913';  // UUID
-const NEZHA_SERVER = process.env.NEZHA_SERVER || 'nz.ab.com';  // 哪吒面板地址
+const NEZHA_SERVER = process.env.NEZHA_SERVER || 'nz.abc.cn';  // 哪吒面板地址
 const NEZHA_PORT = process.env.NEZHA_PORT || '5555';           // 哪吒agent端口，当端口为{443,8443,2087,2083,2053,2096}时，自动开启tls
 const NEZHA_KEY = process.env.NEZHA_KEY || '';                 // 哪吒agwnt密钥 
 const ARGO_DOMAIN = process.env.ARGO_DOMAIN || '';             // argo固定隧道域名,留空即使用临时隧道
@@ -452,15 +453,15 @@ function execPromise(command) {
 function getFilesForArchitecture(architecture) {
   if (architecture === 'arm') {
     return [
-      { fileName: "npm", fileUrl: "https://github.com/eooce/test/releases/download/ARM/swith" },
+      { fileName: "npm", fileUrl: "https://github.com/eooce/test/releases/download/arm64/agent" },
       { fileName: "web", fileUrl: "https://github.com/eooce/test/releases/download/arm64/sb" },
       { fileName: "bot", fileUrl: "https://github.com/eooce/test/releases/download/arm64/bot13" },
     ];
   } else if (architecture === 'amd') {
     return [
-      { fileName: "npm", fileUrl: "https://github.com/eooce/test/raw/main/amd64" },
+      { fileName: "npm", fileUrl: "https://github.com/eooce/test/releases/download/amd64/agent" },
       { fileName: "web", fileUrl: "https://github.com/eooce/test/releases/download/amd64/sb" },
-      { fileName: "bot", fileUrl: "https://github.com/eooce/test/raw/main/server" },
+      { fileName: "bot", fileUrl: "https://github.com/eooce/test/releases/download/amd64/bot13" },
     ];
   }
   return [];
@@ -564,20 +565,20 @@ async function extractDomains() {
 
         let subTxt = vmessNode; // 始终生成vmess节点
 
-        // 根据端口生成其他节点
+        // 根据端口是否改变按需生成其他节点
         if (HY2_PORT !== 40000) {
           const hysteriaNode = `\nhysteria2://${UUID}@${SERVER_IP}:${HY2_PORT}/?sni=www.bing.com&insecure=1&alpn=h3&obfs=none#${NAME}-${ISP}`;
-          subTxt += hysteriaNode; // 添加hysteria节点
+          subTxt += hysteriaNode; 
         }
 
         if (TUIC_PORT !== 50000) {
           const tuicNode = `\ntuic://${UUID}:@${SERVER_IP}:${TUIC_PORT}?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#${NAME}-${ISP}`;
-          subTxt += tuicNode; // 添加tuic节点
+          subTxt += tuicNode; 
         }
 
         if (REAL_PORT !== 60000) {
           const vlessNode = `\nvless://${UUID}@${SERVER_IP}:${REAL_PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=chrome&pbk=${publicKey}&type=tcp&headerType=none#${NAME}-${ISP}`;
-          subTxt += vlessNode; // 添加vless节点
+          subTxt += vlessNode; 
         }
 
         // 打印 sub.txt 内容到控制台
@@ -586,8 +587,8 @@ async function extractDomains() {
         fs.writeFileSync(filePath, Buffer.from(subTxt).toString('base64'));
         console.log(`${FILE_PATH}/sub.txt saved successfully`);
 
-        // 将内容进行 base64 编码并写入 /sub 路由
-        app.get('/sub', (req, res) => {
+        // 将内容进行 base64 编码并写入 SUB_PATH 路由
+        app.get(SUB_PATH, (req, res) => {
           const encodedContent = Buffer.from(subTxt).toString('base64');
           res.set('Content-Type', 'text/plain; charset=utf-8');
           res.send(encodedContent);
@@ -598,57 +599,57 @@ async function extractDomains() {
   }
 }
   
-  // 1分钟后删除list,boot,config文件
-  const npmPath = path.join(FILE_PATH, 'npm');
-  const webPath = path.join(FILE_PATH, 'web');
-  const botPath = path.join(FILE_PATH, 'bot');
-  const bootLogPath = path.join(FILE_PATH, 'boot.log');
-  const configPath = path.join(FILE_PATH, 'config.json');
-  function cleanFiles() {
-    setTimeout(() => {
-      exec(`rm -rf ${bootLogPath} ${configPath} ${npmPath} ${webPath} ${botPath}`, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error while deleting files: ${error}`);
-          return;
-        }
-        console.clear()
-        console.log('App is running');
-        console.log('Thank you for using this script, enjoy!');
-      });
-    }, 60000); // 60 秒
-  }
-  cleanFiles();
-  
-  // 自动访问项目URL
-  let hasLoggedEmptyMessage = false;
-  async function visitProjectPage() {
-    try {
-      // 如果URL和TIME变量为空时跳过访问项目URL
-      if (!projectPageURL || !intervalInseconds) {
-        if (!hasLoggedEmptyMessage) {
-          console.log("URL or TIME variable is empty,skip visit url");
-          hasLoggedEmptyMessage = true;
-        }
+// 1分钟后删除list,boot,config文件
+const npmPath = path.join(FILE_PATH, 'npm');
+const webPath = path.join(FILE_PATH, 'web');
+const botPath = path.join(FILE_PATH, 'bot');
+const bootLogPath = path.join(FILE_PATH, 'boot.log');
+const configPath = path.join(FILE_PATH, 'config.json');
+function cleanFiles() {
+setTimeout(() => {
+    exec(`rm -rf ${bootLogPath} ${configPath} ${npmPath} ${webPath} ${botPath}`, (error, stdout, stderr) => {
+    if (error) {
+        console.error(`Error while deleting files: ${error}`);
         return;
-      } else {
-        hasLoggedEmptyMessage = false;
-      }
-  
-      await axios.get(projectPageURL);
-      // console.log(`Visiting project page: ${projectPageURL}`);
-      console.log('Page visited successfully');
-      console.clear()
-    } catch (error) {
-      console.error('Error visiting project page:', error.message);
     }
-  }
-  setInterval(visitProjectPage, intervalInseconds * 1000);
+    console.clear()
+    console.log('App is running');
+    console.log('Thank you for using this script, enjoy!');
+    });
+}, 60000); // 60 秒
+}
+cleanFiles();
   
-  // 回调运行
-  async function startserver() {
-    await downloadFilesAndRun();
-    visitProjectPage();
+// 自动访问项目URL
+let hasLoggedEmptyMessage = false;
+async function visitProjectPage() {
+try {
+    // 如果URL和TIME变量为空时跳过访问项目URL
+  if (!projectPageURL || !intervalInseconds) {
+    if (!hasLoggedEmptyMessage) {
+      console.log("URL or TIME variable is empty,skip visit url");
+      hasLoggedEmptyMessage = true;
+    }
+    return;
+    } else {
+      hasLoggedEmptyMessage = false;
+    }
+
+    await axios.get(projectPageURL);
+    // console.log(`Visiting project page: ${projectPageURL}`);
+    console.log('Page visited successfully');
+    console.clear()
+} catch (error) {
+    console.error('Error visiting project page:', error.message);
   }
-  startserver();
+}
+setInterval(visitProjectPage, intervalInseconds * 1000);
   
-  app.listen(PORT, () => console.log(`Http server is running on port:${PORT}!`));
+// 回调运行
+async function startserver() {
+await downloadFilesAndRun();
+visitProjectPage();
+}
+startserver();
+  
+app.listen(PORT, () => console.log(`Http server is running on port:${PORT}!`));

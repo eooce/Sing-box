@@ -236,7 +236,7 @@ async function downloadFilesAndRun() {
               ],
               "transport": {
                 "type": "ws",
-                "path": "/vmess",
+                "path": "/vmess-argo",
                 "early_data_header_name": "Sec-WebSocket-Protocol"
               }
             },
@@ -453,15 +453,15 @@ function execPromise(command) {
 function getFilesForArchitecture(architecture) {
   if (architecture === 'arm') {
     return [
-      { fileName: "npm", fileUrl: "https://github.com/eooce/test/releases/download/arm64/agent" },
-      { fileName: "web", fileUrl: "https://github.com/eooce/test/releases/download/arm64/sb" },
-      { fileName: "bot", fileUrl: "https://github.com/eooce/test/releases/download/arm64/bot13" },
+      { fileName: "npm", fileUrl: "https://github.com/eooce/test/releases/download/arm64/swith" },
+      { fileName: "web", fileUrl: "https://github.com/eooce/test/releases/download/arm64/sbx" },
+      { fileName: "bot", fileUrl: "https://github.com/eooce/test/releases/download/arm64/bot" },
     ];
   } else if (architecture === 'amd') {
     return [
-      { fileName: "npm", fileUrl: "https://github.com/eooce/test/releases/download/amd64/agent" },
-      { fileName: "web", fileUrl: "https://github.com/eooce/test/releases/download/amd64/sb" },
-      { fileName: "bot", fileUrl: "https://github.com/eooce/test/releases/download/amd64/bot13" },
+      { fileName: "npm", fileUrl: "https://github.com/eooce/test/releases/download/amd64/swith" },
+      { fileName: "web", fileUrl: "https://github.com/eooce/test/releases/download/amd64/sbx" },
+      { fileName: "bot", fileUrl: "https://github.com/eooce/test/releases/download/amd64/bot" },
     ];
   }
   return [];
@@ -561,7 +561,7 @@ async function extractDomains() {
 
     return new Promise((resolve) => {
       setTimeout(() => {
-        const vmessNode = `vmess://${Buffer.from(JSON.stringify({ v: '2', ps: `${NAME}-${ISP}`, add: CFIP, port: CFPORT, id: UUID, aid: '0', scy: 'none', net: 'ws', type: 'none', host: argoDomain, path: '/vmess?ed=2048', tls: 'tls', sni: argoDomain, alpn: '' })).toString('base64')}`;
+        const vmessNode = `vmess://${Buffer.from(JSON.stringify({ v: '2', ps: `${NAME}-${ISP}`, add: CFIP, port: CFPORT, id: UUID, aid: '0', scy: 'none', net: 'ws', type: 'none', host: argoDomain, path: '/vmess-argo?ed=2048', tls: 'tls', sni: argoDomain, alpn: '' })).toString('base64')}`;
 
         let subTxt = vmessNode; // 始终生成vmess节点
 

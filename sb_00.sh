@@ -126,7 +126,7 @@ generate_config() {
     },
     {
       "tag": "vmess-ws-in",
-      "type": "vmess-argo",
+      "type": "vmess",
       "listen": "::",
       "listen_port": $VMESS_PORT,
       "users": [
@@ -136,7 +136,7 @@ generate_config() {
     ],
     "transport": {
       "type": "ws",
-      "path": "/vmess",
+      "path": "/vmess-argo",
       "early_data_header_name": "Sec-WebSocket-Protocol"
       }
     },

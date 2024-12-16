@@ -1,5 +1,5 @@
 # 1：vps一键命令，已集成到ssh工具箱中
-* 一键四协议安装脚本，支持纯v6，支持订阅，默认解锁GPT和奈飞
+* 一键四协议安装脚本，支持纯v6 VPS，支持订阅，默认解锁GPT和奈飞
 * 最好用的四协议组合vless-reality|vmess-ws-tls(argo)|hysteria2|tuic5
 * 支持的系统：Ubuntu/Debian/CentOS/Alpine/Fedora/Rocky/Almalinux/kail
 * 注意nat小鸡安装完一键脚本之后需手动更改订阅端口和节点端口在允许范围内的端口，否则节点不通
@@ -93,7 +93,7 @@ PORT=TCP端口 bash <(curl -Ls https://raw.githubusercontent.com/eooce/scripts/m
 # 3：游戏机hosting
 ## sing-box玩具四合一，默认解锁GPT和奈飞
 * node,python,java,go环境的游戏玩具搭建singbox节点，集成哪吒探针服务
-* 玩具默认vmess-argo + hy2，支持多端口的玩具可自行添加端口变量同时开启4协议节点
+* 玩具默认vmess-argo ，支持多端口的玩具可自行添加端口变量同时开启4协议节点
 * 对应文件夹即对应环境请下载对应文件夹里的文件上传并赋予权限，修改变量后运行
 * ARGO_DOMAIN和ARGO_AUTH两个变量其中之一为空即启用临时隧道，反之则使用固定隧道
 * 无需设置NEZHA_TLS,当哪吒端口为{443,8443,2096,2087,2083,2053}其中之一时，自动开启tls
@@ -119,6 +119,12 @@ PORT=TCP端口 bash <(curl -Ls https://raw.githubusercontent.com/eooce/scripts/m
 * 输出sub.txt节点文件，可直接导入V2ray，nekbox，小火箭等代理软中
 * 订阅：默认不开启，多端口玩具可开启：分配的域名:http端口/sub,前缀不是https，而是http，例如http://www.google.com:1234/sub
 
-# 免责声明
+# ⚠️ 免责声明
 * 本程序仅供学习了解, 非盈利目的，请于下载后 24 小时内删除, 不得用作任何商业用途, 文字、数据及图片均有所属版权, 如转载须注明来源。
 * 使用本程序必循遵守部署免责声明，使用本程序必循遵守部署服务器所在地、所在国家和用户所在国家的法律法规, 程序作者不对使用者任何不当行为负责。
+
+## ⭐ Star History
+
+感谢所有为本项目点亮 Star 的朋友们！🌟
+
+[![Star History Chart](https://api.star-history.com/svg?repos=eooce/Sing-box&type=Date)](https://star-history.com/#eooce/Sing-box&Date)

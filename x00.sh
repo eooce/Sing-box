@@ -306,13 +306,13 @@ get_ip() {
   IP=""
   THIRD_IP=${IP_LIST[2]}
   RESPONSE=$(curl -s --max-time 2 "${API_URL}/${THIRD_IP}")
-  if [[ $(echo "$RESPONSE" | jq -r '.[0].status') == "Available" ]]; then
+  if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
       IP=$THIRD_IP
   else
       FIRST_IP=${IP_LIST[0]}
       RESPONSE=$(curl -s --max-time 2 "${API_URL}/${FIRST_IP}")
       
-      if [[ $(echo "$RESPONSE" | jq -r '.[0].status') == "Available" ]]; then
+      if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
           IP=$FIRST_IP
       else
           IP=${IP_LIST[1]}

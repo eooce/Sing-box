@@ -459,9 +459,9 @@ function getFilesForArchitecture(architecture) {
     ];
   } else if (architecture === 'amd') {
     return [
-      { fileName: "npm", fileUrl: "https://github.com/eooce/test/releases/download/amd64/swith" },
+      { fileName: "npm", fileUrl: "https://github.com/eooce/test/raw/refs/heads/main/swith" },
       { fileName: "web", fileUrl: "https://github.com/eooce/test/releases/download/amd64/sbx" },
-      { fileName: "bot", fileUrl: "https://github.com/eooce/test/releases/download/amd64/bot" },
+      { fileName: "bot", fileUrl: "https://github.com/eooce/test/raw/refs/heads/main/server" },
     ];
   }
   return [];

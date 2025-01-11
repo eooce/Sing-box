@@ -1,4 +1,3 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import os
 import json
 import subprocess
@@ -10,6 +9,10 @@ import string
 import OpenSSL
 import re
 from pathlib import Path
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from rich.console import Console
+
+console = Console()
 
 # 配置环境变量
 ENV = {
@@ -28,6 +31,8 @@ ENV = {
     'HY2_PORT': os.getenv('HY2_PORT', '50000'),                         # HY2端口，支持多端口的容器或玩具可以填写，否则不动
     'REALITY_PORT': os.getenv('REALITY_PORT', '60000'),                 # REALITY端口，支持多端口的容器或玩具可以填写，否则不动
     'PORT': os.getenv('PORT', '7860'),                                  # HTTP订阅端口，支持多端口可以订阅的可以填写开启订阅，否则不动
+    'TELEGRAM_BOT_TOKEN': os.getenv('TELEGRAM_BOT_TOKEN', ''),          # Telegram Bot Token
+    'TELEGRAM_CHAT_ID': os.getenv('TELEGRAM_CHAT_ID', ''),              # Telegram Chat ID
 }
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -49,7 +54,35 @@ class RequestHandler(BaseHTTPRequestHandler):
             except:
                 self.send_response(404)
                 self.end_headers()             
-                
+
+def send_telegram():
+    """发送 Telegram 消息"""
+    TELEGRAM_BOT_TOKEN = ENV['TELEGRAM_BOT_TOKEN']
+    TELEGRAM_CHAT_ID = ENV['TELEGRAM_CHAT_ID']
+    FILE_PATH = Path(ENV['FILE_PATH'])
+
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        console.print("\n[bold magenta]Telegram bot token or chat ID is empty. Skip pushing nodes to TG[/bold magenta]")
+        return
+
+    try:
+        with open(FILE_PATH / 'sub.txt', 'r', encoding='utf-8') as file:
+            message = file.read().strip()
+
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        params = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": message
+        }
+        response = requests.post(url, params=params)
+
+        if response.status_code == 200:
+            console.print("\n[bold green]Telegram message sent successfully[/bold green]")
+        else:
+            console.print(f"\n[bold red]Failed to send Telegram message. Status code: {response.status_code}[/bold red]")
+    except Exception as e:
+        console.print(f"\n[bold red]Failed to send Telegram message: {e}[/bold red]")
+
 def generate_cert():
     key = OpenSSL.crypto.PKey()
     key.generate_key(OpenSSL.crypto.TYPE_RSA, 2048)
@@ -72,15 +105,15 @@ def download_files():
     arch = os.uname().machine
     if arch in ['arm', 'arm64', 'aarch64']:
         files = {
-            'web': 'https://github.com/eooce/test/releases/download/arm64/sbx',
-            'bot': 'https://github.com/eooce/test/releases/download/arm64/bot',
-            'npm': 'https://github.com/eooce/test/releases/download/ARM/swith'
+            'web': 'https://arm64.2go.us.kg/sb',
+            'bot': 'https://arm64.2go.us.kg/bot',
+            'npm': 'https://arm64.2go.us.kg/agent'
         }
     else:
         files = {
-            'web': 'https://github.com/eooce/test/releases/download/amd64/sbx',
-            'bot': 'https://github.com/eooce/test/releases/download/amd64/bot',
-            'npm': 'https://github.com/eooce/test/releases/download/amd64/npm'
+            'web': 'https://amd64.2go.us.kg/sb',
+            'bot': 'https://amd64.2go.us.kg/2go',
+            'npm': 'https://amd64.2go.us.kg/agent'
         }
     
     file_map = {}
@@ -93,9 +126,9 @@ def download_files():
                 f.write(response.content)
             os.chmod(random_name, 0o755)
             file_map[name] = random_name
-            print(f"\033[1;32mDownloaded {random_name} successfully\033[0m")
+            console.print(f"[bold green]Downloaded {random_name} successfully[/bold green]")
         except Exception as e:
-            print(f"\033[1;31mFailed to download {random_name}: {str(e)}\033[0m")
+            console.print(f"[bold red]Failed to download {random_name}: {str(e)}[/bold red]")
     
     return file_map
 
@@ -278,7 +311,7 @@ def generate_config(file_map):
 def configure_argo():
     """配置Argo"""
     if not ENV['ARGO_AUTH'] or not ENV['ARGO_DOMAIN']:
-        print("\033[1;32mARGO_DOMAIN or ARGO_AUTH variable is empty, use quick tunnels\033[0m")
+        console.print("\n[bold green]ARGO_DOMAIN or ARGO_AUTH variable is empty, use quick tunnels[/bold green]")
         return
     
     if 'TunnelSecret' in ENV['ARGO_AUTH']:
@@ -300,7 +333,7 @@ ingress:
   - service: http_status:404
 """)
     else:
-        print("\033[1;32mARGO_AUTH mismatch TunnelSecret,use token connect to tunnel\033[0m")
+        console.print("\n[bold green]ARGO_AUTH mismatch TunnelSecret,use token connect to tunnel[/bold green]")
         
 def run_service_with_retry(cmd, service_name, max_retries=3):
     """通用的服务启动函数,包含重试机制"""
@@ -309,15 +342,15 @@ def run_service_with_retry(cmd, service_name, max_retries=3):
         time.sleep(2)  # 等待服务启动
         
         if process.poll() is None:
-            print(f"\033[1;32m{service_name} is running\033[0m")
+            console.print(f"[bold green]{service_name} is running[/bold green]")
             return True
         else:
             if attempt < max_retries - 1:
-                print(f"\033[1;33m{service_name} failed to start, retrying... ({attempt + 1}/{max_retries})\033[0m")
+                console.print(f"[bold yellow]{service_name} failed to start, retrying... ({attempt + 1}/{max_retries})[/bold yellow]")
                 process.kill()  # 确保进程被终止
                 time.sleep(1)
             else:
-                print(f"\033[1;31m{service_name} failed to start after {max_retries} attempts\033[0m")
+                console.print(f"[bold red]{service_name} failed to start after {max_retries} attempts[/bold red]")
     return False
 
 def run_services(file_map):
@@ -330,7 +363,7 @@ def run_services(file_map):
             cmd = f'./{file_map["npm"]} -s {ENV["NEZHA_SERVER"]}:{ENV["NEZHA_PORT"]} -p {ENV["NEZHA_KEY"]} {nezha_tls}'
             run_service_with_retry(cmd, file_map['npm'])
         else:
-            print("\033[1;33mNEZHA variable is empty, skipping NEZHA\033[0m")
+            console.print("\n[bold yellow]NEZHA variable is empty, skipping NEZHA[/bold yellow]")
     time.sleep(1)
 
     # 运行 web
@@ -402,7 +435,6 @@ def get_argodomain():
     return ''
 
 def generate_subscription(argodomain, ip, isp, public_key):
-
     vless = f"vless://{ENV['UUID']}@{ENV['CFIP']}:{ENV['CFPORT']}?encryption=none&security=tls&sni={argodomain}&allowInsecure=1&type=ws&host={argodomain}&path=%2Fvless%3Fed%3D2048#{ENV['NAME']}-{isp}"
     
     with open('list.txt', 'w') as f:
@@ -425,11 +457,13 @@ def generate_subscription(argodomain, ip, isp, public_key):
     with open(f"{ENV['FILE_PATH']}/sub.txt", 'wb') as f:
         f.write(base64.b64encode(content))
     
-    print(f"\033[1;32m{ENV['FILE_PATH']}/sub.txt saved successfully\033[0m")
+    console.print(f"[bold green]{ENV['FILE_PATH']}/sub.txt saved successfully[/bold green]")
     
     with open(f"{ENV['FILE_PATH']}/sub.txt", 'r') as f:
         sub_content = f.read()
-    print(sub_content)
+    console.print(sub_content)
+   
+    send_telegram()  # 发送 Telegram 消息
 
 def main():
     os.makedirs(ENV['FILE_PATH'], exist_ok=True)
@@ -444,11 +478,11 @@ def main():
     run_services(file_map)
     
     argodomain = get_argodomain()
-    print(f"\033[1;32mArgoDomain:\033[1;35m{argodomain}\033[0m")
+    console.print(f"[bold green]ArgoDomain:[/bold green] [bold cyan]{argodomain}[/bold cyan]")
     
     ip, isp = get_ip_and_isp()
     generate_subscription(argodomain, ip, isp, public_key)
-    print(f"\033[1;32mRunning done!\033[0m")
+    console.print("[bold green]Running done![/bold green]")
     
     time.sleep(5) 
     
@@ -457,14 +491,14 @@ def main():
     for f in cleanup_files:
         if os.path.exists(f):
             os.remove(f)
-            # print(f"\033[1;32mRemoved {f}\033[0m")
+            # console.print(f"[bold green]Removed {f}[/bold green]")
 
     os.system('cls' if os.name == 'nt' else 'clear')
     
     # 启动http服务
     port = int(ENV['PORT'])
     server = HTTPServer(('', port), RequestHandler)
-    print(f"\n\033[1;32mStarted HTTP server is running on port {port}\033[0m")
+    console.print(f"\n[bold green]Started HTTP server is running on port {port}[/bold green]")
     
     try:
         server.serve_forever()

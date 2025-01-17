@@ -20,46 +20,85 @@ export NEZHA_KEY=${NEZHA_KEY:-''}
 export ARGO_DOMAIN=${ARGO_DOMAIN:-''}   
 export ARGO_AUTH=${ARGO_AUTH:-''}
 export CFIP=${CFIP:-'www.visa.com.tw'} 
-export CFPORT=${CFPORT:-'443'} 
-
+export CFPORT=${CFPORT:-'443'}
+export SUB_TOKEN=${SUB_TOKEN:-'sub'}
+FILE_PATH="/usr/home/${USERNAME}/domains/${USERNAME}.serv00.net/public_html"
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="domains/${USERNAME}.ct8.pl/logs" || WORKDIR="domains/${USERNAME}.serv00.net/logs"
 [ -d "$WORKDIR" ] || (mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR")
 bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
 
-read_vmess_port() {
-    while true; do
-        reading "请输入vmess端口 (面板开放的tcp端口): " vmess_port
-        if [[ "$vmess_port" =~ ^[0-9]+$ ]] && [ "$vmess_port" -ge 1 ] && [ "$vmess_port" -le 65535 ]; then
-            green "你的vmess端口为: $vmess_port"
-            break
-        else
-            yellow "输入错误，请重新输入面板开放的TCP端口"
-        fi
-    done
-}
+check_binexec_and_port () {
+port_list=$(devil port list)
+tcp_ports=$(echo "$port_list" | grep -c "tcp")
+udp_ports=$(echo "$port_list" | grep -c "udp")
 
-read_hy2_port() {
-    while true; do
-        reading "请输入hysteria2端口 (面板开放的UDP端口): " hy2_port
-        if [[ "$hy2_port" =~ ^[0-9]+$ ]] && [ "$hy2_port" -ge 1 ] && [ "$hy2_port" -le 65535 ]; then
-            green "你的hysteria2端口为: $hy2_port"
-            break
-        else
-            yellow "输入错误，请重新输入面板开放的UDP端口"
-        fi
-    done
-}
+if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
+    red "端口数量不符合要求，正在调整..."
 
-read_tuic_port() {
-    while true; do
-        reading "请输入Tuic端口 (面板开放的UDP端口): " tuic_port
-        if [[ "$tuic_port" =~ ^[0-9]+$ ]] && [ "$tuic_port" -ge 1 ] && [ "$tuic_port" -le 65535 ]; then
-            green "你的tuic端口为: $tuic_port"
-            break
-        else
-            yellow "输入错误，请重新输入面板开放的UDP端口"
-        fi
-    done
+    if [[ $tcp_ports -gt 1 ]]; then
+        tcp_to_delete=$((tcp_ports - 1))
+        echo "$port_list" | awk '/tcp/ {print $1, $2}' | head -n $tcp_to_delete | while read port type; do
+            devil port del $type $port
+            green "已删除TCP端口: $port"
+        done
+    fi
+
+    if [[ $udp_ports -gt 2 ]]; then
+        udp_to_delete=$((udp_ports - 2))
+        echo "$port_list" | awk '/udp/ {print $1, $2}' | head -n $udp_to_delete | while read port type; do
+            devil port del $type $port
+            green "已删除UDP端口: $port"
+        done
+    fi
+
+    if [[ $tcp_ports -lt 1 ]]; then
+        while true; do
+            tcp_port=$(shuf -i 10000-65535 -n 1) 
+            result=$(devil port add tcp $tcp_port 2>&1)
+            if [[ $result == *"succesfully"* ]]; then
+                green "已添加TCP端口: $tcp_port"
+                break
+            else
+                yellow "端口 $tcp_port 不可用，尝试其他端口..."
+            fi
+        done
+    fi
+
+    if [[ $udp_ports -lt 2 ]]; then
+        udp_ports_to_add=$((2 - udp_ports))
+        udp_ports_added=0
+        while [[ $udp_ports_added -lt $udp_ports_to_add ]]; do
+            udp_port=$(shuf -i 10000-65535 -n 1) 
+            result=$(devil port add udp $udp_port 2>&1)
+            if [[ $result == *"succesfully"* ]]; then
+                green "已添加UDP端口: $udp_port"
+                if [[ $udp_ports_added -eq 0 ]]; then
+                    udp_port1=$udp_port
+                else
+                    udp_port2=$udp_port
+                fi
+                udp_ports_added=$((udp_ports_added + 1))
+            else
+                yellow "端口 $udp_port 不可用，尝试其他端口..."
+            fi
+        done
+    fi
+    green "端口已调整完成,将断开ssh连接,请重新连接shh重新执行脚本"
+    devil binexec on >/dev/null 2>&1
+    kill -9 $(ps -o ppid= -p $$) >/dev/null 2>&1
+else
+    tcp_port=$(echo "$port_list" | awk '/tcp/ {print $1}')
+    udp_ports=$(echo "$port_list" | awk '/udp/ {print $1}')
+    udp_port1=$(echo "$udp_ports" | sed -n '1p')
+    udp_port2=$(echo "$udp_ports" | sed -n '2p')
+
+    purple "当前TCP端口: $tcp_port"
+    purple "当前UDP端口: $udp_port1 和 $udp_port2"
+fi
+
+export VMESS_PORT=$tcp_port
+export TUIC_PORT=$udp_port1
+export HY2_PORT=$udp_port2
 }
 
 read_nz_variables() {
@@ -67,7 +106,7 @@ read_nz_variables() {
       green "使用自定义变量哪吒运行哪吒探针"
       return
   else
-      reading "是否需要安装哪吒探针？【y/n】: " nz_choice
+      reading "是否需要安装哪吒探针？(直接回车则不安装)【y/n】: " nz_choice
       [[ -z $nz_choice ]] && return
       [[ "$nz_choice" != "y" && "$nz_choice" != "Y" ]] && return
       reading "请输入哪吒探针域名或ip：" NEZHA_SERVER
@@ -82,16 +121,12 @@ read_nz_variables() {
 
 install_singbox() {
 echo -e "${yellow}本脚本同时四协议共存${purple}(vmess-ws,vmess-ws-tls(argo),hysteria2,tuic)${re}"
-echo -e "${yellow}开始运行前，请确保在面板${purple}已开放3个端口，一个tcp端口和两个udp端口${re}"
-echo -e "${yellow}面板${purple}Additional services中的Run your own applications${yellow}已开启为${purplw}Enabled${yellow}状态${re}"
 reading "\n确定继续安装吗？【y/n】: " choice
   case "$choice" in
     [Yy])
         cd $WORKDIR
+        check_binexec_and_port
         read_nz_variables
-        read_vmess_port
-        read_hy2_port
-        read_tuic_port
         argo_configure
         generate_config
         download_singbox
@@ -106,10 +141,10 @@ uninstall_singbox() {
   reading "\n确定要卸载吗？【y/n】: " choice
     case "$choice" in
         [Yy])
-	      ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk '{print $2}' | xargs -r kill -9 2>/dev/null
-       	      rm -rf $WORKDIR
+	          bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
+       	    rm -rf $WORKDIR && rm -rf ${FILE_PATH}/*
 	      clear
-       	      green “四合一已完全卸载”
+       	      green "Sing-box四合一已完全卸载"
           ;;
         [Nn]) exit 0 ;;
     	  *) red "无效的选择，请输入y或n" && menu ;;
@@ -117,9 +152,9 @@ uninstall_singbox() {
 }
 
 kill_all_tasks() {
-reading "\n清理所有进程将退出ssh连接，确定继续清理吗？【y/n】: " choice
+reading "\n确定继续清理吗？【y/n】: " choice
   case "$choice" in
-    [Yy]) killall -9 -u $(whoami) ;;
+    [Yy]) bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1 ;;
        *) menu ;;
   esac
 }
@@ -127,7 +162,7 @@ reading "\n清理所有进程将退出ssh连接，确定继续清理吗？【y/n
 # Generating argo Config
 argo_configure() {
   if [[ -z $ARGO_AUTH || -z $ARGO_DOMAIN ]]; then
-      reading "是否需要使用固定argo隧道？【y/n】: " argo_choice
+      reading "是否需要使用固定argo隧道？(直接回车将使用临时隧道)【y/n】: " argo_choice
       [[ -z $argo_choice ]] && return
       [[ "$argo_choice" != "y" && "$argo_choice" != "Y" && "$argo_choice" != "n" && "$argo_choice" != "N" ]] && { red "无效的选择，请输入y或n"; return; }
       if [[ "$argo_choice" == "y" || "$argo_choice" == "Y" ]]; then
@@ -151,7 +186,7 @@ protocol: http2
 
 ingress:
   - hostname: $ARGO_DOMAIN
-    service: http://localhost:$vmess_port
+    service: http://localhost:$VMESS_PORT
     originRequest:
       noTLSVerify: true
   - service: http_status:404
@@ -195,7 +230,7 @@ generate_config() {
        "tag": "hysteria-in",
        "type": "hysteria2",
        "listen": "$available_ip",
-       "listen_port": $hy2_port,
+       "listen_port": $HY2_PORT,
        "users": [
          {
              "password": "$UUID"
@@ -215,7 +250,7 @@ generate_config() {
       "tag": "vmess-ws-in",
       "type": "vmess",
       "listen": "::",
-      "listen_port": $vmess_port,
+      "listen_port": $VMESS_PORT,
       "users": [
       {
         "uuid": "$UUID"
@@ -231,7 +266,7 @@ generate_config() {
       "tag": "tuic-in",
       "type": "tuic",
       "listen": "$available_ip",
-      "listen_port": $tuic_port,
+      "listen_port": $TUIC_PORT,
       "users": [
         {
           "uuid": "$UUID",
@@ -352,7 +387,7 @@ if [ -e "$(basename ${FILE_MAP[bot]})" ]; then
     elif [[ $ARGO_AUTH =~ TunnelSecret ]]; then
       args="tunnel --edge-ip-version auto --config tunnel.yml run"
     else
-      args="tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile boot.log --loglevel info --url http://localhost:$vmess_port"
+      args="tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile boot.log --loglevel info --url http://localhost:$VMESS_PORT"
     fi
     nohup ./"$(basename ${FILE_MAP[bot]})" $args >/dev/null 2>&1 &
     sleep 2
@@ -382,47 +417,57 @@ get_argodomain() {
 }
 
 get_ip() {
-    IP_LIST=($(devil vhost list | awk '/^[0-9]+/ {print $1}'))
-    API_URL="https://status.eooce.com/api"
-    IP=""
-    THIRD_IP=${IP_LIST[2]}
-    RESPONSE=$(curl -s --max-time 2 "${API_URL}/${THIRD_IP}")
-    if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
-        IP=$THIRD_IP
-    else
-        FIRST_IP=${IP_LIST[0]}
-        RESPONSE=$(curl -s --max-time 2 "${API_URL}/${FIRST_IP}")
-        
-        if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
-            IP=$FIRST_IP
-        else
-            IP=${IP_LIST[1]}
-        fi
-    fi
-    echo "$IP"
+  IP_LIST=($(devil vhost list | awk '/^[0-9]+/ {print $1}'))
+  API_URL="https://status.eooce.com/api"
+  IP=""
+  THIRD_IP=${IP_LIST[2]}
+  RESPONSE=$(curl -s --max-time 2 "${API_URL}/${THIRD_IP}")
+  if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
+      IP=$THIRD_IP
+  else
+      FIRST_IP=${IP_LIST[0]}
+      RESPONSE=$(curl -s --max-time 2 "${API_URL}/${FIRST_IP}")
+      if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
+          IP=$FIRST_IP
+      else
+          IP=${IP_LIST[1]}
+      fi
+  fi
+echo "$IP"
+}
+
+generate_sub_link () {
+base64 -w0 list.txt > ${FILE_PATH}/${SUB_TOKEN}_v2.log
+V2rayN_LINK="https://${USERNAME}.serv00.net/${SUB_TOKEN}_v2.log"
+curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_clash.log
+curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_singbox.log
+CLASH_LINK="https://mvimen.serv00.net/${SUB_TOKEN}_clash.log"
+SINGBOX_LINK="https://mvimen.serv00.net/${SUB_TOKEN}_singbox.log"
+yellow "\n节点订阅链接：\nClash: \e[1;35m${CLASH_LINK}\e[0m\n"   
+yellow "Sing-box: \e[1;35m${SINGBOX_LINK}\e[0m\n"
+yellow "V2rayN/nekoray/小火箭: \e[1;35m${V2rayN_LINK}\e[0m\n\n"
 }
 
 get_links(){
 argodomain=$(get_argodomain)
 echo -e "\e[1;32mArgoDomain:\e[1;35m${argodomain}\e[0m\n"
-ISP=$(curl -s --max-time 1.5 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
+ISP=$(curl -s --max-time 2 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
 get_name() { if [ "$HOSTNAME" = "s1.ct8.pl" ]; then SERVER="CT8"; else SERVER=$(echo "$HOSTNAME" | cut -d '.' -f 1); fi; echo "$SERVER"; }
 NAME="$ISP-$(get_name)"
 yellow "注意：v2ray或其他软件的跳过证书验证需设置为true,否则hy2或tuic节点可能不通\n"
 cat > list.txt <<EOF
-vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$NAME-vmess\", \"add\": \"$available_ip\", \"port\": \"$vmess_port\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"\", \"path\": \"/vmess-argo?ed=2048\", \"tls\": \"\", \"sni\": \"\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)
+vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$NAME-vmess\", \"add\": \"$available_ip\", \"port\": \"$VMESS_PORT\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"\", \"path\": \"/vmess-argo?ed=2048\", \"tls\": \"\", \"sni\": \"\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)
 
 vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$NAME-vmess-argo\", \"add\": \"$CFIP\", \"port\": \"$CFPORT\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"$argodomain\", \"path\": \"/vmess-argo?ed=2048\", \"tls\": \"tls\", \"sni\": \"$argodomain\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)
 
-hysteria2://$UUID@$available_ip:$hy2_port/?sni=www.bing.com&alpn=h3&insecure=1#$NAME-hysteria2
+hysteria2://$UUID@$available_ip:$HY2_PORT/?sni=www.bing.com&alpn=h3&insecure=1#$NAME-hysteria2
 
-tuic://$UUID:admin123@$available_ip:$tuic_port?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#$NAME-tuic
+tuic://$UUID:admin123@$available_ip:$TUIC_PORT?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#$NAME-tuic
 EOF
 cat list.txt
-purple "\n$WORKDIR/list.txt saved successfully"
-purple "Running done!"
-sleep 2
+generate_sub_link
 rm -rf boot.log config.json sb.log core tunnel.yml tunnel.json fake_useragent_0.2.0.json
+purple "Running done!"
 }
 
 menu() {

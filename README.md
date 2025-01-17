@@ -36,8 +36,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.
 ```
 
 ## Serv00|CT8一键四协议无交互安装脚本vmess-ws|vmess-ws-tls(argo)|hy2|tuic5，需设置环境变量
-* 必填环境变量：VMESS_PORT HY2_PORT TUIC_PORT
-* 可选环境变量：UUID NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH CFIP CFPORT
+* 可选环境变量：UUID VMESS_PORT HY2_PORT TUIC_PORT NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH CFIP CFPORT SUB_TOKEN
 * ARGO_AUTH变量使用json时，ARGO_AUTH=‘json’  需用英文输入状态下的单引号包裹，例如：ARGO_AUTH='{"AccountTag":"123","TunnelSecret":"123","TunnelID":"123"}' 
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_00.sh)

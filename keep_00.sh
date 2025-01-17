@@ -249,7 +249,7 @@ for host in "${!servers[@]}"; do
     tcp_attempt=0
     argo_attempt=0
     nezha_attempt=0
-    max_attempts=2
+    max_attempts=3
     time=$(TZ="Asia/Hong_Kong" date +"%Y-%m-%d %H:%M")
 
     # 检查 Nezha agent

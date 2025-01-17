@@ -1,6 +1,6 @@
 #!/bin/bash
 # 将此文件放到vps，填写以下服务器配置后bash keep_00.sh运行即可,如果需要在青龙面板运行，注释或删除此文件里的31至76行,保留中间的第58行
-# 请将哪吒面板上agent名字以：S1,S2,S3,S4....形式命名, 也可以修改111行里的大写S为其他前缀
+# 请将哪吒面板上agent名字以：S1,S2,S3,S4....形式命名, 也可以修改112行里的大写S为其他前缀
 SCRIPT_PATH="/root/keep_00.sh"                  # 脚本路径
 NEZHA_URL="http://nezha.abcgefg.com"            # 哪吒面板地址 
 API_TOKEN="RtzwTHlXjG2RXHaVW5JUBMcO2DR9OI123"   # 哪吒面板api token

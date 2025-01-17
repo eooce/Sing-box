@@ -115,11 +115,8 @@ run_remote_command() {
     local tcp_port=$4
     local udp1_port=$5
     local udp2_port=$6
-    local nezha_server=$7
-    local nezha_port=$8
-    local nezha_key=$9
-    local argo_domain=${10}
-    local argo_auth=${11}
+    local argo_domain=${7}
+    local argo_auth=${8}
 
     remote_command="SUB_TOKEN=$SUB_TOKEN UUID=$UUID ARGO_DOMAIN=$argo_domain ARGO_AUTH='$argo_auth' CFIP=$CFIP CFPORT=$CFPORT bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_00.sh)"
     

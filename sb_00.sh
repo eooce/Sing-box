@@ -124,7 +124,6 @@ reading "\n确定继续安装吗？【y/n】: " choice
         cd $WORKDIR
         check_binexec_and_port
         read_nz_variables
-        argo_configure
         generate_config
         download_singbox
         get_links
@@ -432,7 +431,7 @@ menu() {
         1) install_singbox ;;
         2) uninstall_singbox ;; 
         3) cat $WORKDIR/list.txt ;; 
-	      4) kill_all_tasks ;;
+	4) kill_all_tasks ;;
         0) exit 0 ;;
         *) red "无效的选项，请输入 0 到 4" ;;
     esac

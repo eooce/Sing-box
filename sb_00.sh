@@ -124,8 +124,7 @@ reading "\n确定继续安装吗？【y/n】: " choice
         cd $WORKDIR
         check_binexec_and_port
         read_nz_variables
-        generate_config
-        download_singbox
+        download_and_run_singbox
         get_links
       ;;
     [Nn]) exit 0 ;;
@@ -137,10 +136,10 @@ uninstall_singbox() {
   reading "\n确定要卸载吗？【y/n】: " choice
     case "$choice" in
         [Yy])
-	          bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
-       	    rm -rf $WORKDIR && rm -rf ${FILE_PATH}/*
+	      bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
+       	      rm -rf $WORKDIR && rm -rf ${FILE_PATH}/*
 	      clear
-       	    green "Sing-box三合一已完全卸载"
+       	      green "Sing-box三合一已完全卸载"
           ;;
         [Nn]) exit 0 ;;
     	  *) red "无效的选择，请输入y或n" && menu ;;
@@ -155,16 +154,76 @@ reading "\n确定继续清理吗？【y/n】: " choice
   esac
 }
 
-generate_config() {
+download_and_run_singbox() {
+  ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
+  if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
+      FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot" "https://github.com/eooce/test/releases/download/ARM/swith npm")
+  elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
+      FILE_INFO=("https://github.com/eooce/test/releases/download/freebsd/sb web" "https://github.com/eooce/test/releases/download/freebsd/server bot" "https://github.com/eooce/test/releases/download/freebsd/npm npm")
+  else
+      echo "Unsupported architecture: $ARCH"
+      exit 1
+  fi
+declare -A FILE_MAP
+generate_random_name() {
+    local chars=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890
+    local name=""
+    for i in {1..6}; do
+        name="$name${chars:RANDOM%${#chars}:1}"
+    done
+    echo "$name"
+}
 
-  openssl ecparam -genkey -name prime256v1 -out "private.key"
-  openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=$USERNAME.serv00.net"
+download_with_fallback() {
+    local URL=$1
+    local NEW_FILENAME=$2
+
+    curl -L -sS --max-time 2 -o "$NEW_FILENAME" "$URL" &
+    CURL_PID=$!
+    CURL_START_SIZE=$(stat -c%s "$NEW_FILENAME" 2>/dev/null || echo 0)
+    
+    sleep 1
+    CURL_CURRENT_SIZE=$(stat -c%s "$NEW_FILENAME" 2>/dev/null || echo 0)
+    
+    if [ "$CURL_CURRENT_SIZE" -le "$CURL_START_SIZE" ]; then
+        kill $CURL_PID 2>/dev/null
+        wait $CURL_PID 2>/dev/null
+        wget -q -O "$NEW_FILENAME" "$URL"
+        echo -e "\e[1;32mDownloading $NEW_FILENAME by wget\e[0m"
+    else
+        wait $CURL_PID
+        echo -e "\e[1;32mDownloading $NEW_FILENAME by curl\e[0m"
+    fi
+}
+
+for entry in "${FILE_INFO[@]}"; do
+    URL=$(echo "$entry" | cut -d ' ' -f 1)
+    RANDOM_NAME=$(generate_random_name)
+    NEW_FILENAME="$DOWNLOAD_DIR/$RANDOM_NAME"
+    
+    if [ -e "$NEW_FILENAME" ]; then
+        echo -e "\e[1;32m$NEW_FILENAME already exists, Skipping download\e[0m"
+    else
+        download_with_fallback "$URL" "$NEW_FILENAME"
+    fi
+    
+    chmod +x "$NEW_FILENAME"
+    FILE_MAP[$(echo "$entry" | cut -d ' ' -f 2)]="$NEW_FILENAME"
+done
+wait
+
+output=$(./"$(basename ${FILE_MAP[web]})" generate reality-keypair)
+private_key=$(echo "${output}" | awk '/PrivateKey:/ {print $2}')
+public_key=$(echo "${output}" | awk '/PublicKey:/ {print $2}')
+
+openssl ecparam -genkey -name prime256v1 -out "private.key"
+openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=$USERNAME.serv00.net"
   
-  yellow "获取可用IP中,请稍等..."
-  available_ip=$(get_ip)
-  purple "当前选择IP为: $available_ip 如安装完后节点不通可尝试重新安装"
+yellow "获取可用IP中,请稍等..."
+available_ip=$(get_ip)
+purple "当前选择IP为: $available_ip 如安装完后节点不通可尝试重新安装"
   
-  cat > config.json << EOF
+cat > config.json << EOF
 {
   "log": {
     "disabled": true,
@@ -266,64 +325,6 @@ generate_config() {
   ]
 }
 EOF
-}
-
-download_singbox() {
-  ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
-  if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot" "https://github.com/eooce/test/releases/download/ARM/swith npm")
-  elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/freebsd/sb web" "https://github.com/eooce/test/releases/download/freebsd/server bot" "https://github.com/eooce/test/releases/download/freebsd/npm npm")
-  else
-      echo "Unsupported architecture: $ARCH"
-      exit 1
-  fi
-declare -A FILE_MAP
-generate_random_name() {
-    local chars=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890
-    local name=""
-    for i in {1..6}; do
-        name="$name${chars:RANDOM%${#chars}:1}"
-    done
-    echo "$name"
-}
-
-download_with_fallback() {
-    local URL=$1
-    local NEW_FILENAME=$2
-
-    curl -L -sS --max-time 2 -o "$NEW_FILENAME" "$URL" &
-    CURL_PID=$!
-    CURL_START_SIZE=$(stat -c%s "$NEW_FILENAME" 2>/dev/null || echo 0)
-    
-    sleep 1
-    CURL_CURRENT_SIZE=$(stat -c%s "$NEW_FILENAME" 2>/dev/null || echo 0)
-    
-    if [ "$CURL_CURRENT_SIZE" -le "$CURL_START_SIZE" ]; then
-        kill $CURL_PID 2>/dev/null
-        wait $CURL_PID 2>/dev/null
-        wget -q -O "$NEW_FILENAME" "$URL"
-        echo -e "\e[1;32mDownloading $NEW_FILENAME by wget\e[0m"
-    else
-        wait $CURL_PID
-        echo -e "\e[1;32mDownloading $NEW_FILENAME by curl\e[0m"
-    fi
-}
-
-for entry in "${FILE_INFO[@]}"; do
-    URL=$(echo "$entry" | cut -d ' ' -f 1)
-    RANDOM_NAME=$(generate_random_name)
-    NEW_FILENAME="$DOWNLOAD_DIR/$RANDOM_NAME"
-    
-    if [ -e "$NEW_FILENAME" ]; then
-        echo -e "\e[1;32m$NEW_FILENAME already exists, Skipping download\e[0m"
-    else
-        download_with_fallback "$URL" "$NEW_FILENAME"
-    fi
-    
-    chmod +x "$NEW_FILENAME"
-    FILE_MAP[$(echo "$entry" | cut -d ' ' -f 2)]="$NEW_FILENAME"
-done
 wait
 
 if [ -e "$(basename ${FILE_MAP[npm]})" ]; then
@@ -348,7 +349,6 @@ if [ -e "$(basename ${FILE_MAP[web]})" ]; then
     sleep 2
     pgrep -x "$(basename ${FILE_MAP[web]})" > /dev/null && green "$(basename ${FILE_MAP[web]}) is running" || { red "$(basename ${FILE_MAP[web]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[web]})" && nohup ./"$(basename ${FILE_MAP[web]})" run -c config.json >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[web]}) restarted"; }
 fi
-
 sleep 1
 rm -f "$(basename ${FILE_MAP[npm]})" "$(basename ${FILE_MAP[web]})"
 }
@@ -388,8 +388,6 @@ yellow "V2rayN/Nekoray/小火箭: ${purple}${V2rayN_LINK}${re}\n\n"
 }
 
 get_links(){
-argodomain=$(get_argodomain)
-echo -e "\e[1;32mArgoDomain:\e[1;35m${argodomain}\e[0m\n"
 ISP=$(curl -s --max-time 1.5 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
 get_name() { if [ "$HOSTNAME" = "s1.ct8.pl" ]; then SERVER="CT8"; else SERVER=$(echo "$HOSTNAME" | cut -d '.' -f 1); fi; echo "$SERVER"; }
 NAME="$ISP-$(get_name)"

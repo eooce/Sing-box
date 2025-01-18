@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# 定义颜色
 re="\033[0m"
 red="\033[1;91m"
 green="\e[1;32m"
@@ -11,52 +10,92 @@ green() { echo -e "\e[1;32m$1\033[0m"; }
 yellow() { echo -e "\e[1;33m$1\033[0m"; }
 purple() { echo -e "\e[1;35m$1\033[0m"; }
 reading() { read -p "$(red "$1")" "$2"; }
-
+export LC_ALL=C
 USERNAME=$(whoami)
 HOSTNAME=$(hostname)
-export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b9'}
+export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b0'}
 export NEZHA_SERVER=${NEZHA_SERVER:-''} 
 export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
-export NEZHA_KEY=${NEZHA_KEY:-''}
+export NEZHA_KEY=${NEZHA_KEY:-''} 
+export SUB_TOKEN=${SUB_TOKEN:-'sub'}
 
+FILE_PATH="/usr/home/${USERNAME}/domains/${USERNAME}.serv00.net/public_html"
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="domains/${USERNAME}.ct8.pl/logs" || WORKDIR="domains/${USERNAME}.serv00.net/logs"
 [ -d "$WORKDIR" ] || (mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR")
 bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
 
-read_vless_port() {
-    while true; do
-        reading "请输入vless-reality端口 (面板开放的tcp端口): " vless_port
-        if [[ "$vless_port" =~ ^[0-9]+$ ]] && [ "$vless_port" -ge 1 ] && [ "$vless_port" -le 65535 ]; then
-            green "你的vless-reality端口为: $vless_port"
-            break
-        else
-            yellow "输入错误，请重新输入面板开放的TCP端口"
-        fi
-    done
-}
+check_binexec_and_port () {
+port_list=$(devil port list)
+tcp_ports=$(echo "$port_list" | grep -c "tcp")
+udp_ports=$(echo "$port_list" | grep -c "udp")
 
-read_hy2_port() {
-    while true; do
-        reading "请输入hysteria2端口 (面板开放的UDP端口): " hy2_port
-        if [[ "$hy2_port" =~ ^[0-9]+$ ]] && [ "$hy2_port" -ge 1 ] && [ "$hy2_port" -le 65535 ]; then
-            green "你的hysteria2端口为: $hy2_port"
-            break
-        else
-            yellow "输入错误，请重新输入面板开放的UDP端口"
-        fi
-    done
-}
+if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
+    red "端口数量不符合要求，正在调整..."
 
-read_tuic_port() {
-    while true; do
-        reading "请输入Tuic端口 (面板开放的UDP端口): " tuic_port
-        if [[ "$tuic_port" =~ ^[0-9]+$ ]] && [ "$tuic_port" -ge 1 ] && [ "$tuic_port" -le 65535 ]; then
-            green "你的tuic端口为: $tuic_port"
-            break
-        else
-            yellow "输入错误，请重新输入面板开放的UDP端口"
-        fi
-    done
+    if [[ $tcp_ports -gt 1 ]]; then
+        tcp_to_delete=$((tcp_ports - 1))
+        echo "$port_list" | awk '/tcp/ {print $1, $2}' | head -n $tcp_to_delete | while read port type; do
+            devil port del $type $port
+            green "已删除TCP端口: $port"
+        done
+    fi
+
+    if [[ $udp_ports -gt 2 ]]; then
+        udp_to_delete=$((udp_ports - 2))
+        echo "$port_list" | awk '/udp/ {print $1, $2}' | head -n $udp_to_delete | while read port type; do
+            devil port del $type $port
+            green "已删除UDP端口: $port"
+        done
+    fi
+
+    if [[ $tcp_ports -lt 1 ]]; then
+        while true; do
+            tcp_port=$(shuf -i 10000-65535 -n 1) 
+            result=$(devil port add tcp $tcp_port 2>&1)
+            if [[ $result == *"succesfully"* ]]; then
+                green "已添加TCP端口: $tcp_port"
+                break
+            else
+                yellow "端口 $tcp_port 不可用，尝试其他端口..."
+            fi
+        done
+    fi
+
+    if [[ $udp_ports -lt 2 ]]; then
+        udp_ports_to_add=$((2 - udp_ports))
+        udp_ports_added=0
+        while [[ $udp_ports_added -lt $udp_ports_to_add ]]; do
+            udp_port=$(shuf -i 10000-65535 -n 1) 
+            result=$(devil port add udp $udp_port 2>&1)
+            if [[ $result == *"succesfully"* ]]; then
+                green "已添加UDP端口: $udp_port"
+                if [[ $udp_ports_added -eq 0 ]]; then
+                    udp_port1=$udp_port
+                else
+                    udp_port2=$udp_port
+                fi
+                udp_ports_added=$((udp_ports_added + 1))
+            else
+                yellow "端口 $udp_port 不可用，尝试其他端口..."
+            fi
+        done
+    fi
+    green "端口已调整完成,将断开ssh连接,请重新连接shh重新执行脚本"
+    devil binexec on >/dev/null 2>&1
+    kill -9 $(ps -o ppid= -p $$) >/dev/null 2>&1
+else
+    tcp_port=$(echo "$port_list" | awk '/tcp/ {print $1}')
+    udp_ports=$(echo "$port_list" | awk '/udp/ {print $1}')
+    udp_port1=$(echo "$udp_ports" | sed -n '1p')
+    udp_port2=$(echo "$udp_ports" | sed -n '2p')
+
+    purple "当前TCP端口: $tcp_port"
+    purple "当前UDP端口: $udp_port1 和 $udp_port2"
+fi
+
+export VLESS_PORT=$tcp_port
+export TUIC_PORT=$udp_port1
+export HY2_PORT=$udp_port2
 }
 
 read_nz_variables() {
@@ -64,12 +103,12 @@ read_nz_variables() {
       green "使用自定义变量哪吒运行哪吒探针"
       return
   else
-      reading "是否需要安装哪吒探针？【y/n】: " nz_choice
+      reading "是否需要安装哪吒探针？(直接回车则不安装)【y/n】: " nz_choice
       [[ -z $nz_choice ]] && return
       [[ "$nz_choice" != "y" && "$nz_choice" != "Y" ]] && return
       reading "请输入哪吒探针域名或ip：" NEZHA_SERVER
       green "你的哪吒域名为: $NEZHA_SERVER"
-      reading "请输入哪吒探针端口（回车跳过默认使用5555）：" NEZHA_PORT
+      reading "请输入哪吒探针端口 (回车跳过默认使用5555): " NEZHA_PORT
       [[ -z $NEZHA_PORT ]] && NEZHA_PORT="5555"
       green "你的哪吒端口为: $NEZHA_PORT"
       reading "请输入哪吒探针密钥：" NEZHA_KEY
@@ -78,18 +117,16 @@ read_nz_variables() {
 }
 
 install_singbox() {
-echo -e "${yellow}本脚本同时三协议共存${purple}(vless-reality|hysteria2|tuic)${re}"
-echo -e "${yellow}开始运行前，请确保在面板${purple}已开放3个端口，一个tcp端口和两个udp端口${re}"
-echo -e "${yellow}面板${purple}Additional services中的Run your own applications${yellow}已开启为${purplw}Enabled${yellow}状态${re}"
+echo -e "${yellow}本脚本同时三协议共存${purple}(vless-reality,hysteria2,tuic)${re}"
 reading "\n确定继续安装吗？【y/n】: " choice
   case "$choice" in
     [Yy])
         cd $WORKDIR
+        check_binexec_and_port
         read_nz_variables
-        read_vless_port
-        read_hy2_port
-        read_tuic_port
-        download_and_run_singbox
+        argo_configure
+        generate_config
+        download_singbox
         get_links
       ;;
     [Nn]) exit 0 ;;
@@ -100,32 +137,144 @@ reading "\n确定继续安装吗？【y/n】: " choice
 uninstall_singbox() {
   reading "\n确定要卸载吗？【y/n】: " choice
     case "$choice" in
-       [Yy])
-          ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk '{print $2}' | xargs -r kill -9 2>/dev/null
-          rm -rf $WORKDIR
-          clear
-          green "已完全卸载"
+        [Yy])
+	          bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
+       	    rm -rf $WORKDIR && rm -rf ${FILE_PATH}/*
+	      clear
+       	    green "Sing-box三合一已完全卸载"
           ;;
         [Nn]) exit 0 ;;
-    	*) red "无效的选择，请输入y或n" && menu ;;
+    	  *) red "无效的选择，请输入y或n" && menu ;;
     esac
 }
 
 kill_all_tasks() {
-reading "\n清理所有进程将退出ssh连接，确定继续清理吗？【y/n】: " choice
+reading "\n确定继续清理吗？【y/n】: " choice
   case "$choice" in
-    [Yy]) killall -9 -u $(whoami) ;;
+    [Yy]) bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1 ;;
        *) menu ;;
   esac
 }
 
-# Download Dependency Files
-download_and_run_singbox() {
+generate_config() {
+
+  openssl ecparam -genkey -name prime256v1 -out "private.key"
+  openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=$USERNAME.serv00.net"
+  
+  yellow "获取可用IP中,请稍等..."
+  available_ip=$(get_ip)
+  purple "当前选择IP为: $available_ip 如安装完后节点不通可尝试重新安装"
+  
+  cat > config.json << EOF
+{
+  "log": {
+    "disabled": true,
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "address": "8.8.8.8",
+        "address_resolver": "local"
+      },
+      {
+        "tag": "local",
+        "address": "local"
+      }
+    ]
+  },
+  "inbounds": [
+    {
+       "tag": "hysteria-in",
+       "type": "hysteria2",
+       "listen": "$available_ip",
+       "listen_port": $HY2_PORT,
+       "users": [
+         {
+             "password": "$UUID"
+         }
+     ],
+     "masquerade": "https://bing.com",
+     "tls": {
+         "enabled": true,
+         "alpn": [
+             "h3"
+         ],
+         "certificate_path": "cert.pem",
+         "key_path": "private.key"
+        }
+    },
+    {
+        "tag": "vless-reality-vesion",
+        "type": "vless",
+        "listen": "$available_ip",
+        "listen_port": $VLESS_PORT,
+        "users": [
+            {
+              "uuid": "$UUID",
+              "flow": "xtls-rprx-vision"
+            }
+        ],
+        "tls": {
+            "enabled": true,
+            "server_name": "www.cerebrium.ai",
+            "reality": {
+                "enabled": true,
+                "handshake": {
+                    "server": "www.cerebrium.ai",
+                    "server_port": 443
+                },
+                "private_key": "$private_key",
+                "short_id": [
+                  ""
+                ]
+            }
+        }
+    },
+    {
+      "tag": "tuic-in",
+      "type": "tuic",
+      "listen": "$available_ip",
+      "listen_port": $TUIC_PORT,
+      "users": [
+        {
+          "uuid": "$UUID",
+          "password": "admin123"
+        }
+      ],
+      "congestion_control": "bbr",
+      "tls": {
+        "enabled": true,
+        "alpn": [
+          "h3"
+        ],
+        "certificate_path": "cert.pem",
+        "key_path": "private.key"
+      }
+    }
+
+ ],
+ "outbounds": [
+    {
+      "tag": "direct",
+      "type": "direct"
+    },
+    {
+      "tag": "block",
+      "type": "block"
+    }
+  ]
+}
+EOF
+}
+
+download_singbox() {
   ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
   if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/ARM/swith npm")
+      FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot" "https://github.com/eooce/test/releases/download/ARM/swith npm")
   elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/freebsd/sb web" "https://github.com/eooce/test/releases/download/freebsd/npm npm")
+      FILE_INFO=("https://github.com/eooce/test/releases/download/freebsd/sb web" "https://github.com/eooce/test/releases/download/freebsd/server bot" "https://github.com/eooce/test/releases/download/freebsd/npm npm")
   else
       echo "Unsupported architecture: $ARCH"
       exit 1
@@ -178,120 +327,6 @@ for entry in "${FILE_INFO[@]}"; do
 done
 wait
 
-output=$(./"$(basename ${FILE_MAP[web]})" generate reality-keypair)
-private_key=$(echo "${output}" | awk '/PrivateKey:/ {print $2}')
-public_key=$(echo "${output}" | awk '/PublicKey:/ {print $2}')
-
-openssl ecparam -genkey -name prime256v1 -out "private.key"
-openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=$USERNAME.serv00.net"
-
-  yellow "获取可用IP中，请稍等..."
-  available_ip=$(get_ip)
-  purple "当前选择IP为：$available_ip 如安装完后节点不通可尝试重新安装"
-  
-  cat > config.json << EOF
-{
-  "log": {
-    "disabled": true,
-    "level": "info",
-    "timestamp": true
-  },
-  "dns": {
-    "servers": [
-      {
-        "address": "8.8.8.8",
-        "address_resolver": "local"
-      },
-      {
-        "tag": "local",
-        "address": "local"
-      }
-    ]
-  },
-  "inbounds": [
-    {
-       "tag": "hysteria-in",
-       "type": "hysteria2",
-       "listen": "$available_ip",
-       "listen_port": $hy2_port,
-       "users": [
-         {
-             "password": "$UUID"
-         }
-     ],
-     "masquerade": "https://bing.com",
-     "tls": {
-         "enabled": true,
-         "alpn": [
-             "h3"
-         ],
-         "certificate_path": "cert.pem",
-         "key_path": "private.key"
-        }
-    },
-    {
-        "tag": "vless-reality-vesion",
-        "type": "vless",
-        "listen": "$available_ip",
-        "listen_port": $vless_port,
-        "users": [
-            {
-              "uuid": "$UUID",
-              "flow": "xtls-rprx-vision"
-            }
-        ],
-        "tls": {
-            "enabled": true,
-            "server_name": "www.cerebrium.ai",
-            "reality": {
-                "enabled": true,
-                "handshake": {
-                    "server": "www.cerebrium.ai",
-                    "server_port": 443
-                },
-                "private_key": "$private_key",
-                "short_id": [
-                  ""
-                ]
-            }
-        }
-    },
-    {
-      "tag": "tuic-in",
-      "type": "tuic",
-      "listen": "$available_ip",
-      "listen_port": $tuic_port,
-      "users": [
-        {
-          "uuid": "$UUID",
-          "password": "admin123"
-        }
-      ],
-      "congestion_control": "bbr",
-      "tls": {
-        "enabled": true,
-        "alpn": [
-          "h3"
-        ],
-        "certificate_path": "cert.pem",
-        "key_path": "private.key"
-      }
-    }
-
- ],
- "outbounds": [
-    {
-      "tag": "direct",
-      "type": "direct"
-    },
-    {
-      "tag": "block",
-      "type": "block"
-    }
-  ]
-}
-EOF
-
 if [ -e "$(basename ${FILE_MAP[npm]})" ]; then
     tlsPorts=("443" "8443" "2096" "2087" "2083" "2053")
     if [[ "${tlsPorts[*]}" =~ "${NEZHA_PORT}" ]]; then
@@ -314,52 +349,65 @@ if [ -e "$(basename ${FILE_MAP[web]})" ]; then
     sleep 2
     pgrep -x "$(basename ${FILE_MAP[web]})" > /dev/null && green "$(basename ${FILE_MAP[web]}) is running" || { red "$(basename ${FILE_MAP[web]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[web]})" && nohup ./"$(basename ${FILE_MAP[web]})" run -c config.json >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[web]}) restarted"; }
 fi
+
 sleep 1
 rm -f "$(basename ${FILE_MAP[npm]})" "$(basename ${FILE_MAP[web]})"
 }
 
 get_ip() {
-    IP_LIST=($(devil vhost list | awk '/^[0-9]+/ {print $1}'))
-    API_URL="https://status.eooce.com/api"
-    IP=""
-    THIRD_IP=${IP_LIST[2]}
-    RESPONSE=$(curl -s --max-time 2 "${API_URL}/${THIRD_IP}")
-    if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
-        IP=$THIRD_IP
-    else
-        FIRST_IP=${IP_LIST[0]}
-        RESPONSE=$(curl -s --max-time 2 "${API_URL}/${FIRST_IP}")
-        
-        if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
-            IP=$FIRST_IP
-        else
-            IP=${IP_LIST[1]}
-        fi
-    fi
-    echo "$IP"
+  IP_LIST=($(devil vhost list | awk '/^[0-9]+/ {print $1}'))
+  API_URL="https://status.eooce.com/api"
+  IP=""
+  THIRD_IP=${IP_LIST[2]}
+  RESPONSE=$(curl -s --max-time 2 "${API_URL}/${THIRD_IP}")
+  if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
+      IP=$THIRD_IP
+  else
+      FIRST_IP=${IP_LIST[0]}
+      RESPONSE=$(curl -s --max-time 2 "${API_URL}/${FIRST_IP}")
+      if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
+          IP=$FIRST_IP
+      else
+          IP=${IP_LIST[1]}
+      fi
+  fi
+echo "$IP"
+}
+
+generate_sub_link () {
+base64 -w0 list.txt > ${FILE_PATH}/${SUB_TOKEN}_v2.log
+V2rayN_LINK="https://${USERNAME}.serv00.net/${SUB_TOKEN}_v2.log"
+PHP_URL="https://github.com/eooce/Sing-box/releases/download/00/get_sub.php"
+curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_clash.yaml
+curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_singbox.yaml
+command -v curl &> /dev/null && curl -s -o "${FILE_PATH}/get_sub.php" "$PHP_URL" || command -v wget &> /dev/null && wget -q -O "${FILE_PATH}/get_sub.php" "$PHP_URL" || red "Warning: Neither curl nor wget is installed. You can't use the subscription"
+CLASH_LINK="https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_clash.yaml"
+SINGBOX_LINK="https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_singbox.yaml"
+yellow "\n节点订阅链接：\nClash: ${purple}${CLASH_LINK}${re}\n"   
+yellow "Sing-box: ${purple}${SINGBOX_LINK}${re}\n"
+yellow "V2rayN/Nekoray/小火箭: ${purple}${V2rayN_LINK}${re}\n\n"
 }
 
 get_links(){
-ISP=$(curl -s --max-time 2 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
+argodomain=$(get_argodomain)
+echo -e "\e[1;32mArgoDomain:\e[1;35m${argodomain}\e[0m\n"
+ISP=$(curl -s --max-time 1.5 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
 get_name() { if [ "$HOSTNAME" = "s1.ct8.pl" ]; then SERVER="CT8"; else SERVER=$(echo "$HOSTNAME" | cut -d '.' -f 1); fi; echo "$SERVER"; }
 NAME="$ISP-$(get_name)"
 yellow "注意：v2ray或其他软件的跳过证书验证需设置为true,否则hy2或tuic节点可能不通\n"
 cat > list.txt <<EOF
-vless://$UUID@$available_ip:$vless_port?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.cerebrium.ai&fp=chrome&pbk=$public_key&type=tcp&headerType=none#$NAME-reality
+vless://$UUID@$available_ip:$VLESS_PORT?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.cerebrium.ai&fp=chrome&pbk=$public_key&type=tcp&headerType=none#$NAME-reality
 
-hysteria2://$UUID@$available_ip:$hy2_port/?sni=www.bing.com&alpn=h3&insecure=1#$NAME-hy2
+hysteria2://$UUID@$available_ip:$HY2_PORT/?sni=www.bing.com&alpn=h3&insecure=1#$NAME-hysteria2
 
-tuic://$UUID:admin123@$available_ip:$tuic_port?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#$NAME-tuic
+tuic://$UUID:admin123@$available_ip:$TUIC_PORT?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#$NAME-tuic
 EOF
 cat list.txt
-purple "\n$WORKDIR/list.txt saved successfully"
-purple "Running done!\n"
-sleep 3 
+generate_sub_link
 rm -rf config.json sb.log core fake_useragent_0.2.0.json
-
+purple "Running done!"
 }
 
-#主菜单
 menu() {
    clear
    echo ""
@@ -384,8 +432,8 @@ menu() {
         1) install_singbox ;;
         2) uninstall_singbox ;; 
         3) cat $WORKDIR/list.txt ;; 
-        4) kill_all_tasks ;;
-	0) exit 0 ;;
+	      4) kill_all_tasks ;;
+        0) exit 0 ;;
         *) red "无效的选项，请输入 0 到 4" ;;
     esac
 }

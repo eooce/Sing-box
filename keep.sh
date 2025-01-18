@@ -170,20 +170,20 @@ connect_ssh() {
             # 发送服务恢复消息
             send_telegram_message "✅ Serv00服务已恢复
 
-🖥️ 服务器: $host
 👤 账户: $ssh_user
+🖥️ 服务器: $host
 📡 节点订阅：
 V2rayN: https://$ssh_user.serv00.net/${SUB_TOKEN}_v2.log
-Clash: https://$ssh_user.serv00.net/${SUB_TOKEN}_clash.log
-Sing-box: https://$ssh_user.serv00.net/${SUB_TOKEN}_singbox.log"
+Clash: https://$ssh_user.serv00.net/get_sub.php?file=${SUB_TOKEN}_clash.yaml
+Sing-box: https://$ssh_user.serv00.net/get_sub.php?file=${SUB_TOKEN}_singbox.yaml"
             return 0
         else
             red "$time  连接失败，请检查你的账户密码 服务器: $host  账户: $ssh_user"
             # 发送失败通知
             send_telegram_message "❌ SSH连接失败
 
-🖥️ 服务器: $host
 👤 账户: $ssh_user
+🖥️ 服务器: $host
 ⚠️ 请检查你的账户密码"
             return 0
         fi

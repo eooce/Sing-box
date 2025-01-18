@@ -373,10 +373,10 @@ get_ip() {
 generate_sub_link () {
 base64 -w0 list.txt > ${FILE_PATH}/${SUB_TOKEN}_v2.log
 V2rayN_LINK="https://${USERNAME}.serv00.net/${SUB_TOKEN}_v2.log"
-curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_clash.log
-curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_singbox.log
-CLASH_LINK="https://mvimen.serv00.net/${SUB_TOKEN}_clash.log"
-SINGBOX_LINK="https://mvimen.serv00.net/${SUB_TOKEN}_singbox.log"
+curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_clash.yaml
+curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_singbox.yaml
+CLASH_LINK="https://${USERNAME}.serv00.net/${SUB_TOKEN}_clash.yaml"
+SINGBOX_LINK="https://${USERNAME}.serv00.net/${SUB_TOKEN}_singbox.yaml"
 yellow "\n节点订阅链接：\nClash: \e[1;35m${CLASH_LINK}\e[0m\n"   
 yellow "Sing-box: \e[1;35m${SINGBOX_LINK}\e[0m\n"
 yellow "V2rayN/nekoray/小火箭: \e[1;35m${V2rayN_LINK}\e[0m\n\n"

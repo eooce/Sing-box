@@ -47,14 +47,6 @@ bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_00.sh)
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/sb_00.sh)
 ```
 
-## Serv00|CT8一键三协议无交互安装脚本vless-reality|vmess-splithttp|vmess-splithttp-tls(argo) 
-* 复制脚本回车全自动安装
-* 可选环境变量：UUID CFIP CFPORT NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH
-* ARGO_AUTH变量使用json时，ARGO_AUTH=‘json’ 需英文输入状态下的单引号包裹，例如：ARGO_AUTH='{"AccountTag":"123","TunnelSecret":"123","TunnelID":"123"}' 
-```
-VLESS_PORT=TCP端口 ARGO_PORT=TCP端口 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/x00.sh)
-```
-
 ## Serv00|CT8 hysteria2无交互一键安装脚本
 * 复制脚本回车全自动安装
 * 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY

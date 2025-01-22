@@ -371,6 +371,7 @@ get_ip() {
 }
 
 generate_sub_link () {
+[ -d "$FILE_PATH" ] || mkdir -p "$FILE_PATH"
 base64 -w0 list.txt > ${FILE_PATH}/${SUB_TOKEN}_v2.log
 V2rayN_LINK="https://${USERNAME}.serv00.net/${SUB_TOKEN}_v2.log"
 PHP_URL="https://github.com/eooce/Sing-box/releases/download/00/get_sub.php"

@@ -22,33 +22,33 @@ PORT=你的端口 CFIP=www.visa.com.tw CFPORT=443 bash <(curl -Ls https://raw.gi
 curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o ssh_tool.sh && chmod +x ssh_tool.sh && ./ssh_tool.sh
 ```
 
-# 2：Serv00|CT8一键安装脚本,集成哪吒探针
+# 2：Serv00|CT8一键安装脚本,集成哪吒探针,全自动安装
 * 一键四协议安装脚本，vmess-ws|vmess-ws-tls(argo)|hy2|tuic5默认解锁GPT和奈飞
 * 支持自定义哪吒参数，Argo参数随脚本一起运行，
 * 列如：UUID=123456 NEZHA_SERVER=nz.abcd.com NEZHA_PORT=5555 NEZHA_KEY=123ABC ARGO_DOMAIN=2go.admin.com ARGO_AUTH=abc123  
 * 注意：面板开的端口必须符合脚本中提示的要求，并且与输入的对应，面板运行应用程序的权限必须打开，个别服务器ip被墙换到新增加的服务器即可，客户端跳过证书验证需设置为true，否则hy2和tuic不通
-* 详细图文教程地址：https://linux.do/t/topic/169670
 * 保活把keep_00.sh上传至自己的vps并修改自己的参数运行,仅支持四合一和三合一，udp单协议不支持，vmess单协议自行修改运行脚本
+* 复制脚本粘贴到ssh中回车全自动安装
 
 ## Serv00|CT8一键四协议安装脚本vmess-ws|vmess-ws-tls(argo)|hy2|tuic5
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh)
 ```
 
-## Serv00|CT8一键四协议无交互安装脚本vmess-ws|vmess-ws-tls(argo)|hy2|tuic5，需设置环境变量
+## Serv00|CT8一键四协议无交互安装脚本vmess-ws|vmess-ws-tls(argo)|hy2|tuic5，全自动安装
 * 可选环境变量：UUID VMESS_PORT HY2_PORT TUIC_PORT NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH CFIP CFPORT SUB_TOKEN
 * ARGO_AUTH变量使用json时，ARGO_AUTH=‘json’  需用英文输入状态下的单引号包裹，例如：ARGO_AUTH='{"AccountTag":"123","TunnelSecret":"123","TunnelID":"123"}' 
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_00.sh)
 ```
 
-## Serv00|CT8一键三协议安装脚本vless-reality|hy2|tuic5 
+## Serv00|CT8一键三协议安装脚本vless-reality|hy2|tuic5
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/sb_00.sh)
 ```
 
 ## Serv00|CT8一键三协议无交互安装脚本vless-reality|vmess-splithttp|vmess-splithttp-tls(argo) 
-* 必填环境变量：VLESS_PORT ARGO_PORT
+* 复制脚本回车全自动安装
 * 可选环境变量：UUID CFIP CFPORT NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH
 * ARGO_AUTH变量使用json时，ARGO_AUTH=‘json’ 需英文输入状态下的单引号包裹，例如：ARGO_AUTH='{"AccountTag":"123","TunnelSecret":"123","TunnelID":"123"}' 
 ```
@@ -56,7 +56,7 @@ VLESS_PORT=TCP端口 ARGO_PORT=TCP端口 bash <(curl -Ls https://raw.githubuserc
 ```
 
 ## Serv00|CT8 hysteria2无交互一键安装脚本
-* 必填变量：PORT=UDP端口
+* 复制脚本回车全自动安装
 * 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY
 ```
 PORT=UDP端口 bash <(curl -Ls https://00.2go.us.kg/2.sh)
@@ -67,7 +67,7 @@ PORT=UDP端口 bash <(curl -Ls https://github.com/eooce/Sing-box/releases/downlo
 ```
 
 ## Serv00|CT8 tuic无交互一键安装脚本
-* 必填变量：PORT=UDP端口
+* 复制脚本回车全自动安装
 * 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY
 
 ```
@@ -79,7 +79,7 @@ PORT=UDP端口 bash <(curl -Ls https://github.com/eooce/Sing-box/releases/downlo
 ```
 
 ## Serv00|CT8 vmess-ws-tls(argo)一键脚本
-* 必填变量：PORT=TCP端口
+* 复制脚本回车全自动安装
 * 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY  CFIP CFPORT ARGO_DOMAIN  ARGO_AUTH
 
 ```

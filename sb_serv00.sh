@@ -33,7 +33,7 @@ tcp_ports=$(echo "$port_list" | grep -c "tcp")
 udp_ports=$(echo "$port_list" | grep -c "udp")
 
 if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
-    red "端口数量不符合要求，正在调整..."
+    red "端口规则不符合要求，正在调整..."
 
     if [[ $tcp_ports -gt 1 ]]; then
         tcp_to_delete=$((tcp_ports - 1))
@@ -141,10 +141,11 @@ uninstall_singbox() {
   reading "\n确定要卸载吗？【y/n】: " choice
     case "$choice" in
         [Yy])
-	      bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
-       	      rm -rf $WORKDIR && rm -rf ${FILE_PATH}/*
-	      clear
-       	      green "Sing-box四合一已完全卸载"
+	    bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
+       	    rm -rf $WORKDIR && find ${FILE_PATH} -mindepth 1 ! -name 'index.html' -exec rm -rf {} +
+            devil www del keep.${USERNAME}.serv00.net nodejs 2>/dev/null || true
+	    clear
+       	    green "Sing-box四合一已完全卸载"
           ;;
         [Nn]) exit 0 ;;
     	  *) red "无效的选择，请输入y或n" && menu ;;
@@ -470,7 +471,117 @@ EOF
 cat list.txt
 generate_sub_link
 rm -rf boot.log config.json sb.log core tunnel.yml tunnel.json fake_useragent_0.2.0.json
+quick_command
 purple "Running done!"
+
+}
+
+install_keepalive () {
+    clear
+    reading "是否需要Telegram通知？(直接回车则不启用)【y/n】: " tg_notification
+    if [[ "$tg_notification" == "y" || "$tg_notification" == "Y" ]]; then
+
+        reading "请输入Telegram chat ID (tg上@userinfobot获取): " tg_chat_id
+        [[ -z $tg_chat_id ]] && { red "Telegram chat ID不能为空"; return; }
+        green "你设置的Telegram chat_id为: ${tg_chat_id}"
+
+        reading "请输入Telegram Bot Token (tg上@Botfather创建bot后获取): " tg_token
+        [[ -z $tg_token ]] && { red "Telegram Bot Token不能为空"; return; }
+        green "你设置的Telegram bot token为: ${tg_token}"
+    fi
+
+    reading "是否需要保活哪吒探针？(直接回车则不启用)【y/n】: " keep_nezha
+    if [[ "$keep_nezha" == "y" || "$keep_nezha" == "Y" ]]; then
+
+        reading "请输入哪吒面板域名：" nezha_server
+        green "你的哪吒面板域名为: $nezha_server"
+
+        reading "请输入哪吒agent端口(直接回车则默认使用5555): " nezha_port
+        [[ -z $nezha_port ]] && nezha_port=5555
+        green "你的哪吒agent端口为: $nezha_port"
+
+        reading "请输入哪吒agent密钥: " nezha_key
+        [[ -z $nezha_key ]] && { red "哪吒agent密钥不能为空"; return; }
+        green "你的哪吒agent密钥为: $nezha_key"
+    fi
+
+    reading "是否需要设置Argo固定隧道？(直接回车则不使用)【y/n】: " argo
+    if [[ "$argo" == "y" || "$argo" == "Y" ]]; then
+
+        reading "请输入Argo固定隧道域名: " argo_domain
+        [[ -z $argo_domain ]] && { red "Argo固定隧道域名不能为空"; return; }
+        green "你的Argo固定隧道域名为: $argo_domain"
+
+        reading "请输入Argo固定隧道密钥(json或token): " argo_key
+        [[ -z $argo_key ]] && { red "Argo固定隧道密钥不能为空"; return; }
+        green "你的Argo固定隧道密钥为: $argo_key"
+    fi
+
+    purple "正在安装保活服务中,请稍等......"
+    keep_path="/usr/home/${USERNAME}/domains/keep.${USERNAME}.serv00.net/public_nodejs"
+    [ -d "$keep_path" ] || mkdir -p "$keep_path"
+    app_file_url="https://00.2go.us.kg/app.js"
+
+    if command -v curl &> /dev/null; then
+        curl -s -o "${keep_path}/app.js" "$app_file_url"
+    elif command -v wget &> /dev/null; then
+        wget -q -O "${keep_path}/app.js" "$app_file_url"
+    else
+        echo "警告: 文件下载失败,请手动从https://00.2go.us.kg/app.js下载文件,并将文件上传到${keep_path}目录下"
+        return
+    fi
+
+    cat > ${keep_path}/.env <<EOF
+# Telegram 通知
+${tg_chat_id:+TELEGRAM_CHAT_ID=$tg_chat_id}
+${tg_token:+TELEGRAM_BOT_TOKEN=$tg_token}
+
+# 哪吒探针
+${nezha_server:+NEZHA_SERVER=$nezha_server}
+${nezha_port:+NEZHA_PORT=$nezha_port}
+${nezha_key:+NEZHA_KEY=$nezha_key}
+
+# Argo 隧道
+ARGO_DOMAIN=$argo_domain
+ARGO_AUTH='${argo_key}'
+EOF
+    devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
+    ln -fs /usr/local/bin/node18 ~/bin/node > /dev/null 2>&1
+    ln -fs /usr/local/bin/npm18 ~/bin/npm > /dev/null 2>&1
+    mkdir -p ~/.npm-global
+    npm config set prefix '~/.npm-global'
+    echo 'export PATH=~/.npm-global/bin:~/bin:$PATH' >> $HOME/.bash_profile && source $HOME/.bash_profile
+    cd ${keep_path} && npm install dotenv axios --silent > /dev/null 2>&1
+    rm /usr/home/${USERNAME}/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
+    devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
+    devil www restart keep.${USERNAME}.serv00.net
+    green "保活服务已安装成功\n"
+    green "================================================================"
+    purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
+    purple "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
+    yellow "以防服务器重启,请用cloudflared部署一个自动访问的workers,并将https://keep.${USERNAME}.serv00.net/start填写到需要保活的url里\n"
+    green "Workers代码地址: https://github.com/eooce/Auto-keep-online/blob/main/workers/worker.js 或者用https://console.cron-job.org在线访问网页唤醒\n"
+    yellow "如果需要 Telegram通知，请先在 Telegram Botfather 申请 Bot API Token，并将其填入并重新运行\n"
+}
+
+quick_command () {
+script_url="https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh"
+command -v curl &> /dev/null && curl -s -o "/usr/home/${USERNAME}/sb.sh" "$script_url" || command -v wget &> /dev/null && wget -q -O "${keep_path}/sb.sh" "$script_url" || red "sb快捷指令添加失败,issues反馈: https://github.com/eooce/Sing-box/issues"
+  add_alias () {
+    local config_file=$1
+    local alias_names=("sb" "SB")
+    if [[ ! -f "$config_file" ]]; then
+        touch "$config_file" > /dev/null 2>&1
+    fi
+    for alias_name in "${alias_names[@]}"; do
+        if ! grep -q "alias $alias_name=" "$config_file"; then
+            echo "alias $alias_name='cd ~ && ./sb.sh'" >> "$config_file" > /dev/null 2>&1
+        fi
+    done
+    source "$config_file" > /dev/null 2>&1
+  }
+  config_file="/usr/home/${USERNAME}/.bashrc"
+  add_alias "$config_file"
 }
 
 menu() {
@@ -481,13 +592,16 @@ menu() {
    echo -e "${green}反馈论坛：${re}${yellow}https://bbs.vps8.me${re}\n"
    echo -e "${green}TG反馈群组：${re}${yellow}https://t.me/vps888${re}\n"
    purple "转载请著名出处，请勿滥用\n"
+   yellow "快捷键sb,下次运行输入sb快速运行脚本\n"
    green "1. 安装sing-box"
    echo  "==============="
-   red "2. 卸载sing-box"
+   green "2. 安装全自动保活服务"
    echo  "==============="
-   green "3. 查看节点信息"
+   red "3. 卸载sing-box"
    echo  "==============="
-   yellow "4. 清理所有进程"
+   green "4. 查看节点信息"
+   echo  "==============="
+   yellow "5. 清理所有进程"
    echo  "==============="
    red "0. 退出脚本"
    echo "==========="
@@ -495,11 +609,12 @@ menu() {
    echo ""
     case "${choice}" in
         1) install_singbox ;;
-        2) uninstall_singbox ;; 
-        3) cat $WORKDIR/list.txt ;; 
-	4) kill_all_tasks ;;
+        2) install_keepalive ;;
+        3) uninstall_singbox ;; 
+        4) cat $WORKDIR/list.txt && yellow "\n节点订阅链接:\nClash: ${purple}https://${USERNAME}.serv00.net/get_sub.php?file=sub_clash.yaml${re}\n\n${yellow}Sing-box: ${purple}https://${USERNAME}.serv00.net/get_sub.php?file=sub_singbox.yaml${re}\n\n${yellow}V2rayN/Nekoray/小火箭: ${purple}https://${USERNAME}.serv00.net/sub_v2.log${re}\n";; 
+	5) kill_all_tasks ;;
         0) exit 0 ;;
-        *) red "无效的选项，请输入 0 到 4" ;;
+        *) red "无效的选项，请输入 0 到 5" ;;
     esac
 }
 menu

@@ -505,7 +505,7 @@ install_keepalive () {
         green "你的哪吒agent密钥为: $nezha_key"
     fi
 
-    reading "是否需要设置Argo固定隧道？(直接回车则不使用)【y/n】: " argo
+    reading "是否需要设置Argo固定隧道？(直接回车则使用临时隧道)【y/n】: " argo
     if [[ "$argo" == "y" || "$argo" == "Y" ]]; then
 
         reading "请输入Argo固定隧道域名: " argo_domain
@@ -555,13 +555,12 @@ EOF
     rm /usr/home/${USERNAME}/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
     devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     devil www restart keep.${USERNAME}.serv00.net
-    green "保活服务已安装成功\n"
+    green "全自动保活服务已安装成功\n"
     green "================================================================"
     purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
     purple "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
-    yellow "以防服务器重启,请用cloudflared部署一个自动访问的workers,并将https://keep.${USERNAME}.serv00.net/start填写到需要保活的url里\n"
-    green "Workers代码地址: https://github.com/eooce/Auto-keep-online/blob/main/workers/worker.js 或者用https://console.cron-job.org在线访问网页唤醒\n"
-    yellow "如果需要 Telegram通知，请先在 Telegram Botfather 申请 Bot API Token，并将其填入并重新运行\n"
+    yellow "如发现掉线访问https://keep.${USERNAME}.serv00.net/start唤醒,或者用https://console.cron-job.org在线访问网页自动唤醒\n"
+    yellow "如果需要 Telegram通知，请先在 Telegram @Botfather 申请 Bot-Token，并将其填入并重新运行\n"
 }
 
 quick_command () {

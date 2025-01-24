@@ -22,7 +22,7 @@ export ARGO_AUTH=${ARGO_AUTH:-''}
 export CFIP=${CFIP:-'www.visa.com.tw'} 
 export CFPORT=${CFPORT:-'443'}
 export SUB_TOKEN=${SUB_TOKEN:-'sub'}
-FILE_PATH="/usr/home/${USERNAME}/domains/${USERNAME}.serv00.net/public_html"
+FILE_PATH="$HOME/domains/${USERNAME}.serv00.net/public_html"
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="domains/${USERNAME}.ct8.pl/logs" || WORKDIR="domains/${USERNAME}.serv00.net/logs"
 [ -d "$WORKDIR" ] || (mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR")
 bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
@@ -38,7 +38,7 @@ if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
     if [[ $tcp_ports -gt 1 ]]; then
         tcp_to_delete=$((tcp_ports - 1))
         echo "$port_list" | awk '/tcp/ {print $1, $2}' | head -n $tcp_to_delete | while read port type; do
-            devil port del $type $port
+            devil port del $type $port >/dev/null 2>&1
             green "已删除TCP端口: $port"
         done
     fi
@@ -46,7 +46,7 @@ if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
     if [[ $udp_ports -gt 2 ]]; then
         udp_to_delete=$((udp_ports - 2))
         echo "$port_list" | awk '/udp/ {print $1, $2}' | head -n $udp_to_delete | while read port type; do
-            devil port del $type $port
+            devil port del $type $port >/dev/null 2>&1
             green "已删除UDP端口: $port"
         done
     fi
@@ -143,7 +143,7 @@ uninstall_singbox() {
         [Yy])
 	    bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
        	    rm -rf $WORKDIR && find ${FILE_PATH} -mindepth 1 ! -name 'index.html' -exec rm -rf {} +
-            devil www del keep.${USERNAME}.serv00.net nodejs 2>/dev/null || true
+            devil www  keep.${USERNAME}.serv00.net nodejs 2>/dev/null || true
 	    clear
        	    green "Sing-box四合一已完全卸载"
           ;;
@@ -171,7 +171,7 @@ argo_configure() {
           green "你的argo固定隧道域名为: $ARGO_DOMAIN"
           reading "请输入argo固定隧道密钥（Json或Token）: " ARGO_AUTH
           green "你的argo固定隧道密钥为: $ARGO_AUTH"
-	  echo -e "${red}注意：${purple}使用token，需要在cloudflare后台设置隧道端口和面板开放的tcp端口一致${re}"
+	        echo -e "${red}注意：${purple}使用token，需要在cloudflare后台设置隧道端口和面板开放的tcp端口一致${re}"
       else
           green "ARGO隧道变量未设置，将使用临时隧道"
           return
@@ -518,7 +518,7 @@ install_keepalive () {
     fi
 
     purple "正在安装保活服务中,请稍等......"
-    keep_path="/usr/home/${USERNAME}/domains/keep.${USERNAME}.serv00.net/public_nodejs"
+    keep_path="$HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs"
     [ -d "$keep_path" ] || mkdir -p "$keep_path"
     app_file_url="https://00.2go.us.kg/app.js"
 
@@ -552,20 +552,22 @@ EOF
     npm config set prefix '~/.npm-global'
     echo 'export PATH=~/.npm-global/bin:~/bin:$PATH' >> $HOME/.bash_profile && source $HOME/.bash_profile
     cd ${keep_path} && npm install dotenv axios --silent > /dev/null 2>&1
-    rm /usr/home/${USERNAME}/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
+    rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
     devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     devil www restart keep.${USERNAME}.serv00.net
-    green "全自动保活服务已安装成功\n"
+    green "保活服务已安装成功\n"
     green "================================================================"
     purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
-    purple "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
+    yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
+    purple "访问 https://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
+    purple "访问 https://keep.${USERNAME}.serv00.net/stop 结束进程\n"
     yellow "如发现掉线访问https://keep.${USERNAME}.serv00.net/start唤醒,或者用https://console.cron-job.org在线访问网页自动唤醒\n"
     yellow "如果需要 Telegram通知，请先在 Telegram @Botfather 申请 Bot-Token，并将其填入并重新运行\n"
 }
 
 quick_command () {
 script_url="https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh"
-command -v curl &> /dev/null && curl -s -o "/usr/home/${USERNAME}/sb.sh" "$script_url" || command -v wget &> /dev/null && wget -q -O "${keep_path}/sb.sh" "$script_url" || red "sb快捷指令添加失败,issues反馈: https://github.com/eooce/Sing-box/issues"
+command -v curl &> /dev/null && curl -s -o "$HOME/sb.sh" "$script_url" || command -v wget &> /dev/null && wget -q -O "$HOME/sb.sh" "$script_url" || red "sb快捷指令添加失败,issues反馈: https://github.com/eooce/Sing-box/issues"
   add_alias () {
     local config_file=$1
     local alias_names=("sb" "SB")
@@ -579,7 +581,7 @@ command -v curl &> /dev/null && curl -s -o "/usr/home/${USERNAME}/sb.sh" "$scrip
     done
     source "$config_file" > /dev/null 2>&1
   }
-  config_file="/usr/home/${USERNAME}/.bashrc"
+  config_file="$HOME/.bashrc"
   add_alias "$config_file"
 }
 
@@ -594,7 +596,7 @@ menu() {
    yellow "快捷键sb,下次运行输入sb快速运行脚本\n"
    green "1. 安装sing-box"
    echo  "==============="
-   green "2. 安装全自动保活服务"
+   green "2. 安装全自动保活"
    echo  "==============="
    red "3. 卸载sing-box"
    echo  "==============="

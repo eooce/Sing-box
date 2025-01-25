@@ -11,8 +11,8 @@ yellow() { echo -e "\e[1;33m$1\033[0m"; }
 purple() { echo -e "\e[1;35m$1\033[0m"; }
 reading() { read -p "$(red "$1")" "$2"; }
 export LC_ALL=C
-USERNAME=$(whoami)
 HOSTNAME=$(hostname)
+USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
 export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b0'}
 export NEZHA_SERVER=${NEZHA_SERVER:-''} 
 export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
@@ -25,10 +25,10 @@ export HY2_PORT=${HY2_PORT:-''}
 export CFIP=${CFIP:-'www.visa.com.tw'} 
 export CFPORT=${CFPORT:-'443'} 
 export SUB_TOKEN=${SUB_TOKEN:-'sub'}
-FILE_PATH="/usr/home/${USERNAME}/domains/${USERNAME}.serv00.net/public_html"
-[[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="domains/${USERNAME}.ct8.pl/logs" || WORKDIR="domains/${USERNAME}.serv00.net/logs"
-[ -d "$WORKDIR" ] || (mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR")
-bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
+FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
+[[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="$HOME/domains/${USERNAME}.ct8.pl/logs" || WORKDIR="$HOME/domains/${USERNAME}.serv00.net/logs"
+rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR" >/dev/null 2>&1
+bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep\|php-fpm\|php" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
 
 check_binexec_and_port () {
 port_list=$(devil port list)
@@ -140,7 +140,7 @@ generate_config() {
   available_ip=$(get_ip)
   purple "当前选择IP为：$available_ip 如安装完后节点不通可尝试重新安装"
   
-  cat > config.json << EOF
+cat > config.json << EOF
 {
   "log": {
     "disabled": true,
@@ -219,6 +219,33 @@ generate_config() {
     }
  ],
   "outbounds": [
+EOF
+
+# 如果是s14,设置 WireGuard 出站
+if [ "$HOSTNAME" == "s14.serv00.com" ]; then
+  cat >> config.json << EOF
+    {
+      "type": "wireguard",
+      "tag": "wireguard-out",
+      "server": "162.159.195.100",
+      "server_port": 4500,
+      "local_address": [
+        "172.16.0.2/32",
+        "2606:4700:110:83c7:b31f:5858:b3a8:c6b1/128"
+      ],
+      "private_key": "mPZo+V9qlrMGCZ7+E6z2NI6NOV34PD++TpAR09PtCWI=",
+      "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+      "reserved": [
+        26,
+        21,
+        228
+      ]
+    },
+EOF
+fi
+
+# 添加默认的 direct 和 block 出站
+cat >> config.json << EOF
     {
       "tag": "direct",
       "type": "direct"
@@ -227,9 +254,37 @@ generate_config() {
       "tag": "block",
       "type": "block"
     }
-  ]
+  ],
+  "route": {
+    "rules": [
+EOF
+
+if [ "$HOSTNAME" == "s14.serv00.com" ]; then
+  cat >> config.json << EOF
+      {
+        "outbound": "wireguard-out",
+        "domain": ["geosite:all"]
+      },
+      {
+        "outbound": "direct",
+        "domain": ["geosite:cn"]
+      }
+EOF
+else
+  cat >> config.json << EOF
+      {
+        "outbound": "direct",
+        "domain": ["geosite:all"]
+      }
+EOF
+fi
+
+cat >> config.json << EOF
+    ]
+  }
 }
 EOF
+
 }
 
 download_singbox() {

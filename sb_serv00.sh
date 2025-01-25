@@ -11,8 +11,8 @@ yellow() { echo -e "\e[1;33m$1\033[0m"; }
 purple() { echo -e "\e[1;35m$1\033[0m"; }
 reading() { read -p "$(red "$1")" "$2"; }
 export LC_ALL=C
-USERNAME=$(whoami)
 HOSTNAME=$(hostname)
+USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
 export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b0'}
 export NEZHA_SERVER=${NEZHA_SERVER:-''} 
 export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
@@ -22,10 +22,10 @@ export ARGO_AUTH=${ARGO_AUTH:-''}
 export CFIP=${CFIP:-'www.visa.com.tw'} 
 export CFPORT=${CFPORT:-'443'}
 export SUB_TOKEN=${SUB_TOKEN:-'sub'}
-FILE_PATH="$HOME/domains/${USERNAME}.serv00.net/public_html"
-[[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="domains/${USERNAME}.ct8.pl/logs" || WORKDIR="domains/${USERNAME}.serv00.net/logs"
-[ -d "$WORKDIR" ] || (mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR")
-bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
+FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
+[[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="$HOME/domains/${USERNAME}.ct8.pl/logs" || WORKDIR="$HOME/domains/${USERNAME}.serv00.net/logs"
+rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR" >/dev/null 2>&1
+bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep\|php-fpm\|php" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
 
 check_binexec_and_port () {
 port_list=$(devil port list)
@@ -207,7 +207,7 @@ generate_config() {
   available_ip=$(get_ip)
   purple "当前选择IP为：$available_ip 如安装完后节点不通可尝试重新安装"
   
-  cat > config.json << EOF
+cat > config.json << EOF
 {
   "log": {
     "disabled": true,
@@ -226,7 +226,7 @@ generate_config() {
       }
     ]
   },
-    "inbounds": [
+  "inbounds": [
     {
        "tag": "hysteria-in",
        "type": "hysteria2",
@@ -284,9 +284,34 @@ generate_config() {
         "key_path": "private.key"
       }
     }
-
  ],
   "outbounds": [
+EOF
+
+# 如果是s14,设置 WireGuard 出站
+if [ "$HOSTNAME" == "s14.serv00.com" ]; then
+  cat >> config.json << EOF
+    {
+      "type": "wireguard",
+      "tag": "wireguard-out",
+      "server": "162.159.195.100",
+      "server_port": 4500,
+      "local_address": [
+        "172.16.0.2/32",
+        "2606:4700:110:83c7:b31f:5858:b3a8:c6b1/128"
+      ],
+      "private_key": "mPZo+V9qlrMGCZ7+E6z2NI6NOV34PD++TpAR09PtCWI=",
+      "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+      "reserved": [
+        26,
+        21,
+        228
+      ]
+    },
+EOF
+fi
+
+cat >> config.json << EOF
     {
       "tag": "direct",
       "type": "direct"
@@ -295,9 +320,37 @@ generate_config() {
       "tag": "block",
       "type": "block"
     }
-  ]
+  ],
+  "route": {
+    "rules": [
+EOF
+
+if [ "$HOSTNAME" == "s14.serv00.com" ]; then
+  cat >> config.json << EOF
+      {
+        "outbound": "wireguard-out",
+        "domain": ["geosite:all"]
+      },
+      {
+        "outbound": "direct",
+        "domain": ["geosite:cn"]
+      }
+EOF
+else
+  cat >> config.json << EOF
+      {
+        "outbound": "direct",
+        "domain": ["geosite:all"]
+      }
+EOF
+fi
+
+cat >> config.json << EOF
+    ]
+  }
 }
 EOF
+
 }
 
 # Download Dependency Files
@@ -545,7 +598,9 @@ ${nezha_key:+NEZHA_KEY=$nezha_key}
 ARGO_DOMAIN=$argo_domain
 ARGO_AUTH='${argo_key}'
 EOF
+    devil www add ${USERNAME}.serv00.net php > /dev/null 2>&1
     devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
+    devil ssl www add $available_ip le le keep.${USERNAME}.serv00.net > /dev/null 2>&1
     ln -fs /usr/local/bin/node18 ~/bin/node > /dev/null 2>&1
     ln -fs /usr/local/bin/npm18 ~/bin/npm > /dev/null 2>&1
     mkdir -p ~/.npm-global
@@ -554,35 +609,20 @@ EOF
     cd ${keep_path} && npm install dotenv axios --silent > /dev/null 2>&1
     rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
     devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
-    devil www restart keep.${USERNAME}.serv00.net
-    green "保活服务已安装成功\n"
-    green "================================================================"
-    purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
-    yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
-    purple "访问 https://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
-    purple "访问 https://keep.${USERNAME}.serv00.net/stop 结束进程\n"
-    yellow "如发现掉线访问https://keep.${USERNAME}.serv00.net/start唤醒,或者用https://console.cron-job.org在线访问网页自动唤醒\n"
-    yellow "如果需要 Telegram通知，请先在 Telegram @Botfather 申请 Bot-Token，并将其填入并重新运行\n"
-}
-
-quick_command () {
-script_url="https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh"
-command -v curl &> /dev/null && curl -s -o "$HOME/sb.sh" "$script_url" || command -v wget &> /dev/null && wget -q -O "$HOME/sb.sh" "$script_url" || red "sb快捷指令添加失败,issues反馈: https://github.com/eooce/Sing-box/issues"
-  add_alias () {
-    local config_file=$1
-    local alias_names=("sb" "SB")
-    if [[ ! -f "$config_file" ]]; then
-        touch "$config_file" > /dev/null 2>&1
+    if devil www restart keep.${USERNAME}.serv00.net 2>&1 | grep -q "succesfully"; then
+        green "\n全自动保活服务安装成功\n"
+        green "=========================================================="
+        purple "\n访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
+        yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
+        purple "访问 https://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
+        purple "访问 https://keep.${USERNAME}.serv00.net/stop 结束进程和保活\n\n"
+        green "=========================================================="
+        yellow "如发现掉线访问https://keep.${USERNAME}.serv00.net/start唤醒,或者用https://console.cron-job.org在线访问网页自动唤醒\n"
+        purple "如果需要Telegram通知，请先在Telegram @Botfather 申请 Bot-Token，并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
+        
+    else
+        red "全自动保活服务安装失败,请删除所有文件夹后重试\n"
     fi
-    for alias_name in "${alias_names[@]}"; do
-        if ! grep -q "alias $alias_name=" "$config_file"; then
-            echo "alias $alias_name='cd ~ && ./sb.sh'" >> "$config_file" > /dev/null 2>&1
-        fi
-    done
-    source "$config_file" > /dev/null 2>&1
-  }
-  config_file="$HOME/.bashrc"
-  add_alias "$config_file"
 }
 
 menu() {
@@ -593,7 +633,6 @@ menu() {
    echo -e "${green}反馈论坛：${re}${yellow}https://bbs.vps8.me${re}\n"
    echo -e "${green}TG反馈群组：${re}${yellow}https://t.me/vps888${re}\n"
    purple "转载请著名出处，请勿滥用\n"
-   yellow "快捷键sb,下次运行输入sb快速运行脚本\n"
    green "1. 安装sing-box"
    echo  "==============="
    green "2. 安装全自动保活"

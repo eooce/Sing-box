@@ -120,9 +120,9 @@ read_nz_variables() {
 install_singbox() {
 bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
 echo -e "${yellow}本脚本同时四协议共存${purple}(vmess-ws,vmess-ws-tls(argo),hysteria2,tuic)${re}"
-reading "\n确定继续安装吗？【y/n】: " choice
-  case "$choice" in
-    [Yy])
+reading "\n确定继续安装吗？(直接回车即确认安装)【y/n】: " choice
+  case "${choice:-y}" in
+    [Yy]|"")
         cd $WORKDIR
         check_binexec_and_port
         read_nz_variables
@@ -135,6 +135,7 @@ reading "\n确定继续安装吗？【y/n】: " choice
     *) red "无效的选择，请输入y或n" && menu ;;
   esac
 }
+
 
 uninstall_singbox() {
   reading "\n确定要卸载吗？【y/n】: " choice

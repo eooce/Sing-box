@@ -22,10 +22,9 @@ export ARGO_AUTH=${ARGO_AUTH:-''}
 export CFIP=${CFIP:-'www.visa.com.tw'} 
 export CFPORT=${CFPORT:-'443'}
 export SUB_TOKEN=${SUB_TOKEN:-'sub'}
-FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
-[[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="$HOME/domains/${USERNAME}.ct8.pl/logs" || WORKDIR="$HOME/domains/${USERNAME}.serv00.net/logs"
-rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" && chmod 777 "$WORKDIR" >/dev/null 2>&1
-bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep\|php-fpm\|php" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
+[[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="${HOME}/domains/${USERNAME}.ct8.pl/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.ct8.pl/public_html" || WORKDIR="${HOME}/domains/${USERNAME}.serv00.net/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
+rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" "$FILE_PATH" >/dev/null 2>&1
+bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
 
 check_binexec_and_port () {
 port_list=$(devil port list)
@@ -606,6 +605,7 @@ EOF
     mkdir -p ~/.npm-global
     npm config set prefix '~/.npm-global'
     echo 'export PATH=~/.npm-global/bin:~/bin:$PATH' >> $HOME/.bash_profile && source $HOME/.bash_profile
+    rm -rf $HOME/.npmrc > /dev/null 2>&1
     cd ${keep_path} && npm install dotenv axios --silent > /dev/null 2>&1
     rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
     devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1

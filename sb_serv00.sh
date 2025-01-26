@@ -24,7 +24,6 @@ export CFPORT=${CFPORT:-'443'}
 export SUB_TOKEN=${SUB_TOKEN:-'sub'}
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="${HOME}/domains/${USERNAME}.ct8.pl/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.ct8.pl/public_html" || WORKDIR="${HOME}/domains/${USERNAME}.serv00.net/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
 rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" "$FILE_PATH" >/dev/null 2>&1
-bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
 
 check_binexec_and_port () {
 port_list=$(devil port list)
@@ -119,6 +118,7 @@ read_nz_variables() {
 }
 
 install_singbox() {
+bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
 echo -e "${yellow}本脚本同时四协议共存${purple}(vmess-ws,vmess-ws-tls(argo),hysteria2,tuic)${re}"
 reading "\n确定继续安装吗？【y/n】: " choice
   case "$choice" in
@@ -491,7 +491,7 @@ echo "$IP"
 
 generate_sub_link () {
 [ -d "$FILE_PATH" ] || mkdir -p "$FILE_PATH"
-base64 -w0 list.txt > ${FILE_PATH}/${SUB_TOKEN}_v2.log
+base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/${SUB_TOKEN}_v2.log
 V2rayN_LINK="https://${USERNAME}.serv00.net/${SUB_TOKEN}_v2.log"
 PHP_URL="https://github.com/eooce/Sing-box/releases/download/00/get_sub.php"
 curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_clash.yaml
@@ -511,7 +511,7 @@ ISP=$(curl -s --max-time 1.5 https://speed.cloudflare.com/meta | awk -F\" '{prin
 get_name() { if [ "$HOSTNAME" = "s1.ct8.pl" ]; then SERVER="CT8"; else SERVER=$(echo "$HOSTNAME" | cut -d '.' -f 1); fi; echo "$SERVER"; }
 NAME="$ISP-$(get_name)"
 yellow "注意：v2ray或其他软件的跳过证书验证需设置为true,否则hy2或tuic节点可能不通\n"
-cat > list.txt <<EOF
+cat > ${FILE_PATH}/list.txt <<EOF
 vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$NAME-vmess\", \"add\": \"$available_ip\", \"port\": \"$VMESS_PORT\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"\", \"path\": \"/vmess-argo?ed=2048\", \"tls\": \"\", \"sni\": \"\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)
 
 vmess://$(echo "{ \"v\": \"2\", \"ps\": \"$NAME-vmess-argo\", \"add\": \"$CFIP\", \"port\": \"$CFPORT\", \"id\": \"$UUID\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"$argodomain\", \"path\": \"/vmess-argo?ed=2048\", \"tls\": \"tls\", \"sni\": \"$argodomain\", \"alpn\": \"\", \"fp\": \"\"}" | base64 -w0)
@@ -520,10 +520,9 @@ hysteria2://$UUID@$available_ip:$HY2_PORT/?sni=www.bing.com&alpn=h3&insecure=1#$
 
 tuic://$UUID:admin123@$available_ip:$TUIC_PORT?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#$NAME-tuic
 EOF
-cat list.txt
+cat ${FILE_PATH}/list.txt
 generate_sub_link
 rm -rf boot.log config.json sb.log core tunnel.yml tunnel.json fake_useragent_0.2.0.json
-quick_command
 purple "Running done!"
 
 }

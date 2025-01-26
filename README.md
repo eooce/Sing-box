@@ -36,12 +36,19 @@ curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o 
 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh)
 ```
 
-## Serv00|CT8一键四协议无交互安装脚本vmess-ws|vmess-ws-tls(argo)|hy2|tuic5，全自动安装
-* 可选环境变量：UUID VMESS_PORT HY2_PORT TUIC_PORT NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH CFIP CFPORT SUB_TOKEN
+## Serv00|CT8一键四协议无交互安装脚本vmess-ws|vmess-ws-tls(argo)|hy2|tuic5，全自动安装节点+全自动保活
+* 默认不安装哪吒和TG提醒，如需要，在脚本前添加环境变量随脚本一起运行即可
+* 可选环境变量：CHAT_ID BOT_TOKEN UUID NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH CFIP CFPORT SUB_TOKEN
 * ARGO_AUTH变量使用json时，ARGO_AUTH=‘json’  需用英文输入状态下的单引号包裹，例如：ARGO_AUTH='{"AccountTag":"123","TunnelSecret":"123","TunnelID":"123"}' 
 ```
-bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_00.sh)
+bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/sb4.sh)
 ```
+
+* 带TG提醒、哪吒、argo固定隧道运行示列,里面的参数替换为自己的，不需要变量直接删除,固定随到密钥可以为token或json
+```
+CHAT_ID=12345 BOT_TOKEN=5678:AA812jqIA NEZHA_SERVER=nezha.abc.com NEZHA_PORT=5555 NEZHA_KEY=abc123 ARGO_DOMAIN=abc.2go.com ARGO_AUTH='{"AccountTag":"123","TunnelSecret":"123","TunnelID":"123"}' bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/sb4.sh)
+```
+
 
 ## Serv00|CT8一键三协议安装脚本vless-reality|hy2|tuic5
 ```
@@ -49,34 +56,29 @@ bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/test/sb_00.sh)
 ```
 
 ## Serv00|CT8 hysteria2无交互一键安装脚本
-* 复制脚本回车全自动安装
-* 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY
-```
-bash <(curl -Ls https://00.2go.us.kg/2.sh)
-```
-或
+* 复制脚本回车全自动安装节点+全自动保活
+* 默认不安装哪吒和TG提醒，如需要，在脚本前添加环境变量随脚本一起运行即可
+* 可选变量：CHAT_ID BOT_TOKEN UUID NEZHA_SERVER NEZHA_PORT NEZHA_KEY SUB_TOKEN
 ```
 bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/2.sh)
 ```
 
 ## Serv00|CT8 tuic无交互一键安装脚本
-* 复制脚本回车全自动安装
-* 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY
+* 复制脚本回车全自动安装节点+全自动保活
+* 默认不安装哪吒和TG提醒，如需要，在脚本前添加环境变量随脚本一起运行即可
+* 可选变量：CHAT_ID BOT_TOKEN UUID NEZHA_SERVER NEZHA_PORT NEZHA_KEY SUB_TOKEN
 
-```
-bash <(curl -Ls https://00.2go.us.kg/tu.sh)
-```
-或
 ```
 bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/tu.sh)
 ```
 
 ## Serv00|CT8 vmess-ws-tls(argo)一键脚本
-* 复制脚本回车全自动安装
-* 可选变量：UUID  NEZHA_SERVER  NEZHA_PORT  NEZHA_KEY  CFIP CFPORT ARGO_DOMAIN  ARGO_AUTH
+* 复制脚本回车全自动安装节点+全自动保活
+* 默认不安装哪吒和TG提醒，如需要，在脚本前添加环境变量随脚本一起运行即可
+* 可选变量：CHAT_ID BOT_TOKEN UUID ARGO_DOMAIN ARGO_AUTH NEZHA_SERVER NEZHA_PORT NEZHA_KEY CFIP CFPORT SUB_TOKEN 
 
 ```
-bash <(curl -Ls https://raw.githubusercontent.com/eooce/scripts/master/containers-shell/00_vmess.sh)
+bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/00_vm.sh)
 ```
 
 

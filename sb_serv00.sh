@@ -143,7 +143,12 @@ uninstall_singbox() {
         [Yy])
 	    bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
        	    rm -rf $WORKDIR && find ${FILE_PATH} -mindepth 1 ! -name 'index.html' -exec rm -rf {} +
-            devil www  keep.${USERNAME}.serv00.net nodejs 2>/dev/null || true
+            devil www del keep.${USERNAME}.serv00.net nodejs 2>/dev/null || true
+            rm -rf ${HOME}/domains/${USERNAME}.serv00.net/public_nodejs 2 >/dev/null || true
+            rm -rf "${HOME}/bin/00" >/dev/null 2>&1
+            [ -d "${HOME}/bin" ] && [ -z "$(ls -A "${HOME}/bin")" ] && rmdir "${HOME}/bin"
+            sed -i '/export PATH="\$HOME\/bin:\$PATH"/d' "${HOME}/.bashrc" >/dev/null 2>&1
+            source "${HOME}/.bashrc"
 	    clear
        	    green "Sing-box四合一已完全卸载"
           ;;
@@ -524,7 +529,8 @@ EOF
 cat ${FILE_PATH}/list.txt
 generate_sub_link
 rm -rf boot.log config.json sb.log core tunnel.yml tunnel.json fake_useragent_0.2.0.json
-purple "Running done!"
+quick_command
+green "Running done!\n"
 
 }
 
@@ -615,46 +621,77 @@ EOF
         purple "\n访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
         yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
-        purple "访问 https://keep.${USERNAME}.serv00.net/stop 结束进程和保活\n\n"
+        purple "访问 https://keep.${USERNAME}.serv00.net/stop 结束进程和保活\n"
         green "=========================================================="
         yellow "如发现掉线访问https://keep.${USERNAME}.serv00.net/start唤醒,或者用https://console.cron-job.org在线访问网页自动唤醒\n"
         purple "如果需要Telegram通知，请先在Telegram @Botfather 申请 Bot-Token，并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
-        
+        quick_command
     else
         red "全自动保活服务安装失败,请删除所有文件夹后重试\n"
     fi
 }
 
+quick_command() {
+  COMMAND="00"
+  SCRIPT_PATH="$HOME/bin/$COMMAND"
+  mkdir -p "$HOME/bin"
+  echo "#!/bin/bash" > "$SCRIPT_PATH"
+  echo "bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh)" >> "$SCRIPT_PATH"
+  chmod +x "$SCRIPT_PATH"
+  if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+      echo "export PATH=\"\$HOME/bin:\$PATH\"" >> "$HOME/.bashrc"
+      source "$HOME/.bashrc"
+  fi
+}
+
+get_url_info() {
+  if devil www list 2>&1 | grep -q "keep.$USERNAME.serv00.net"; then
+    purple "\n-------------------保活相关链接------------------\n"
+    green "=================================================\n"
+    purple "https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
+    yellow "https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
+    purple "https://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
+    purple "https://keep.${USERNAME}.serv00.net/stop 结束进程\n"
+    green "================================================="
+  else 
+    red "尚未安装自动保活服务\n"
+  fi
+}
+
 menu() {
-   clear
-   echo ""
-   purple "=== Serv00|ct8老王sing-box一键四合一安装脚本 ===\n"
-   echo -e "${green}脚本地址：${re}${yellow}https://github.com/eooce/Sing-box${re}\n"
-   echo -e "${green}反馈论坛：${re}${yellow}https://bbs.vps8.me${re}\n"
-   echo -e "${green}TG反馈群组：${re}${yellow}https://t.me/vps888${re}\n"
-   purple "转载请著名出处，请勿滥用\n"
-   green "1. 安装sing-box"
-   echo  "==============="
-   green "2. 安装全自动保活"
-   echo  "==============="
-   red "3. 卸载sing-box"
-   echo  "==============="
-   green "4. 查看节点信息"
-   echo  "==============="
-   yellow "5. 清理所有进程"
-   echo  "==============="
-   red "0. 退出脚本"
-   echo "==========="
-   reading "请输入选择(0-3): " choice
-   echo ""
-    case "${choice}" in
-        1) install_singbox ;;
-        2) install_keepalive ;;
-        3) uninstall_singbox ;; 
-        4) cat ${FILE_PATH}/list.txt && yellow "\n节点订阅链接:\nClash: ${purple}https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_clash.yaml${re}\n\n${yellow}Sing-box: ${purple}https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_singbox.yaml${re}\n\n${yellow}V2rayN/Nekoray/小火箭: ${purple}https://${USERNAME}.serv00.net/${SUB_TOKEN}_v2.log${re}\n";; 
-	5) kill_all_tasks ;;
-        0) exit 0 ;;
-        *) red "无效的选项，请输入 0 到 5" ;;
-    esac
+  clear
+  echo ""
+  purple "=== Serv00|ct8老王sing-box一键四合一安装脚本 ===\n"
+  echo -e "${green}脚本地址：${re}${yellow}https://github.com/eooce/Sing-box${re}\n"
+  echo -e "${green}反馈论坛：${re}${yellow}https://bbs.vps8.me${re}\n"
+  echo -e "${green}TG反馈群组：${re}${yellow}https://t.me/vps888${re}\n"
+  purple "转载请著名出处，请勿滥用\n"
+  yellow "快速启动命令00\n"
+  green "1. 安装sing-box"
+  echo  "==============="
+  green "2. 安装全自动保活"
+  echo  "==============="
+  red "3. 卸载sing-box"
+  echo  "==============="
+  green "4. 查看节点信息"
+  echo  "==============="
+  green "5. 查看保活链接"
+  echo  "==============="
+  yellow "6. 清理所有进程"
+  echo  "==============="
+  red "0. 退出脚本"
+  echo "==========="
+  reading "请输入选择(0-3): " choice
+  echo ""
+  case "${choice}" in
+      1) install_singbox ;;
+      2) install_keepalive ;;
+      3) uninstall_singbox ;; 
+      4) cat ${FILE_PATH}/list.txt && yellow "\n节点订阅链接:\nClash: ${purple}https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_clash.yaml${re}\n\n${yellow}Sing-box: ${purple}https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_singbox.yaml${re}\n\n${yellow}V2rayN/Nekoray/小火箭: ${purple}https://${USERNAME}.serv00.net/${SUB_TOKEN}_v2.log${re}\n";; 
+      5) get_url_info ;;
+      6) kill_all_tasks ;;
+      0) exit 0 ;;
+      *) red "无效的选项，请输入 0 到 6" ;;
+  esac
 }
 menu

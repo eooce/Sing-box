@@ -654,7 +654,7 @@ get_url_info() {
     purple "https://keep.${USERNAME}.serv00.net/stop 结束进程\n"
     green "================================================="
   else 
-    red "尚未安装自动保活服务\n"
+    red "尚未安装自动保活服务\n" && sleep 2 && menu
   fi
 }
 

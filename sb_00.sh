@@ -19,12 +19,10 @@ export NEZHA_PORT=${NEZHA_PORT:-'5555'}
 export NEZHA_KEY=${NEZHA_KEY:-''} 
 export ARGO_DOMAIN=${ARGO_DOMAIN:-''}   
 export ARGO_AUTH=${ARGO_AUTH:-''}
-export VMESS_PORT=${VMESS_PORT:-''}
-export TUIC_PORT=${TUIC_PORT:-''}
-export HY2_PORT=${HY2_PORT:-''}
 export CFIP=${CFIP:-'www.visa.com.tw'} 
 export CFPORT=${CFPORT:-'443'} 
-export SUB_TOKEN=${SUB_TOKEN:-'sub'}
+export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
+
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="${HOME}/domains/${USERNAME}.ct8.pl/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.ct8.pl/public_html" || WORKDIR="${HOME}/domains/${USERNAME}.serv00.net/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
 rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" "$FILE_PATH" >/dev/null 2>&1
 bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
@@ -101,6 +99,24 @@ fi
 export VMESS_PORT=$tcp_port
 export TUIC_PORT=$udp_port1
 export HY2_PORT=$udp_port2
+}
+
+check_website() {
+CURRENT_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" && $2 == "php" {print $0}')
+if [ -n "$CURRENT_SITE" ]; then
+    green "检测到已存在${USERNAME}.serv00.net的php站点,无需修改"
+else
+    EXIST_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" {print $0}')
+    if [ -n "$EXIST_SITE" ]; then
+        red "不存在${USERNAME}.serv00.net的php站点,正在为你调整..."
+        devil www del "${USERNAME}.serv00.net"
+        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net"
+        green "已删除旧站点并创建新的php站点"
+    else
+        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net"
+        green "php站点创建完成"
+    fi
+fi
 }
 
 argo_configure() {
@@ -425,24 +441,24 @@ get_ip() {
 }
 
 generate_sub_link () {
-[ -d "$FILE_PATH" ] || mkdir -p "$FILE_PATH"
-base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/${SUB_TOKEN}_v2.log
-V2rayN_LINK="https://${USERNAME}.serv00.net/${SUB_TOKEN}_v2.log"
-PHP_URL="https://github.com/eooce/Sing-box/releases/download/00/get_sub.php"
-curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_clash.yaml
-curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_singbox.yaml
-command -v curl &> /dev/null && curl -s -o "${FILE_PATH}/get_sub.php" "$PHP_URL" || command -v wget &> /dev/null && wget -q -O "${FILE_PATH}/get_sub.php" "$PHP_URL" || red "Warning: Neither curl nor wget is installed. You can't use the subscription"
-CLASH_LINK="https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_clash.yaml"
-SINGBOX_LINK="https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_singbox.yaml"
-yellow "\n节点订阅链接：\nClash: ${purple}${CLASH_LINK}${re}\n"   
-yellow "Sing-box: ${purple}${SINGBOX_LINK}${re}\n"
-yellow "V2rayN/Nekoray/小火箭: ${purple}${V2rayN_LINK}${re}\n\n"
+cat >> ${FILE_PATH}/.htaccess << EOF
+RewriteEngine On
+RewriteRule ^${SUB_TOKEN}$ sub.php [L]
+EOF
+base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
+V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
+PHP_URL="https://00.2go.us.kg/sub.php"        
+curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
+curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
+command -v curl &> /dev/null && curl -s -o "${FILE_PATH}/sub.php" "$PHP_URL" || command -v wget &> /dev/null && wget -q -O "${FILE_PATH}/sub.php" "$PHP_URL" || red "Warning: Neither curl nor wget is installed. You can't use the subscription"
+purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n"   
+green "节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n"
 }
 
 get_links(){
 argodomain=$(get_argodomain)
 echo -e "\e[1;32mArgoDomain:\e[1;35m${argodomain}\e[0m\n"
-ISP=$(curl -s --max-time 1.5 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
+ISP=$(curl -s --max-time 2 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
 get_name() { if [ "$HOSTNAME" = "s1.ct8.pl" ]; then SERVER="CT8"; else SERVER=$(echo "$HOSTNAME" | cut -d '.' -f 1); fi; echo "$SERVER"; }
 NAME="$ISP-$(get_name)"
 
@@ -458,12 +474,12 @@ tuic://$UUID:admin123@$available_ip:$TUIC_PORT?sni=www.bing.com&congestion_contr
 EOF
 cat ${FILE_PATH}/list.txt
 generate_sub_link
-yellow "Serv00|ct8老王sing-box一键四协议安装脚本(vmess-ws|vmess-ws-tls(argo)|hysteria2|tuic)\n"
+yellow "\nServ00|ct8老王sing-box一键四协议安装脚本(vmess-ws|vmess-ws-tls(argo)|hysteria2|tuic)\n"
 echo -e "${green}issues反馈：${re}${yellow}https://github.com/eooce/Sing-box/issues${re}\n"
 echo -e "${green}反馈论坛：${re}${yellow}https://bbs.vps8.me${re}\n"
 echo -e "${green}TG反馈群组：${re}${yellow}https://t.me/vps888${re}\n"
 purple "转载请著名出处，请勿滥用\n"
-purple "Running done!\n"
+green "Running done!\n"
 rm -rf boot.log config.json sb.log core tunnel.yml tunnel.json fake_useragent_0.2.0.json
 
 }
@@ -472,6 +488,7 @@ install_singbox() {
     clear
     cd $WORKDIR
     check_binexec_and_port
+    check_website
     argo_configure
     generate_config
     download_singbox

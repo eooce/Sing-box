@@ -114,6 +114,34 @@ else
 fi
 }
 
+changge_ports() {
+reading "将删除全部端口然后随机开放1个tcp端口和2个udp端口,确定继续吗?(直接回车即确认更换)【y/n】: " choice
+
+if [[ -z "$choice" || "$choice" == "y" || "$choice" == "Y" ]]; then
+    devil port list | grep -E "^\s*[0-9]+" | while read -r line; do
+        port=$(echo "$line" | awk '{print $1}')
+        proto=$(echo "$line" | awk '{print $2}')
+
+        if [[ "$proto" != "tcp" && "$proto" != "udp" ]]; then
+            continue
+        fi
+
+        if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+            continue
+        fi
+
+        if devil port del "${proto}" "${port}" > /dev/null 2>&1; then
+            green "Port ${port}/${proto} has been removed successfully"
+        else
+            red "Failed to remove port ${port}/${proto}"
+        fi
+    done
+    check_binexec_and_port
+else
+    menu  
+fi
+}
+
 read_nz_variables() {
   if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
       green "使用自定义变量哪吒运行哪吒探针"

@@ -668,7 +668,7 @@ EOF
     devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     if devil www restart keep.${USERNAME}.serv00.net 2>&1 | grep -q "succesfully"; then
         green "\n全自动保活服务安装成功\n"
-        purple "自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n温馨提醒:如果未安装1,则需要等2分钟自动安装完成后再更新订阅\n\n" 
+        purple "自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n\n温馨提醒:如果未安装1,则需要等2分钟自动安装完成后再更新订阅\n\n" 
         green "========================================================\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/stop 结束进程\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/list 全部进程列表\n"

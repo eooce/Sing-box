@@ -441,7 +441,7 @@ get_ip() {
 }
 
 generate_sub_link () {
-cat >> ${FILE_PATH}/.htaccess << EOF
+cat > ${FILE_PATH}/.htaccess << EOF
 RewriteEngine On
 RewriteRule ^${SUB_TOKEN}$ sub.php [L]
 EOF

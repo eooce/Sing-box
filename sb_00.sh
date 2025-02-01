@@ -542,18 +542,6 @@ install_keepalive () {
         green "你的哪吒agent密钥为: $nezha_key"
     fi
 
-    reading "是否需要设置Argo固定隧道？(直接回车则使用临时隧道)【y/n】: " argo
-    if [[ "$argo" == "y" || "$argo" == "Y" ]]; then
-
-        reading "请输入Argo固定隧道域名: " argo_domain
-        [[ -z $argo_domain ]] && { red "Argo固定隧道域名不能为空"; return; }
-        green "你的Argo固定隧道域名为: $argo_domain"
-
-        reading "请输入Argo固定隧道密钥(json或token): " argo_key
-        [[ -z $argo_key ]] && { red "Argo固定隧道密钥不能为空"; return; }
-        green "你的Argo固定隧道密钥为: $argo_key"
-    fi
-
     purple "正在安装保活服务中,请稍等......"
     keep_path="$HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs"
     [ -d "$keep_path" ] || mkdir -p "$keep_path"
@@ -576,8 +564,6 @@ ${tg_token:+TELEGRAM_BOT_TOKEN=$tg_token}
 ${nezha_server:+NEZHA_SERVER=$nezha_server}
 ${nezha_port:+NEZHA_PORT=$nezha_port}
 ${nezha_key:+NEZHA_KEY=$nezha_key}
-ARGO_DOMAIN=$argo_domain
-ARGO_AUTH=$([[ -z "$argo_key" ]] && echo "" || ([[ "$argo_key" =~ ^\{.* ]] && echo "'$argo_key'" || echo "$argo_key"))
 EOF
     devil www add ${USERNAME}.serv00.net php > /dev/null 2>&1
     devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1

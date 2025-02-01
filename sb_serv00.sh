@@ -13,7 +13,7 @@ reading() { read -p "$(red "$1")" "$2"; }
 export LC_ALL=C
 HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
-export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b0'}
+export UUID=${UUID:-$(uuidgen -r)}
 export NEZHA_SERVER=${NEZHA_SERVER:-''} 
 export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
 export NEZHA_KEY=${NEZHA_KEY:-''} 
@@ -21,7 +21,8 @@ export ARGO_DOMAIN=${ARGO_DOMAIN:-''}
 export ARGO_AUTH=${ARGO_AUTH:-''}
 export CFIP=${CFIP:-'www.visa.com.tw'} 
 export CFPORT=${CFPORT:-'443'}
-export SUB_TOKEN=${SUB_TOKEN:-'sub'}
+export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
+
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="${HOME}/domains/${USERNAME}.ct8.pl/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.ct8.pl/public_html" || WORKDIR="${HOME}/domains/${USERNAME}.serv00.net/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
 rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" "$FILE_PATH" >/dev/null 2>&1
 
@@ -99,6 +100,52 @@ export TUIC_PORT=$udp_port1
 export HY2_PORT=$udp_port2
 }
 
+changge_ports() {
+reading "将删除全部端口然后随机开放1个tcp端口和2个udp端口,确定继续吗?(直接回车即确认更换)【y/n】: " choice
+
+if [[ -z "$choice" || "$choice" == "y" || "$choice" == "Y" ]]; then
+    devil port list | grep -E "^\s*[0-9]+" | while read -r line; do
+        port=$(echo "$line" | awk '{print $1}')
+        proto=$(echo "$line" | awk '{print $2}')
+
+        if [[ "$proto" != "tcp" && "$proto" != "udp" ]]; then
+            continue
+        fi
+
+        if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+            continue
+        fi
+
+        if devil port del "${proto}" "${port}" > /dev/null 2>&1; then
+            green "Port ${port}/${proto} has been removed successfully"
+        else
+            red "Failed to remove port ${port}/${proto}"
+        fi
+    done
+    check_binexec_and_port
+else
+    menu  
+fi
+}
+
+check_website() {
+CURRENT_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" && $2 == "php" {print $0}')
+if [ -n "$CURRENT_SITE" ]; then
+    green "检测到已存在${USERNAME}.serv00.net的php站点,无需修改"
+else
+    EXIST_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" {print $0}')
+    if [ -n "$EXIST_SITE" ]; then
+        red "不存在${USERNAME}.serv00.net的php站点,正在为你调整..."
+        devil www del "${USERNAME}.serv00.net"
+        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net"
+        green "已删除旧站点并创建新的php站点"
+    else
+        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net"
+        green "php站点创建完成"
+    fi
+fi
+}
+
 read_nz_variables() {
   if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
       green "使用自定义变量哪吒运行哪吒探针"
@@ -125,6 +172,7 @@ reading "\n确定继续安装吗？(直接回车即确认安装)【y/n】: " cho
     [Yy]|"")
         cd $WORKDIR
         check_binexec_and_port
+        check_website
         read_nz_variables
         argo_configure
         generate_config
@@ -135,7 +183,6 @@ reading "\n确定继续安装吗？(直接回车即确认安装)【y/n】: " cho
     *) red "无效的选择，请输入y或n" && menu ;;
   esac
 }
-
 
 uninstall_singbox() {
   reading "\n确定要卸载吗？【y/n】: " choice
@@ -153,7 +200,7 @@ uninstall_singbox() {
        	    green "Sing-box四合一已完全卸载"
           ;;
         [Nn]) exit 0 ;;
-    	  *) red "无效的选择，请输入y或n" && menu ;;
+    	  *) red "无效的选择,请输入y或n" && menu ;;
     esac
 }
 
@@ -176,7 +223,7 @@ argo_configure() {
           green "你的argo固定隧道域名为: $ARGO_DOMAIN"
           reading "请输入argo固定隧道密钥（Json或Token）: " ARGO_AUTH
           green "你的argo固定隧道密钥为: $ARGO_AUTH"
-	        echo -e "${red}注意：${purple}使用token，需要在cloudflare后台设置隧道端口和面板开放的tcp端口一致${re}"
+	  echo -e "${red}注意：${purple}使用token，需要在cloudflare后台设置隧道端口和面板开放的tcp端口一致${re}"
       else
           green "ARGO隧道变量未设置，将使用临时隧道"
           return
@@ -496,18 +543,18 @@ echo "$IP"
 }
 
 generate_sub_link () {
-[ -d "$FILE_PATH" ] || mkdir -p "$FILE_PATH"
-base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/${SUB_TOKEN}_v2.log
-V2rayN_LINK="https://${USERNAME}.serv00.net/${SUB_TOKEN}_v2.log"
-PHP_URL="https://github.com/eooce/Sing-box/releases/download/00/get_sub.php"
-curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_clash.yaml
-curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/${SUB_TOKEN}_singbox.yaml
-command -v curl &> /dev/null && curl -s -o "${FILE_PATH}/get_sub.php" "$PHP_URL" || command -v wget &> /dev/null && wget -q -O "${FILE_PATH}/get_sub.php" "$PHP_URL" || red "Warning: Neither curl nor wget is installed. You can't use the subscription"
-CLASH_LINK="https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_clash.yaml"
-SINGBOX_LINK="https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_singbox.yaml"
-yellow "\n节点订阅链接：\nClash: ${purple}${CLASH_LINK}${re}\n"   
-yellow "Sing-box: ${purple}${SINGBOX_LINK}${re}\n"
-yellow "V2rayN/Nekoray/小火箭: ${purple}${V2rayN_LINK}${re}\n\n"
+cat >> ${FILE_PATH}/.htaccess << EOF
+RewriteEngine On
+RewriteRule ^${SUB_TOKEN}$ sub.php [L]
+EOF
+base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
+V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
+PHP_URL="https://00.2go.us.kg/sub.php"        
+curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
+curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
+command -v curl &> /dev/null && curl -s -o "${FILE_PATH}/sub.php" "$PHP_URL" || command -v wget &> /dev/null && wget -q -O "${FILE_PATH}/sub.php" "$PHP_URL" || red "Warning: Neither curl nor wget is installed. You can't use the subscription"
+purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n"   
+green "节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n"
 }
 
 get_links(){
@@ -590,18 +637,22 @@ install_keepalive () {
     fi
 
     cat > ${keep_path}/.env <<EOF
-# Telegram 通知
+UUID=$UUID
+CFIP=${CFIP}
+CFPORT=${CFPORT}
+SUB_TOKEN=${UUID:0:8}
 ${tg_chat_id:+TELEGRAM_CHAT_ID=$tg_chat_id}
 ${tg_token:+TELEGRAM_BOT_TOKEN=$tg_token}
-
-# 哪吒探针
 ${nezha_server:+NEZHA_SERVER=$nezha_server}
 ${nezha_port:+NEZHA_PORT=$nezha_port}
 ${nezha_key:+NEZHA_KEY=$nezha_key}
-
-# Argo 隧道
 ARGO_DOMAIN=$argo_domain
-ARGO_AUTH='${argo_key}'
+ARGO_AUTH=$([[ -z "$argo_key" ]] && echo "" || ([[ "$argo_key" =~ ^\{.* ]] && echo "'$argo_key'" || echo "$argo_key"))
+EOF
+
+cat >> ${FILE_PATH}/.htaccess << EOF
+RewriteEngine On
+RewriteRule ^${SUB_TOKEN}$ sub.php [L]
 EOF
     devil www add ${USERNAME}.serv00.net php > /dev/null 2>&1
     devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
@@ -617,17 +668,18 @@ EOF
     devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     if devil www restart keep.${USERNAME}.serv00.net 2>&1 | grep -q "succesfully"; then
         green "\n全自动保活服务安装成功\n"
-        green "=========================================================="
-        purple "\n访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
-        yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
+        purple "自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n温馨提醒:如果未安装1,则需要等2分钟自动安装完成后再更新订阅\n\n" 
+        green "========================================================\n"
+        purple "访问 https://keep.${USERNAME}.serv00.net/stop 结束进程\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
-        purple "访问 https://keep.${USERNAME}.serv00.net/stop 结束进程和保活\n"
-        green "=========================================================="
+        yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
+        purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
+        green "========================================================"
         yellow "如发现掉线访问https://keep.${USERNAME}.serv00.net/start唤醒,或者用https://console.cron-job.org在线访问网页自动唤醒\n"
         purple "如果需要Telegram通知，请先在Telegram @Botfather 申请 Bot-Token，并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
         quick_command
     else
-        red "全自动保活服务安装失败,请删除所有文件夹后重试\n"
+        red "全自动保活服务安装失败,请删除所有站点后重试,卸载命令如下: \n${yellow}devil www del ${USERNAME}.serv00.net\ndevil www del ${USERNAME}.serv00.net\nrm -rf $HOME/${USERNAME}/domains/*\n${red}请依次执行上述三行命令后重新安装!"
     fi
 }
 
@@ -648,10 +700,10 @@ get_url_info() {
   if devil www list 2>&1 | grep -q "keep.$USERNAME.serv00.net"; then
     purple "\n-------------------保活相关链接------------------\n"
     green "=================================================\n"
-    purple "https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
-    yellow "https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
-    purple "https://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
     purple "https://keep.${USERNAME}.serv00.net/stop 结束进程\n"
+    purple "https://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
+    yellow "https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
+    purple "https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
     green "================================================="
   else 
     red "尚未安装自动保活服务\n" && sleep 2 && menu
@@ -679,19 +731,22 @@ menu() {
   echo  "==============="
   yellow "6. 清理所有进程"
   echo  "==============="
+  yellow "7. 更换节点端口"
+  echo  "==============="
   red "0. 退出脚本"
   echo "==========="
-  reading "请输入选择(0-3): " choice
+  reading "请输入选择(0-7): " choice
   echo ""
   case "${choice}" in
       1) install_singbox ;;
       2) install_keepalive ;;
       3) uninstall_singbox ;; 
-      4) cat ${FILE_PATH}/list.txt && yellow "\n节点订阅链接:\nClash: ${purple}https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_clash.yaml${re}\n\n${yellow}Sing-box: ${purple}https://${USERNAME}.serv00.net/get_sub.php?file=${SUB_TOKEN}_singbox.yaml${re}\n\n${yellow}V2rayN/Nekoray/小火箭: ${purple}https://${USERNAME}.serv00.net/${SUB_TOKEN}_v2.log${re}\n";; 
+      4) cat ${FILE_PATH}/list.txt && yellow "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n节点订阅链接适用于V2rayN/Nekoray/ShadowRocket/Clash/Sing-box/karing/Loon/sterisand 等\n";; 
       5) get_url_info ;;
       6) kill_all_tasks ;;
+      7) changge_ports ;;
       0) exit 0 ;;
-      *) red "无效的选项，请输入 0 到 6" ;;
+      *) red "无效的选项，请输入 0 到 7" ;;
   esac
 }
 menu

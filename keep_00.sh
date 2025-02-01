@@ -12,7 +12,7 @@ TG_BOT_TOKEN=""                              # 替换为你的TG机器人token
 export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b0'}  # UUID
 export CFIP=${CFIP:-'www.visa.com.tw'}       # 优选域名或优选ip
 export CFPORT=${CFIPPORT:-'443'}             # 优选域名或优选ip对应端口
-export SUB_TOKEN=${SUB_TOKEN:-'sub'}         # 订阅token
+export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}   # 订阅token
 
 # serv00或ct8服务器及端口配置,请按照以下格式填写,每个变量之间用英文输入法状态下冒号分隔
 declare -A servers=(  # 账号:密码:tcp端口:udp1端口:udp2端口:哪吒客户端域名:哪吒agent端口:哪吒密钥:argo域名:Argo隧道json或token 
@@ -220,10 +220,8 @@ connect_ssh() {
 
 👤 账户: $ssh_user
 🖥️ 服务器: $host
-📡 节点订阅：
-V2rayN: https://$ssh_user.serv00.net/${SUB_TOKEN}_v2.log
-Clash: https://$ssh_user.serv00.net/get_sub.php?file=${SUB_TOKEN}_clash.yaml
-Sing-box: https://$ssh_user.serv00.net/get_sub.php?file=${SUB_TOKEN}_singbox.yaml"
+📡 自适应节点订阅链接：
+https://${ssh_user}.serv00.net/${SUB_TOKEN}"
             return 0
         else
             red "$time  连接失败，请检查你的账户密码 服务器: $host  账户: $ssh_user"

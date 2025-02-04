@@ -368,8 +368,8 @@ cat > config.json << EOF
  "outbounds": [
 EOF
 
-# 如果是s14,设置 WireGuard 出站
-if [ "$HOSTNAME" == "s14.serv00.com" ]; then
+# 如果是s14或s15,设置 WireGuard 出站
+if [[ "$HOSTNAME" =~ s14|s15 ]]; then
   cat >> config.json << EOF
     {
       "type": "wireguard",
@@ -406,7 +406,7 @@ cat >> config.json << EOF
     "rules": [
 EOF
 
-if [ "$HOSTNAME" == "s14.serv00.com" ]; then
+if [[ "$HOSTNAME" =~ s14|s15 ]]; then
   cat >> config.json << EOF
       {
         "outbound": "wireguard-out",

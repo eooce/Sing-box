@@ -41,10 +41,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.
 * 可选环境变量：CHAT_ID BOT_TOKEN UUID NEZHA_SERVER NEZHA_PORT NEZHA_KEY ARGO_DOMAIN ARGO_AUTH CFIP CFPORT SUB_TOKEN
 * ARGO_AUTH变量使用json时，ARGO_AUTH=‘json’  需用英文输入状态下的单引号包裹，例如：ARGO_AUTH='{"AccountTag":"123","TunnelSecret":"123","TunnelID":"123"}' 
 ```
-bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/sb4.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb4.sh)
 ```
 
-* 带TG提醒、哪吒、argo固定隧道运行示列,里面的参数替换为自己的，不需要变量直接删除,固定随到密钥可以为token或json
+* 带TG提醒、哪吒、argo固定隧道运行示列,里面的参数替换为自己的，不需要变量直接删除,固定隧道密钥可以为token或json
 ```
 CHAT_ID=12345 BOT_TOKEN=5678:AA812jqIA NEZHA_SERVER=nezha.abc.com NEZHA_PORT=5555 NEZHA_KEY=abc123 ARGO_DOMAIN=abc.2go.com ARGO_AUTH='{"AccountTag":"123","TunnelSecret":"123","TunnelID":"123"}' bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/sb4.sh)
 ```

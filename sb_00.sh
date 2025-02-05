@@ -201,7 +201,7 @@ uninstall_singbox() {
 kill_all_tasks() {
 reading "\n确定继续清理吗？【y/n】: " choice
   case "$choice" in
-    [Yy]) bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1 ;;
+    [Yy]) bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep\|zsh" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1 ;;
        *) menu ;;
   esac
 }

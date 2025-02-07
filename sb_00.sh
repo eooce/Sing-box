@@ -236,24 +236,24 @@ cat > config.json << EOF
   "outbounds": [
 EOF
 
-# 如果是s14,设置 WireGuard 出站
+# 如果是s14或s15,设置 WireGuard 出站
 if [[ "$HOSTNAME" =~ s14|s15 ]]; then
   cat >> config.json << EOF
     {
       "type": "wireguard",
       "tag": "wireguard-out",
-      "server": "162.159.195.100",
+      "server": "162.159.192.200",
       "server_port": 4500,
       "local_address": [
         "172.16.0.2/32",
-        "2606:4700:110:83c7:b31f:5858:b3a8:c6b1/128"
+        "2606:4700:110:8f77:1ca9:f086:846c:5f9e/128"
       ],
-      "private_key": "mPZo+V9qlrMGCZ7+E6z2NI6NOV34PD++TpAR09PtCWI=",
+      "private_key": "wIxszdR2nMdA7a2Ul3XQcniSfSZqdqjPb6w6opvf5AU=",
       "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
       "reserved": [
-        26,
-        21,
-        228
+        126,
+        246,
+        173
       ]
     },
 EOF

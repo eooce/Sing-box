@@ -244,18 +244,18 @@ if [[ "$HOSTNAME" =~ s14|s15 ]]; then
     {
       "type": "wireguard",
       "tag": "wireguard-out",
-      "server": "162.159.195.100",
+      "server": "162.159.192.200",
       "server_port": 4500,
       "local_address": [
         "172.16.0.2/32",
-        "2606:4700:110:83c7:b31f:5858:b3a8:c6b1/128"
+        "2606:4700:110:8f77:1ca9:f086:846c:5f9e/128"
       ],
-      "private_key": "mPZo+V9qlrMGCZ7+E6z2NI6NOV34PD++TpAR09PtCWI=",
+      "private_key": "wIxszdR2nMdA7a2Ul3XQcniSfSZqdqjPb6w6opvf5AU=",
       "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
       "reserved": [
-        26,
-        21,
-        228
+        126,
+        246,
+        173
       ]
     },
 EOF
@@ -536,11 +536,10 @@ EOF
         yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
         green "========================================================"
-        yellow "如发现掉线访问https://keep.${USERNAME}.serv00.net/start唤醒,或者用https://console.cron-job.org在线访问网页自动唤醒\n"
         purple "如果需要Telegram通知，请先在Telegram @Botfather 申请 Bot-Token，并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
         quick_command
     else
-        red "全自动保活服务安装失败,请删除所有文件夹后重试\n"
+        red "全自动保活服务安装失败: \n${yellow}devil www del ${USERNAME}.serv00.net\ndevil www del ${USERNAME}.serv00.net\nrm -rf $HOME/${USERNAME}/domains/*\n${red}请依次执行上述三行命令后重新安装!"
     fi
 }
 

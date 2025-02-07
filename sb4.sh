@@ -536,6 +536,7 @@ EOF
         yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
         green "========================================================"
+        yellow "请务必访问一次 https://keep.${USERNAME}.serv00.net/start 启动全自动保活任务\n"
         purple "如果需要Telegram通知，请先在Telegram @Botfather 申请 Bot-Token，并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
         quick_command
     else

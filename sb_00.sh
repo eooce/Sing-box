@@ -591,7 +591,7 @@ EOF
         yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
         green "========================================================"
-        curl -s "https://keep.${USERNAME}.serv00.net/start" | grep -q "running" && green "\n所有服务都运行正常,全自动保活任务添加成功\n" || red "\n存在未运行的进程,如果你未安装1直接安装的2,请访问 https://keep.${USERNAME}.serv00.net/status 检查进程状态\n"
+        curl -sk "https://keep.${USERNAME}.serv00.net/start" | grep -q "running" && green "\n所有服务都运行正常,全自动保活任务添加成功\n" || red "\n存在未运行的进程,如果你未安装1直接安装的2,请访问 https://keep.${USERNAME}.serv00.net/status 检查进程状态\n"
         purple "如果需要Telegram通知,请先在Telegram @Botfather 申请 Bot-Token,并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
         quick_command
     else

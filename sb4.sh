@@ -537,7 +537,7 @@ EOF
         yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
         green "========================================================"
-        curl -s "https://keep.${USERNAME}.serv00.net/start" | grep -q "running" && green "\n所有服务都运行正常,全自动保活任务添加成功\n" || red "\n存在未运行的进程,请访问 https://keep.${USERNAME}.serv00.net/status 检查,建议执行以下命令后重装: \ndevil www del $USERNAME.serv00.net\ndevil www del keep.$USERNAME.serv00.net\nrm -rf $HOME/$USERNAME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo)\n"
+        curl -sk "https://keep.${USERNAME}.serv00.net/start" | grep -q "running" && green "\n所有服务都运行正常,全自动保活任务添加成功\n" || red "\n存在未运行的进程,请访问 https://keep.${USERNAME}.serv00.net/status 检查,建议执行以下命令后重装: \ndevil www del $USERNAME.serv00.net\ndevil www del keep.$USERNAME.serv00.net\nrm -rf $HOME/$USERNAME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo)\n"
         purple "如果需要Telegram通知,请先在Telegram @Botfather 申请 Bot-Token,并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
         quick_command
     else

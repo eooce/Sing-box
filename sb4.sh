@@ -13,7 +13,8 @@ reading() { read -p "$(red "$1")" "$2"; }
 export LC_ALL=C
 HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
-export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b0'}
+MD5_HASH=$(echo -n "$USERNAME" | md5sum | awk '{print $1}')
+export UUID=${UUID:-${MD5_HASH:0:8}-${MD5_HASH:8:4}-4${MD5_HASH:12:3}-$(echo $((RANDOM % 4 + 8)) | head -c 1)${MD5_HASH:15:3}-${MD5_HASH:19:12}}
 export NEZHA_SERVER=${NEZHA_SERVER:-''} 
 export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
 export NEZHA_KEY=${NEZHA_KEY:-''} 
@@ -35,7 +36,7 @@ tcp_ports=$(echo "$port_list" | grep -c "tcp")
 udp_ports=$(echo "$port_list" | grep -c "udp")
 
 if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
-    red "端口数量不符合要求，正在调整..."
+    red "端口规则不符合要求，正在调整..."
 
     if [[ $tcp_ports -gt 1 ]]; then
         tcp_to_delete=$((tcp_ports - 1))
@@ -536,11 +537,11 @@ EOF
         yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
         green "========================================================"
-        yellow "请务必访问一次 https://keep.${USERNAME}.serv00.net/start 启动全自动保活任务\n"
-        purple "如果需要Telegram通知，请先在Telegram @Botfather 申请 Bot-Token，并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
+        curl -s "https://keep.${USERNAME}.serv00.net/start" | grep -q "running" && green "\n所有服务都运行正常,全自动保活任务添加成功\n" || red "\n存在未运行的进程,请访问 https://keep.${USERNAME}.serv00.net/status 检查,建议执行以下命令后重装: \ndevil www del $USERNAME.serv00.net\ndevil www del keep.$USERNAME.serv00.net\nrm -rf $HOME/$USERNAME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo)\n"
+        purple "如果需要Telegram通知,请先在Telegram @Botfather 申请 Bot-Token,并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
         quick_command
     else
-        red "全自动保活服务安装失败: \n${yellow}devil www del ${USERNAME}.serv00.net\ndevil www del ${USERNAME}.serv00.net\nrm -rf $HOME/${USERNAME}/domains/*\n${red}请依次执行上述三行命令后重新安装!"
+        red "全自动保活服务安装失败: \n${yellow}devil www del $USERNAME.serv00.net\ndevil www del keep.$USERNAME.serv00.net\nrm -rf $HOME/$USERNAME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo)\n${red}请依次执行上述命令后重新安装!"
     fi
 }
 

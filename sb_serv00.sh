@@ -13,7 +13,8 @@ reading() { read -p "$(red "$1")" "$2"; }
 export LC_ALL=C
 HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
-export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b0'}
+MD5_HASH=$(echo -n "$USERNAME" | md5sum | awk '{print $1}')
+export UUID=${UUID:-${MD5_HASH:0:8}-${MD5_HASH:8:4}-4${MD5_HASH:12:3}-$(echo $((RANDOM % 4 + 8)) | head -c 1)${MD5_HASH:15:3}-${MD5_HASH:19:12}}
 export NEZHA_SERVER=${NEZHA_SERVER:-''} 
 export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
 export NEZHA_KEY=${NEZHA_KEY:-''} 
@@ -136,11 +137,11 @@ else
     EXIST_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" {print $0}')
     if [ -n "$EXIST_SITE" ]; then
         red "不存在${USERNAME}.serv00.net的php站点,正在为你调整..."
-        devil www del "${USERNAME}.serv00.net"
-        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net"
+        devil www del "${USERNAME}.serv00.net" > /dev/null 2>&1
+        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net" > /dev/null 2>&1
         green "已删除旧站点并创建新的php站点"
     else
-        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net"
+        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net" > /dev/null 2>&1
         green "php站点创建完成"
     fi
 fi
@@ -184,6 +185,7 @@ reading "\n确定继续安装吗？(直接回车即确认安装)【y/n】: " cho
   esac
 }
 
+
 uninstall_singbox() {
   reading "\n确定要卸载吗？【y/n】: " choice
     case "$choice" in
@@ -204,15 +206,20 @@ uninstall_singbox() {
     esac
 }
 
-kill_all_tasks() {
-reading "\n确定继续清理吗？【y/n】: " choice
+reset_system() {
+reading "\n确定重置系统吗吗？【y/n】: " choice
   case "$choice" in
-    [Yy]) bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1 ;;
+    [Yy]) bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
+          find "${HOME}" -mindepth 1 ! -name "domains" ! -name "mail" ! -name "repo" ! -name "backups" ! -name ".*" -exec rm -rf {} + > /dev/null 2>&1
+          devil www del $USERNAME.serv00.net > /dev/null 2>&1
+          devil www del keep.$USERNAME.serv00.net > /dev/null 2>&1
+          rm -rf $HOME/$USERNAME/domains/* > /dev/null 2>&1
+          green "\n初始化系统完成!\n"
+         ;;
        *) menu ;;
   esac
 }
 
-# Generating argo Config
 argo_configure() {
   if [[ -z $ARGO_AUTH || -z $ARGO_DOMAIN ]]; then
       reading "是否需要使用固定argo隧道？(直接回车将使用临时隧道)【y/n】: " argo_choice
@@ -223,7 +230,7 @@ argo_configure() {
           green "你的argo固定隧道域名为: $ARGO_DOMAIN"
           reading "请输入argo固定隧道密钥（Json或Token）: " ARGO_AUTH
           green "你的argo固定隧道密钥为: $ARGO_AUTH"
-	  echo -e "${red}注意：${purple}使用token，需要在cloudflare后台设置隧道端口和面板开放的tcp端口一致${re}"
+	        echo -e "${red}注意：${purple}使用token，需要在cloudflare后台设置隧道端口和面板开放的tcp端口一致${re}"
       else
           green "ARGO隧道变量未设置，将使用临时隧道"
           return
@@ -249,7 +256,6 @@ EOF
   fi
 }
 
-# Generating Configuration Files
 generate_config() {
 
   openssl ecparam -genkey -name prime256v1 -out "private.key"
@@ -405,7 +411,6 @@ EOF
 
 }
 
-# Download Dependency Files
 download_singbox() {
   ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
   if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
@@ -543,7 +548,7 @@ echo "$IP"
 }
 
 generate_sub_link () {
-cat > ${FILE_PATH}/.htaccess << EOF
+cat >> ${FILE_PATH}/.htaccess << EOF
 RewriteEngine On
 RewriteRule ^${SUB_TOKEN}$ sub.php [L]
 EOF
@@ -632,7 +637,7 @@ install_keepalive () {
     elif command -v wget &> /dev/null; then
         wget -q -O "${keep_path}/app.js" "$app_file_url"
     else
-        red "警告: 文件下载失败,请手动从https://00.2go.us.kg/app.js下载文件,并将文件上传到${keep_path}目录下"
+        echo "警告: 文件下载失败,请手动从https://00.2go.us.kg/app.js下载文件,并将文件上传到${keep_path}目录下"
         return
     fi
 
@@ -654,7 +659,6 @@ cat >> ${FILE_PATH}/.htaccess << EOF
 RewriteEngine On
 RewriteRule ^${SUB_TOKEN}$ sub.php [L]
 EOF
-    devil www add ${USERNAME}.serv00.net php > /dev/null 2>&1
     devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
     devil ssl www add $available_ip le le keep.${USERNAME}.serv00.net > /dev/null 2>&1
     ln -fs /usr/local/bin/node18 ~/bin/node > /dev/null 2>&1
@@ -668,18 +672,18 @@ EOF
     devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     if devil www restart keep.${USERNAME}.serv00.net 2>&1 | grep -q "succesfully"; then
         green "\n全自动保活服务安装成功\n"
-        purple "自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n\n温馨提醒:如果未安装1,则需要等2分钟自动安装完成后再更新订阅\n\n" 
+        purple "自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n温馨提醒:如果未安装1,则需要等2分钟自动安装完成后再更新订阅\n\n" 
         green "========================================================\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/stop 结束进程\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
         yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
         purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
         green "========================================================"
-	yellow "请务必访问一次 https://keep.${USERNAME}.serv00.net/start 启动全自动保活任务\n"
-        purple "如果需要Telegram通知，请先在Telegram @Botfather 申请 Bot-Token，并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
+        curl -s "https://keep.${USERNAME}.serv00.net/start" | grep -q "running" && green "\n所有服务都运行正常,全自动保活任务添加成功\n" || red "\n存在未运行的进程,如果你未安装1直接安装的2,请访问 https://keep.${USERNAME}.serv00.net/status 检查进程状态\n"
+        purple "如果需要Telegram通知,请先在Telegram @Botfather 申请 Bot-Token,并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
         quick_command
     else
-        red "全自动保活服务安装失败,请删除所有站点后重试,卸载命令如下: \n${yellow}devil www del ${USERNAME}.serv00.net\ndevil www del ${USERNAME}.serv00.net\nrm -rf $HOME/${USERNAME}/domains/*\n${red}请依次执行上述三行命令后重新安装!"
+        red "全自动保活服务安装失败: \n${yellow}devil www del ${USERNAME}.serv00.net\ndevil www del keep.${USERNAME}.serv00.net\nrm -rf ${HOME}/${USERNAME}/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo)\n${red}请依次执行上述命令后重新安装!"
     fi
 }
 
@@ -694,10 +698,11 @@ quick_command() {
       echo "export PATH=\"\$HOME/bin:\$PATH\"" >> "$HOME/.bashrc"
       source "$HOME/.bashrc"
   fi
+  green "快捷指令00创建成功,下次运行输入00快速进入菜单\n"
 }
 
 get_url_info() {
-  if devil www list 2>&1 | grep -q "keep.$USERNAME.serv00.net"; then
+  if devil www list 2>&1 | grep -q "keep.${USERNAME}.serv00.net"; then
     purple "\n-------------------保活相关链接------------------\n"
     green "=================================================\n"
     purple "https://keep.${USERNAME}.serv00.net/stop 结束进程\n"
@@ -729,9 +734,9 @@ menu() {
   echo  "==============="
   green "5. 查看保活链接"
   echo  "==============="
-  yellow "6. 清理所有进程"
+  yellow "6. 更换节点端口"
   echo  "==============="
-  yellow "7. 更换节点端口"
+  yellow "7. 初始化系统"
   echo  "==============="
   red "0. 退出脚本"
   echo "==========="
@@ -743,8 +748,8 @@ menu() {
       3) uninstall_singbox ;; 
       4) cat ${FILE_PATH}/list.txt && yellow "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n节点订阅链接适用于V2rayN/Nekoray/ShadowRocket/Clash/Sing-box/karing/Loon/sterisand 等\n";; 
       5) get_url_info ;;
-      6) kill_all_tasks ;;
-      7) changge_ports ;;
+      6) changge_ports ;;
+      7) reset_system ;;
       0) exit 0 ;;
       *) red "无效的选项，请输入 0 到 7" ;;
   esac

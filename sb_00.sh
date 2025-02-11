@@ -13,7 +13,8 @@ reading() { read -p "$(red "$1")" "$2"; }
 export LC_ALL=C
 HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
-export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b0'}
+MD5_HASH=$(echo -n "$USERNAME" | md5sum | awk '{print $1}')
+export UUID=${UUID:-${MD5_HASH:0:8}-${MD5_HASH:8:4}-4${MD5_HASH:12:3}-$(echo $((RANDOM % 4 + 8)) | head -c 1)${MD5_HASH:15:3}-${MD5_HASH:19:12}}
 export NEZHA_SERVER=${NEZHA_SERVER:-''} 
 export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
 export NEZHA_KEY=${NEZHA_KEY:-''} 

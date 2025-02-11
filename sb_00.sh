@@ -13,7 +13,8 @@ reading() { read -p "$(red "$1")" "$2"; }
 export LC_ALL=C
 HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
-export UUID=${UUID:-'bc97f674-c578-4940-9234-0a1da46041b0'}
+MD5_HASH=$(echo -n "$USERNAME" | md5sum | awk '{print $1}')
+export UUID=${UUID:-${MD5_HASH:0:8}-${MD5_HASH:8:4}-4${MD5_HASH:12:3}-$(echo $((RANDOM % 4 + 8)) | head -c 1)${MD5_HASH:15:3}-${MD5_HASH:19:12}}
 export NEZHA_SERVER=${NEZHA_SERVER:-''} 
 export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
 export NEZHA_KEY=${NEZHA_KEY:-''} 
@@ -109,11 +110,11 @@ else
     EXIST_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" {print $0}')
     if [ -n "$EXIST_SITE" ]; then
         red "不存在${USERNAME}.serv00.net的php站点,正在为你调整..."
-        devil www del "${USERNAME}.serv00.net"
-        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net"
+        devil www del "${USERNAME}.serv00.net" > /dev/null 2>&1
+        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net" > /dev/null 2>&1
         green "已删除旧站点并创建新的php站点"
     else
-        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net"
+        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net" > /dev/null 2>&1
         green "php站点创建完成"
     fi
 fi

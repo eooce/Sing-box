@@ -636,13 +636,16 @@ async function sendTelegram() {
       console.log('\n\x1b[35mTelegram bot token or chat ID is empty. Skip pushing nodes to TG\x1b[0m');
       return;
   }
-
   try {
       const message = fs.readFileSync(path.join(FILE_PATH, 'sub.txt'), 'utf8');
       const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+      
+      const escapedName = NAME.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+      
       const params = {
           chat_id: TELEGRAM_CHAT_ID,
-          text: message
+          text: `**${escapedName}节点推送通知**\n\`\`\`\n${message}\n\`\`\``,
+          parse_mode: 'MarkdownV2'
       };
 
       await axios.post(url, null, { params });

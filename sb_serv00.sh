@@ -265,14 +265,14 @@ generate_config() {
   available_ip=$(get_ip)
   purple "当前选择IP为：$available_ip 如安装完后节点不通可尝试重新安装"
   
-cat > config.json << EOF
+cat > config.json <<EOF
 {
   "log": {
     "disabled": true,
     "level": "info",
     "timestamp": true
   },
-  "dns": {
+   "dns": {
     "servers": [
       {
         "address": "8.8.8.8",
@@ -286,24 +286,22 @@ cat > config.json << EOF
   },
   "inbounds": [
     {
-       "tag": "hysteria-in",
-       "type": "hysteria2",
-       "listen": "$available_ip",
-       "listen_port": $HY2_PORT,
-       "users": [
-         {
-             "password": "$UUID"
-         }
-     ],
-     "masquerade": "https://bing.com",
-     "tls": {
-         "enabled": true,
-         "alpn": [
-             "h3"
-         ],
-         "certificate_path": "cert.pem",
-         "key_path": "private.key"
+      "tag": "hysteria-in",
+      "type": "hysteria2",
+      "listen": "$available_ip",
+      "listen_port": $HY2_PORT,
+      "users": [
+        {
+          "password": "$UUID"
         }
+      ],
+      "masquerade": "https://bing.com",
+      "tls": {
+        "enabled": true,
+        "alpn": ["h3"],
+        "certificate_path": "cert.pem",
+        "key_path": "private.key"
+      }
     },
     {
       "tag": "vmess-ws-in",
@@ -311,14 +309,14 @@ cat > config.json << EOF
       "listen": "::",
       "listen_port": $VMESS_PORT,
       "users": [
-      {
-        "uuid": "$UUID"
-      }
-    ],
-    "transport": {
-      "type": "ws",
-      "path": "/vmess-argo",
-      "early_data_header_name": "Sec-WebSocket-Protocol"
+        {
+          "uuid": "$UUID"
+        }
+      ],
+      "transport": {
+        "type": "ws",
+        "path": "/vmess-argo",
+        "early_data_header_name": "Sec-WebSocket-Protocol"
       }
     },
     {
@@ -335,20 +333,26 @@ cat > config.json << EOF
       "congestion_control": "bbr",
       "tls": {
         "enabled": true,
-        "alpn": [
-          "h3"
-        ],
+        "alpn": ["h3"],
         "certificate_path": "cert.pem",
         "key_path": "private.key"
       }
     }
- ],
-  "outbounds": [
+  ],
 EOF
 
-# 如果是s14或s15,设置 WireGuard 出站
-if [[ "$HOSTNAME" =~ s14|s15 ]]; then
-  cat >> config.json << EOF
+# 如果是s14/s15/s16,google和youtube相关的服务走warp出站
+if [[ "$HOSTNAME" =~ s14|s15|s16 ]]; then
+  cat >> config.json <<EOF
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "block",
+      "tag": "block"
+    },
     {
       "type": "wireguard",
       "tag": "wireguard-out",
@@ -360,55 +364,51 @@ if [[ "$HOSTNAME" =~ s14|s15 ]]; then
       ],
       "private_key": "wIxszdR2nMdA7a2Ul3XQcniSfSZqdqjPb6w6opvf5AU=",
       "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-      "reserved": [
-        126,
-        246,
-        173
-      ]
-    },
-EOF
-fi
-
-cat >> config.json << EOF
-    {
-      "tag": "direct",
-      "type": "direct"
-    },
-    {
-      "tag": "block",
-      "type": "block"
+      "reserved": [126, 246, 173]
     }
   ],
   "route": {
-    "rules": [
-EOF
-
-if [[ "$HOSTNAME" =~ s14|s15 ]]; then
-  cat >> config.json << EOF
+    "rule_set": [
       {
-        "outbound": "wireguard-out",
-        "domain": ["geosite:all"]
+        "tag": "geosite-youtube",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/youtube.srs",
+        "download_detour": "direct"
       },
       {
-        "outbound": "direct",
-        "domain": ["geosite:cn"]
+        "tag": "geosite-google",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/google.srs",
+        "download_detour": "direct"
       }
-EOF
-else
-  cat >> config.json << EOF
+    ],
+    "rules": [
       {
-        "outbound": "direct",
-        "domain": ["geosite:all"]
+        "rule_set": ["geosite-google", "geosite-youtube"],
+        "outbound": "wireguard-out"
       }
-EOF
-fi
-
-cat >> config.json << EOF
-    ]
+    ],
+    "final": "direct"
   }
 }
 EOF
-
+else
+  cat >> config.json <<EOF
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "block",
+      "tag": "block"
+    }
+  ]
+}
+EOF
+fi
 }
 
 download_singbox() {

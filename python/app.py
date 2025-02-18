@@ -60,6 +60,7 @@ def send_telegram():
     TELEGRAM_BOT_TOKEN = ENV['TELEGRAM_BOT_TOKEN']
     TELEGRAM_CHAT_ID = ENV['TELEGRAM_CHAT_ID']
     FILE_PATH = Path(ENV['FILE_PATH'])
+    NAME = ENV.get('NAME', 'Node')  # 获取NAME，如果不存在则默认为'Node'
 
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         console.print("\n[bold magenta]Telegram bot token or chat ID is empty. Skip pushing nodes to TG[/bold magenta]")
@@ -69,11 +70,21 @@ def send_telegram():
         with open(FILE_PATH / 'sub.txt', 'r', encoding='utf-8') as file:
             message = file.read().strip()
 
+        # 处理特殊字符
+        escaped_name = NAME
+        for char in '_*[]()~`>#+=|{}.!-':
+            escaped_name = escaped_name.replace(char, f'\\{char}')
+
+        # 构建Markdown格式的消息
+        formatted_message = f"**{escaped_name}节点推送通知**\n```\n{message}\n```"
+
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
         params = {
             "chat_id": TELEGRAM_CHAT_ID,
-            "text": message
+            "text": formatted_message,
+            "parse_mode": "MarkdownV2"
         }
+        
         response = requests.post(url, params=params)
 
         if response.status_code == 200:

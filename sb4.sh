@@ -87,6 +87,7 @@ if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
         done
     fi
     green "端口已调整完成,将断开ssh连接,请重新连接shh重新执行脚本"
+    quick_command
     devil binexec on >/dev/null 2>&1
     kill -9 $(ps -o ppid= -p $$) >/dev/null 2>&1
 else
@@ -450,7 +451,7 @@ RewriteRule ^${SUB_TOKEN}$ sub.php [L]
 EOF
 base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
 V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
-PHP_URL="https://00.2go.us.kg/sub.php"        
+PHP_URL="https://00.ssss.nyc.mn/sub.php"        
 curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
 curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
 command -v curl &> /dev/null && curl -s -o "${FILE_PATH}/sub.php" "$PHP_URL" || command -v wget &> /dev/null && wget -q -O "${FILE_PATH}/sub.php" "$PHP_URL" || red "Warning: Neither curl nor wget is installed. You can't use the subscription"
@@ -461,7 +462,7 @@ green "节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing
 get_links(){
 argodomain=$(get_argodomain)
 echo -e "\e[1;32mArgoDomain:\e[1;35m${argodomain}\e[0m\n"
-ISP=$(curl -s --max-time 1.5 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
+ISP=$(curl -s --max-time 2 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
 get_name() { if [ "$HOSTNAME" = "s1.ct8.pl" ]; then SERVER="CT8"; else SERVER=$(echo "$HOSTNAME" | cut -d '.' -f 1); fi; echo "$SERVER"; }
 NAME="$ISP-$(get_name)"
 
@@ -492,14 +493,14 @@ install_keepalive () {
     purple "正在安装保活服务中,请稍等......"
     keep_path="$HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs"
     [ -d "$keep_path" ] || mkdir -p "$keep_path"
-    app_file_url="https://00.2go.us.kg/app.js"
+    app_file_url="https://00.ssss.nyc.mn/app.js"
 
     if command -v curl &> /dev/null; then
         curl -s -o "${keep_path}/app.js" "$app_file_url"
     elif command -v wget &> /dev/null; then
         wget -q -O "${keep_path}/app.js" "$app_file_url"
     else
-        echo "警告: 文件下载失败,请手动从https://00.2go.us.kg/app.js下载文件,并将文件上传到${keep_path}目录下"
+        echo "警告: 文件下载失败,请手动从https://00.ssss.nyc.mn/app.js下载文件,并将文件上传到${keep_path}目录下"
         return
     fi
 
@@ -556,7 +557,7 @@ quick_command() {
       echo "export PATH=\"\$HOME/bin:\$PATH\"" >> "$HOME/.bashrc"
       source "$HOME/.bashrc"
   fi
-  green "快捷指令00创建成功\n"
+  green "快捷指令00创建成功,下次运行输入00快速启动\n"
 }
 
 install_singbox() {

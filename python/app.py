@@ -116,15 +116,15 @@ def download_files():
     arch = os.uname().machine
     if arch in ['arm', 'arm64', 'aarch64']:
         files = {
-            'web': 'https://arm64.2go.us.kg/sb',
-            'bot': 'https://arm64.2go.us.kg/bot',
-            'npm': 'https://arm64.2go.us.kg/agent'
+            'web': 'https://arm64.ssss.ync.mn/sb',
+            'bot': 'https://arm64.ssss.ync.mn/bot',
+            'npm': 'https://arm64.ssss.ync.mn/agent'
         }
     else:
         files = {
-            'web': 'https://amd64.2go.us.kg/sb',
-            'bot': 'https://amd64.2go.us.kg/2go',
-            'npm': 'https://amd64.2go.us.kg/agent'
+            'web': 'https://amd64.ssss.ync.mn/sb',
+            'bot': 'https://amd64.ssss.ync.mn/2go',
+            'npm': 'https://amd64.ssss.ync.mn/agent'
         }
     
     file_map = {}

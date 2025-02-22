@@ -399,7 +399,7 @@ RewriteRule ^${SUB_TOKEN}$ sub.php [L]
 EOF
 base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
 V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
-PHP_URL="https://00.2go.us.kg/sub.php"        
+PHP_URL="https://00.ssss.nyc.mn/sub.php"        
 curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
 curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
 command -v curl &> /dev/null && curl -s -o "${FILE_PATH}/sub.php" "$PHP_URL" || command -v wget &> /dev/null && wget -q -O "${FILE_PATH}/sub.php" "$PHP_URL" || red "Warning: Neither curl nor wget is installed. You can't use the subscription"

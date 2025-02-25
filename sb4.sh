@@ -24,7 +24,8 @@ export CFIP=${CFIP:-'www.visa.com.tw'}
 export CFPORT=${CFPORT:-'443'} 
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
 export CHAT_ID=${CHAT_ID:-''} 
-export BOT_TOKEN=${BOT_TOKEN:-''} 
+export BOT_TOKEN=${BOT_TOKEN:-''}
+export SUB_URL=${SUB_URL:-''}  # 订阅自动添加到汇聚订阅器，需要先部署Merge-sub项目,环境变量填写部署后的首页地址,例如: SUB_URL=https://merge.serv00.net
 
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="${HOME}/domains/${USERNAME}.ct8.pl/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.ct8.pl/public_html" || WORKDIR="${HOME}/domains/${USERNAME}.serv00.net/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
 rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" >/dev/null 2>&1
@@ -509,6 +510,7 @@ UUID=$UUID
 CFIP=${CFIP}
 CFPORT=${CFPORT}
 SUB_TOKEN=${UUID:0:8}
+API_SUB_URL=${SUB_URL}
 TELEGRAM_CHAT_ID=${CHAT_ID}
 TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
 NEZHA_SERVER=${NEZHA_SERVER}
@@ -517,7 +519,6 @@ NEZHA_KEY=${NEZHA_KEY}
 ARGO_DOMAIN=${ARGO_DOMAIN}
 ARGO_AUTH=$([[ -z "$ARGO_AUTH" ]] && echo "" || ([[ "$ARGO_AUTH" =~ ^\{.* ]] && echo "'$ARGO_AUTH'" || echo "$ARGO_AUTH"))
 EOF
-    devil www add ${USERNAME}.serv00.net php > /dev/null 2>&1
     devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
     ip_address=$(devil vhost list | sed -n '5p' | awk '{print $1}')
     devil ssl www add $ip_address le le keep.${USERNAME}.serv00.net > /dev/null 2>&1

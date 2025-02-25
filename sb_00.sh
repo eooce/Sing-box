@@ -19,6 +19,7 @@ export NEZHA_SERVER=${NEZHA_SERVER:-''}
 export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
 export NEZHA_KEY=${NEZHA_KEY:-''} 
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
+export SUB_URL=${SUB_URL:-''}  # 订阅自动添加到汇聚订阅器，需要先部署Merge-sub项目,环境变量填写部署后的首页地址,例如: SUB_URL=https://merge.serv00.net
 
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="${HOME}/domains/${USERNAME}.ct8.pl/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.ct8.pl/public_html" || WORKDIR="${HOME}/domains/${USERNAME}.serv00.net/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
 rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" "$FILE_PATH" >/dev/null 2>&1
@@ -570,6 +571,7 @@ install_keepalive () {
     cat > ${keep_path}/.env <<EOF
 UUID=$UUID
 SUB_TOKEN=${UUID:0:8}
+${SUB_URL:+API_SUB_URL=$SUB_URL}
 ${tg_chat_id:+TELEGRAM_CHAT_ID=$tg_chat_id}
 ${tg_token:+TELEGRAM_BOT_TOKEN=$tg_token}
 ${nezha_server:+NEZHA_SERVER=$nezha_server}

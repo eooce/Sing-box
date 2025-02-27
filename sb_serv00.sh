@@ -157,11 +157,15 @@ read_nz_variables() {
       reading "是否需要安装哪吒探针？(直接回车则不安装)【y/n】: " nz_choice
       [[ -z $nz_choice ]] && return
       [[ "$nz_choice" != "y" && "$nz_choice" != "Y" ]] && return
-      reading "请输入哪吒探针域名或ip\nv1哪吒形式：nezha.abc.com:8008,v0哪吒形式：nezha.abc.com：" NEZHA_SERVER
+      reading "\n请输入哪吒探针域名或ip\nv1哪吒形式：nezha.abc.com:8008,v0哪吒形式：nezha.abc.com :" NEZHA_SERVER
       green "你的哪吒域名为: $NEZHA_SERVER"
-      reading "请输入哪吒探针端口（V1请直接回车留空）：" NEZHA_PORT
-      [[ -z $NEZHA_PORT ]] && NEZHA_PORT=""
-      green "你的哪吒端口为: $NEZHA_PORT"
+      if [[ "$NEZHA_SERVER" != *":"* ]]; then
+      	reading "请输入哪吒v0探针端口(直接回车将设置为5555)：" NEZHA_PORT
+      	[[ -z $NEZHA_PORT ]] && NEZHA_PORT="5555"
+      	green "你的哪吒端口为: $NEZHA_PORT"
+      else
+      	  NEZHA_PORT=""
+      fi
       reading "请输入v0的agent密钥或v1的NZ_CLIENT_SECRET：" NEZHA_KEY
       green "你的哪吒密钥为: $NEZHA_KEY"
   fi
@@ -631,7 +635,7 @@ install_keepalive () {
     reading "是否需要Telegram通知？(直接回车则不启用)【y/n】: " tg_notification
     if [[ "$tg_notification" == "y" || "$tg_notification" == "Y" ]]; then
 
-        reading "请输入Telegram chat ID (tg上@userinfobot获取): " tg_chat_id
+        reading "请输入Telegram chat ID (tg上@laowang_serv00_bot获取): " tg_chat_id
         [[ -z $tg_chat_id ]] && { red "Telegram chat ID不能为空"; return; }
         green "你设置的Telegram chat_id为: ${tg_chat_id}"
 
@@ -642,15 +646,18 @@ install_keepalive () {
 
     reading "是否需要保活哪吒探针？(直接回车则不启用)【y/n】: " keep_nezha
     if [[ "$keep_nezha" == "y" || "$keep_nezha" == "Y" ]]; then
-
         reading "请输入哪吒面板域名【v1须带面板端口】：" nezha_server
         green "你的哪吒面板域名为: $nezha_server"
 
-        reading "请输入哪吒agent端口(v1请直接回车留空): " nezha_port
-        [[ -z $nezha_port ]] && nezha_port=""
-        green "你的哪吒agent端口为: $nezha_port"
+        if [[ "$nezha_server" != *":"* ]]; then
+          reading "请输入哪吒agent端口(v1请直接回车留空): " nezha_port
+          [[ -z $nezha_port ]] && nezha_port="5555"
+          green "你的哪吒agent端口为: $nezha_port"
+        else
+          nezha_port=""
+        fi
 
-        reading "请输入哪吒v0 agent密钥或v1的NZ_CLIENT_SECRET: " nezha_key
+        reading "请输入哪吒v0的agent密钥或v1的NZ_CLIENT_SECRET: " nezha_key
         [[ -z $nezha_key ]] && { red "哪吒agent密钥不能为空"; return; }
         green "你的哪吒agent密钥为: $nezha_key"
     fi

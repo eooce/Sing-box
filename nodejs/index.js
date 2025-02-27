@@ -1,7 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const exec = require("child_process").exec;
-const subtxt = './sub.txt' 
+const subtxt = './.npm/sub.txt' 
 const PORT = process.env.PORT || 3000; 
 
 // Run start.sh

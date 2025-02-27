@@ -578,7 +578,7 @@ EOF
         purple "如果需要TG通知,在https://t.me/laowang_serv00_bot获取CHAT_ID,并带CHAT_ID环境变量运行\n\n"
         quick_command
     else
-        red "全自动保活服务安装失败: \n${yellow}devil www del $USERNAME.serv00.net\ndevil www del keep.$USERNAME.serv00.net\nrm -rf $HOME/$USERNAME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo)\n${red}请依次执行上述命令后重新安装!"
+        red "全自动保活服务安装失败: \n${yellow}devil www del $USERNAME.serv00.net\ndevil www del keep.$USERNAME.serv00.net\nrm -rf $HOME/$USERNAME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backup)\n${red}请依次执行上述命令后重新安装!"
     fi
 }
 

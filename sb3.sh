@@ -16,7 +16,7 @@ USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
 MD5_HASH=$(echo -n "$USERNAME" | md5sum | awk '{print $1}')
 export UUID=${UUID:-${MD5_HASH:0:8}-${MD5_HASH:8:4}-4${MD5_HASH:12:3}-$(echo $((RANDOM % 4 + 8)) | head -c 1)${MD5_HASH:15:3}-${MD5_HASH:19:12}}
 export NEZHA_SERVER=${NEZHA_SERVER:-''} 
-export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
+export NEZHA_PORT=${NEZHA_PORT:-''}     
 export NEZHA_KEY=${NEZHA_KEY:-''} 
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
 
@@ -30,7 +30,7 @@ tcp_ports=$(echo "$port_list" | grep -c "tcp")
 udp_ports=$(echo "$port_list" | grep -c "udp")
 
 if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
-    red "端口不符合要求，正在调整..."
+    red "端口规则不符合要求，正在调整..."
 
     if [[ $tcp_ports -gt 1 ]]; then
         tcp_to_delete=$((tcp_ports - 1))
@@ -116,16 +116,43 @@ else
 fi
 }
 
-download_and_run_singbox() {
-  ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
-  if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot" "https://github.com/eooce/test/releases/download/ARM/swith npm")
-  elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/freebsd/sb web" "https://github.com/eooce/test/releases/download/freebsd/server bot" "https://github.com/eooce/test/releases/download/freebsd/npm npm")
-  else
-      echo "Unsupported architecture: $ARCH"
-      exit 1
-  fi
+download_singbox() {
+ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
+if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
+    BASE_URL="https://github.com/eooce/test/releases/download/freebsd-arm64"
+elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
+    BASE_URL="https://github.com/eooce/test/releases/download/freebsd"
+else
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+fi
+FILE_INFO=("$BASE_URL/sb web" "$BASE_URL/server bot")
+if [ -n "$NEZHA_PORT" ]; then
+    FILE_INFO+=("$BASE_URL/npm npm")
+else
+    FILE_INFO+=("$BASE_URL/v1 php")
+    cat > "${WORKDIR}/config.yaml" << EOF
+client_secret: ${NEZHA_KEY}
+debug: false
+disable_auto_update: true
+disable_command_execute: false
+disable_force_update: true
+disable_nat: false
+disable_send_query: false
+gpu: false
+insecure_tls: false
+ip_report_period: 1800
+report_delay: 1
+server: ${NEZHA_SERVER}
+skip_connection_count: false
+skip_procs_count: false
+temperature: false
+tls: false
+use_gitee_to_upgrade: false
+use_ipv6_country_code: false
+uuid: ${UUID}
+EOF
+fi
 declare -A FILE_MAP
 generate_random_name() {
     local chars=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890
@@ -145,16 +172,17 @@ download_with_fallback() {
     CURL_START_SIZE=$(stat -c%s "$NEW_FILENAME" 2>/dev/null || echo 0)
     
     sleep 1
+
     CURL_CURRENT_SIZE=$(stat -c%s "$NEW_FILENAME" 2>/dev/null || echo 0)
     
     if [ "$CURL_CURRENT_SIZE" -le "$CURL_START_SIZE" ]; then
         kill $CURL_PID 2>/dev/null
         wait $CURL_PID 2>/dev/null
         wget -q -O "$NEW_FILENAME" "$URL"
-        echo -e "\e[1;32mDownloading $NEW_FILENAME by wget\e[0m"
+        green "Downloading $NEW_FILENAME by wget"
     else
         wait $CURL_PID
-        echo -e "\e[1;32mDownloading $NEW_FILENAME by curl\e[0m"
+        green "Downloading $NEW_FILENAME by curl"
     fi
 }
 
@@ -163,11 +191,7 @@ for entry in "${FILE_INFO[@]}"; do
     RANDOM_NAME=$(generate_random_name)
     NEW_FILENAME="$DOWNLOAD_DIR/$RANDOM_NAME"
     
-    if [ -e "$NEW_FILENAME" ]; then
-        echo -e "\e[1;32m$NEW_FILENAME already exists, Skipping download\e[0m"
-    else
-        download_with_fallback "$URL" "$NEW_FILENAME"
-    fi
+    download_with_fallback "$URL" "$NEW_FILENAME"
     
     chmod +x "$NEW_FILENAME"
     FILE_MAP[$(echo "$entry" | cut -d ' ' -f 2)]="$NEW_FILENAME"
@@ -276,7 +300,7 @@ cat > config.json << EOF
  ],
 EOF
 
-# 如果是s14/s15/s16,google和youtube相关的服务走warp出站
+# 如果是s14/s15/s16,google/youtube/spotify相关的服务走warp出站
 if [[ "$HOSTNAME" =~ s14|s15|s16 ]]; then
   cat >> config.json <<EOF
   "outbounds": [
@@ -305,23 +329,30 @@ if [[ "$HOSTNAME" =~ s14|s15|s16 ]]; then
   "route": {
     "rule_set": [
       {
-        "tag": "geosite-youtube",
+        "tag": "youtube",
         "type": "remote",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/youtube.srs",
         "download_detour": "direct"
       },
       {
-        "tag": "geosite-google",
+        "tag": "google",
         "type": "remote",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/google.srs",
+        "download_detour": "direct"
+      },
+      {
+        "tag": "spotify",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/spotify.srs",
         "download_detour": "direct"
       }
     ],
     "rules": [
       {
-        "rule_set": ["geosite-google", "geosite-youtube"],
+        "rule_set": ["google", "youtube", "spotify"],
         "outbound": "wireguard-out"
       }
     ],
@@ -344,32 +375,38 @@ else
 }
 EOF
 fi
-wait
-
-if [ -e "$(basename ${FILE_MAP[npm]})" ]; then
-    tlsPorts=("443" "8443" "2096" "2087" "2083" "2053")
-    if [[ "${tlsPorts[*]}" =~ "${NEZHA_PORT}" ]]; then
-      NEZHA_TLS="--tls"
-    else
-      NEZHA_TLS=""
-    fi
-    if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
-        export TMPDIR=$(pwd)
-        nohup ./"$(basename ${FILE_MAP[npm]})" -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &
-        sleep 2
-        pgrep -x "$(basename ${FILE_MAP[npm]})" > /dev/null && green "$(basename ${FILE_MAP[npm]}) is running" || { red "$(basename ${FILE_MAP[npm]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[npm]})" && nohup ./"$(basename ${FILE_MAP[npm]})" -s "${NEZHA_SERVER}:${NEZHA_PORT}" -p "${NEZHA_KEY}" ${NEZHA_TLS} >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[npm]}) restarted"; }
-    else
-        purple "NEZHA variable is empty, skipping running"
-    fi
-fi
 
 if [ -e "$(basename ${FILE_MAP[web]})" ]; then
     nohup ./"$(basename ${FILE_MAP[web]})" run -c config.json >/dev/null 2>&1 &
     sleep 2
     pgrep -x "$(basename ${FILE_MAP[web]})" > /dev/null && green "$(basename ${FILE_MAP[web]}) is running" || { red "$(basename ${FILE_MAP[web]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[web]})" && nohup ./"$(basename ${FILE_MAP[web]})" run -c config.json >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[web]}) restarted"; }
 fi
-sleep 1
-rm -f "$(basename ${FILE_MAP[npm]})" "$(basename ${FILE_MAP[web]})"
+
+if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
+    if [ -e "$(basename ${FILE_MAP[npm]})" ]; then
+	  tlsPorts=("443" "8443" "2096" "2087" "2083" "2053")
+      [[ "${tlsPorts[*]}" =~ "${NEZHA_PORT}" ]] && NEZHA_TLS="--tls" || NEZHA_TLS=""
+      export TMPDIR=$(pwd)
+      nohup ./"$(basename ${FILE_MAP[npm]})" -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &
+      sleep 2
+      pgrep -x "$(basename ${FILE_MAP[npm]})" > /dev/null && green "$(basename ${FILE_MAP[npm]}) is running" || { red "$(basename ${FILE_MAP[npm]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[npm]})" && nohup ./"$(basename ${FILE_MAP[npm]})" -s "${NEZHA_SERVER}:${NEZHA_PORT}" -p "${NEZHA_KEY}" ${NEZHA_TLS} >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[npm]}) restarted"; }
+    fi
+elif [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_KEY" ]; then
+    if [ -e "$(basename ${FILE_MAP[php]})" ]; then
+      nohup ./"$(basename ${FILE_MAP[php]})" -c "${WORKDIR}/config.yaml" >/dev/null 2>&1 &
+      sleep 2
+      pgrep -x "$(basename ${FILE_MAP[php]})" > /dev/null && green "$(basename ${FILE_MAP[php]}) is running" || { red "$(basename ${FILE_MAP[php]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[php]})" && nohup ./"$(basename ${FILE_MAP[php]})" -s -c "${WORKDIR}/config.yaml" >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[php]}) restarted"; }
+    fi
+else
+    purple "NEZHA variable is empty, skipping running"
+fi
+
+for key in "${!FILE_MAP[@]}"; do
+    if [ -e "$(basename ${FILE_MAP[$key]})" ]; then
+        rm -rf "$(basename ${FILE_MAP[$key]})" >/dev/null 2>&1
+    fi
+done
+
 }
 
 get_ip() {

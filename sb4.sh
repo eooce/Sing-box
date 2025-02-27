@@ -15,9 +15,9 @@ HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
 MD5_HASH=$(echo -n "$USERNAME" | md5sum | awk '{print $1}')
 export UUID=${UUID:-${MD5_HASH:0:8}-${MD5_HASH:8:4}-4${MD5_HASH:12:3}-$(echo $((RANDOM % 4 + 8)) | head -c 1)${MD5_HASH:15:3}-${MD5_HASH:19:12}}
-export NEZHA_SERVER=${NEZHA_SERVER:-''} 
-export NEZHA_PORT=${NEZHA_PORT:-'5555'}     
-export NEZHA_KEY=${NEZHA_KEY:-''} 
+export NEZHA_SERVER=${NEZHA_SERVER:-''}  # v1哪吒形式：nezha.abc.com:8008,v0哪吒形式：nezha.abc.com
+export NEZHA_PORT=${NEZHA_PORT:-''}      # v1哪吒不需要此变量
+export NEZHA_KEY=${NEZHA_KEY:-''}        # v1的NZ_CLIENT_SECRET或v0的agent密钥
 export ARGO_DOMAIN=${ARGO_DOMAIN:-''}   
 export ARGO_AUTH=${ARGO_AUTH:-''}
 export CFIP=${CFIP:-'www.visa.com.tw'} 
@@ -25,7 +25,7 @@ export CFPORT=${CFPORT:-'443'}
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
 export CHAT_ID=${CHAT_ID:-''} 
 export BOT_TOKEN=${BOT_TOKEN:-''}
-export SUB_URL=${SUB_URL:-''}  # 订阅自动添加到汇聚订阅器，需要先部署Merge-sub项目,环境变量填写部署后的首页地址,例如: SUB_URL=https://merge.serv00.net
+export UPLOAD_URL=${UPLOAD_URL:-''} 
 
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="${HOME}/domains/${USERNAME}.ct8.pl/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.ct8.pl/public_html" || WORKDIR="${HOME}/domains/${USERNAME}.serv00.net/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
 rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" >/dev/null 2>&1
@@ -236,7 +236,7 @@ cat > config.json <<EOF
   ],
 EOF
 
-# 如果是s14/s15/s16,google和youtube相关的服务走warp出站
+# 如果是s14/s15/s16,google/youtube/spotify相关的服务走warp出站
 if [[ "$HOSTNAME" =~ s14|s15|s16 ]]; then
   cat >> config.json <<EOF
   "outbounds": [
@@ -265,23 +265,30 @@ if [[ "$HOSTNAME" =~ s14|s15|s16 ]]; then
   "route": {
     "rule_set": [
       {
-        "tag": "geosite-youtube",
+        "tag": "youtube",
         "type": "remote",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/youtube.srs",
         "download_detour": "direct"
       },
       {
-        "tag": "geosite-google",
+        "tag": "google",
         "type": "remote",
         "format": "binary",
         "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/google.srs",
+        "download_detour": "direct"
+      },
+      {
+        "tag": "spotify",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/spotify.srs",
         "download_detour": "direct"
       }
     ],
     "rules": [
       {
-        "rule_set": ["geosite-google", "geosite-youtube"],
+        "rule_set": ["google", "youtube", "spotify"],
         "outbound": "wireguard-out"
       }
     ],
@@ -308,15 +315,42 @@ fi
 }
 
 download_singbox() {
-  ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
-  if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/arm64/sb web" "https://github.com/eooce/test/releases/download/arm64/bot13 bot" "https://github.com/eooce/test/releases/download/ARM/swith npm")
-  elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
-      FILE_INFO=("https://github.com/eooce/test/releases/download/freebsd/sb web" "https://github.com/eooce/test/releases/download/freebsd/server bot" "https://github.com/eooce/test/releases/download/freebsd/npm npm")
-  else
-      echo "Unsupported architecture: $ARCH"
-      exit 1
-  fi
+ARCH=$(uname -m) && DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
+if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "aarch64" ]; then
+    BASE_URL="https://github.com/eooce/test/releases/download/freebsd-arm64"
+elif [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ]; then
+    BASE_URL="https://github.com/eooce/test/releases/download/freebsd"
+else
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+fi
+FILE_INFO=("$BASE_URL/sb web" "$BASE_URL/server bot")
+if [ -n "$NEZHA_PORT" ]; then
+    FILE_INFO+=("$BASE_URL/npm npm")
+else
+    FILE_INFO+=("$BASE_URL/v1 php")
+    cat > "${WORKDIR}/config.yaml" << EOF
+client_secret: ${NEZHA_KEY}
+debug: false
+disable_auto_update: true
+disable_command_execute: false
+disable_force_update: true
+disable_nat: false
+disable_send_query: false
+gpu: false
+insecure_tls: false
+ip_report_period: 1800
+report_delay: 1
+server: ${NEZHA_SERVER}
+skip_connection_count: false
+skip_procs_count: false
+temperature: false
+tls: false
+use_gitee_to_upgrade: false
+use_ipv6_country_code: false
+uuid: ${UUID}
+EOF
+fi
 declare -A FILE_MAP
 generate_random_name() {
     local chars=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890
@@ -331,7 +365,7 @@ download_with_fallback() {
     local URL=$1
     local NEW_FILENAME=$2
 
-    curl -L -sS --max-time 3 -o "$NEW_FILENAME" "$URL" &
+    curl -L -sS --max-time 2 -o "$NEW_FILENAME" "$URL" &
     CURL_PID=$!
     CURL_START_SIZE=$(stat -c%s "$NEW_FILENAME" 2>/dev/null || echo 0)
     
@@ -343,10 +377,10 @@ download_with_fallback() {
         kill $CURL_PID 2>/dev/null
         wait $CURL_PID 2>/dev/null
         wget -q -O "$NEW_FILENAME" "$URL"
-        echo -e "\e[1;32mDownloading $NEW_FILENAME by wget\e[0m"
+        green "Downloading $NEW_FILENAME by wget"
     else
         wait $CURL_PID
-        echo -e "\e[1;32mDownloading $NEW_FILENAME by curl\e[0m"
+        green "Downloading $NEW_FILENAME by curl"
     fi
 }
 
@@ -355,33 +389,12 @@ for entry in "${FILE_INFO[@]}"; do
     RANDOM_NAME=$(generate_random_name)
     NEW_FILENAME="$DOWNLOAD_DIR/$RANDOM_NAME"
     
-    if [ -e "$NEW_FILENAME" ]; then
-        echo -e "\e[1;32m$NEW_FILENAME already exists, Skipping download\e[0m"
-    else
-        download_with_fallback "$URL" "$NEW_FILENAME"
-    fi
+    download_with_fallback "$URL" "$NEW_FILENAME"
     
     chmod +x "$NEW_FILENAME"
     FILE_MAP[$(echo "$entry" | cut -d ' ' -f 2)]="$NEW_FILENAME"
 done
 wait
-
-if [ -e "$(basename ${FILE_MAP[npm]})" ]; then
-    tlsPorts=("443" "8443" "2096" "2087" "2083" "2053")
-    if [[ "${tlsPorts[*]}" =~ "${NEZHA_PORT}" ]]; then
-      NEZHA_TLS="--tls"
-    else
-      NEZHA_TLS=""
-    fi
-    if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
-        export TMPDIR=$(pwd)
-        nohup ./"$(basename ${FILE_MAP[npm]})" -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &
-        sleep 2
-        pgrep -x "$(basename ${FILE_MAP[npm]})" > /dev/null && green "$(basename ${FILE_MAP[npm]}) is running" || { red "$(basename ${FILE_MAP[npm]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[npm]})" && nohup ./"$(basename ${FILE_MAP[npm]})" -s "${NEZHA_SERVER}:${NEZHA_PORT}" -p "${NEZHA_KEY}" ${NEZHA_TLS} >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[npm]}) restarted"; }
-    else
-        purple "NEZHA variable is empty, skipping running"
-    fi
-fi
 
 if [ -e "$(basename ${FILE_MAP[web]})" ]; then
     nohup ./"$(basename ${FILE_MAP[web]})" run -c config.json >/dev/null 2>&1 &
@@ -401,8 +414,32 @@ if [ -e "$(basename ${FILE_MAP[bot]})" ]; then
     sleep 2
     pgrep -x "$(basename ${FILE_MAP[bot]})" > /dev/null && green "$(basename ${FILE_MAP[bot]}) is running" || { red "$(basename ${FILE_MAP[bot]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[bot]})" && nohup ./"$(basename ${FILE_MAP[bot]})" "${args}" >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[bot]}) restarted"; }
 fi
-sleep 2
-rm -f "$(basename ${FILE_MAP[npm]})" "$(basename ${FILE_MAP[web]})" "$(basename ${FILE_MAP[bot]})"
+
+if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_PORT" ] && [ -n "$NEZHA_KEY" ]; then
+    if [ -e "$(basename ${FILE_MAP[npm]})" ]; then
+	  tlsPorts=("443" "8443" "2096" "2087" "2083" "2053")
+      [[ "${tlsPorts[*]}" =~ "${NEZHA_PORT}" ]] && NEZHA_TLS="--tls" || NEZHA_TLS=""
+      export TMPDIR=$(pwd)
+      nohup ./"$(basename ${FILE_MAP[npm]})" -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &
+      sleep 2
+      pgrep -x "$(basename ${FILE_MAP[npm]})" > /dev/null && green "$(basename ${FILE_MAP[npm]}) is running" || { red "$(basename ${FILE_MAP[npm]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[npm]})" && nohup ./"$(basename ${FILE_MAP[npm]})" -s "${NEZHA_SERVER}:${NEZHA_PORT}" -p "${NEZHA_KEY}" ${NEZHA_TLS} >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[npm]}) restarted"; }
+    fi
+elif [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_KEY" ]; then
+    if [ -e "$(basename ${FILE_MAP[php]})" ]; then
+      nohup ./"$(basename ${FILE_MAP[php]})" -c "${WORKDIR}/config.yaml" >/dev/null 2>&1 &
+      sleep 2
+      pgrep -x "$(basename ${FILE_MAP[php]})" > /dev/null && green "$(basename ${FILE_MAP[php]}) is running" || { red "$(basename ${FILE_MAP[php]}) is not running, restarting..."; pkill -x "$(basename ${FILE_MAP[php]})" && nohup ./"$(basename ${FILE_MAP[php]})" -s -c "${WORKDIR}/config.yaml" >/dev/null 2>&1 & sleep 2; purple "$(basename ${FILE_MAP[php]}) restarted"; }
+    fi
+else
+    echo -e "\e[1;35mNEZHA variable is empty, skipping running\e[0m"
+fi
+
+for key in "${!FILE_MAP[@]}"; do
+    if [ -e "$(basename ${FILE_MAP[$key]})" ]; then
+        rm -rf "$(basename ${FILE_MAP[$key]})" >/dev/null 2>&1
+    fi
+done
+
 }
  
 get_argodomain() {
@@ -510,7 +547,7 @@ UUID=$UUID
 CFIP=${CFIP}
 CFPORT=${CFPORT}
 SUB_TOKEN=${UUID:0:8}
-API_SUB_URL=${SUB_URL}
+API_SUB_URL=${UPLOAD_URL}
 TELEGRAM_CHAT_ID=${CHAT_ID}
 TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
 NEZHA_SERVER=${NEZHA_SERVER}
@@ -520,8 +557,8 @@ ARGO_DOMAIN=${ARGO_DOMAIN}
 ARGO_AUTH=$([[ -z "$ARGO_AUTH" ]] && echo "" || ([[ "$ARGO_AUTH" =~ ^\{.* ]] && echo "'$ARGO_AUTH'" || echo "$ARGO_AUTH"))
 EOF
     devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
-    ip_address=$(devil vhost list | sed -n '5p' | awk '{print $1}')
-    devil ssl www add $ip_address le le keep.${USERNAME}.serv00.net > /dev/null 2>&1
+  #  ip_address=$(devil vhost list | sed -n '5p' | awk '{print $1}')
+  #  devil ssl www add $ip_address le le keep.${USERNAME}.serv00.net > /dev/null 2>&1
     ln -fs /usr/local/bin/node18 ~/bin/node > /dev/null 2>&1
     ln -fs /usr/local/bin/npm18 ~/bin/npm > /dev/null 2>&1
     mkdir -p ~/.npm-global
@@ -532,15 +569,13 @@ EOF
     rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
     devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     if devil www restart keep.${USERNAME}.serv00.net 2>&1 | grep -q "succesfully"; then
-        green "\n全自动保活服务安装成功\n"
-        green "========================================================\n"
-        purple "访问 https://keep.${USERNAME}.serv00.net/stop 结束进程\n"
-        purple "访问 https://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
-        yellow "访问 https://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
-        purple "访问 https://keep.${USERNAME}.serv00.net/status 查看进程状态\n"
-        green "========================================================"
-        curl -sk "https://keep.${USERNAME}.serv00.net/start" | grep -q "running" && green "\n所有服务都运行正常,全自动保活任务添加成功\n" || red "\n存在未运行的进程,请访问 https://keep.${USERNAME}.serv00.net/status 检查,建议执行以下命令后重装: \ndevil www del $USERNAME.serv00.net\ndevil www del keep.$USERNAME.serv00.net\nrm -rf $HOME/$USERNAME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo)\n"
-        purple "如果需要Telegram通知,请先在Telegram @Botfather 申请 Bot-Token,并带CHAT_ID和BOT_TOKEN环境变量运行\n\n"
+        green "\n全自动保活服务安装成功\n\n"
+        purple "访问 http://keep.${USERNAME}.serv00.net/stop 结束进程\n"
+        purple "访问 http://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
+        yellow "访问 http://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
+        purple "访问 http://keep.${USERNAME}.serv00.net/status 查看进程状态\n\n"
+        curl -sL -A "Mozilla/5.0" "http://keep.${USERNAME}.serv00.net/start" | grep -q "running" && green "\n所有服务都运行正常,全自动保活任务添加成功\n" || red "\n存在未运行的进程,请访问 http://keep.${USERNAME}.serv00.net/status 检查,建议执行以下命令后重装: \ndevil www del $USERNAME.serv00.net\ndevil www del keep.$USERNAME.serv00.net\nrm -rf $HOME/$USERNAME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backup)\n"
+        purple "如果需要TG通知,在https://t.me/laowang_serv00_bot获取CHAT_ID,并带CHAT_ID环境变量运行\n\n"
         quick_command
     else
         red "全自动保活服务安装失败: \n${yellow}devil www del $USERNAME.serv00.net\ndevil www del keep.$USERNAME.serv00.net\nrm -rf $HOME/$USERNAME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo)\n${red}请依次执行上述命令后重新安装!"

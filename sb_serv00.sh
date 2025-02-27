@@ -639,8 +639,8 @@ install_keepalive () {
         [[ -z $tg_chat_id ]] && { red "Telegram chat ID不能为空"; return; }
         green "你设置的Telegram chat_id为: ${tg_chat_id}"
 
-        reading "请输入Telegram Bot Token (tg上@Botfather创建bot后获取): " tg_token
-        [[ -z $tg_token ]] && { red "Telegram Bot Token不能为空"; return; }
+        reading "请输入Telegram Bot Token (直接回车使用老王的bot通知或填写自己的): " tg_token
+        [[ -z $tg_token ]] && tg_token=""
         green "你设置的Telegram bot token为: ${tg_token}"
     fi
 

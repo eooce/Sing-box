@@ -574,7 +574,8 @@ EOF
     devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     devil www restart keep.${USERNAME}.serv00.net > /dev/null 2>&1
     if curl -skL "http://keep.${USERNAME}.serv00.net/start" | grep -q "running"; then
-        green "\n全自动保活服务安装成功\n\n"
+        green "\n全自动保活服务安装成功\n"
+	green "所有服务都运行正常,全自动保活任务添加成功\n\n"
         purple "访问 http://keep.${USERNAME}.serv00.net/stop 结束进程\n"
         purple "访问 http://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
         yellow "访问 http://keep.${USERNAME}.serv00.net/start 调起保活程序\n"

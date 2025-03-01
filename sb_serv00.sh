@@ -734,6 +734,7 @@ EOF
     rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
     devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     devil www restart keep.${USERNAME}.serv00.net > /dev/null 2>&1
+    generate_sub_link
     if curl -skL "http://keep.${USERNAME}.serv00.net/start" | grep -q "running"; then
         green "\n全自动保活服务安装成功\n"
 	green "所有服务都运行正常,全自动保活任务添加成功\n\n"

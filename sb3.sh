@@ -479,7 +479,7 @@ green "Running done!"
 install_singbox() {
     clear
     cd $WORKDIR
-    check_binexec_and_port
+    check_port
     check_website
     download_and_run_singbox
     get_links

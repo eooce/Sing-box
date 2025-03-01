@@ -179,6 +179,7 @@ echo -e "${yellow}本脚本同时四协议共存${purple}(vmess-ws,vmess-ws-tls(
 reading "\n确定继续安装吗？(直接回车即确认安装)【y/n】: " choice
   case "${choice:-y}" in
     [Yy]|"")
+    	clear
         cd $WORKDIR
         check_port
         check_website
@@ -734,7 +735,8 @@ EOF
     devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     devil www restart keep.${USERNAME}.serv00.net > /dev/null 2>&1
     if curl -skL "http://keep.${USERNAME}.serv00.net/start" | grep -q "running"; then
-        green "\n全自动保活服务安装成功\n\n"
+        green "\n全自动保活服务安装成功\n"
+	green "所有服务都运行正常,全自动保活任务添加成功\n\n"
         purple "访问 http://keep.${USERNAME}.serv00.net/stop 结束进程\n"
         purple "访问 http://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
         yellow "访问 http://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
@@ -774,9 +776,7 @@ get_url_info() {
 
 get_nodes(){
 cat ${FILE_PATH}/list.txt
-echo ""
 TOKEN=$(sed -n 's/^SUB_TOKEN=\(.*\)/\1/p' $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/.env)
-"${WORKDIR}/qrencode" -m 2 -t UTF8 "https://${USERNAME}.serv00.net/${TOKEN}"
 yellow "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${TOKEN}\n二维码和节点订阅链接适用于V2rayN/Nekoray/ShadowRocket/Clash/Sing-box/karing/Loon/sterisand 等\n"
 }
 

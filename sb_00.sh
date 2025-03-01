@@ -175,6 +175,7 @@ echo -e "${yellow}本脚本同时三协议共存${purple}(vless-reality,hysteria
 reading "\n确定继续安装吗？(直接回车即确认安装)【y/n】: " choice
   case "${choice:-y}" in
     [Yy]|"")
+    	clear
         cd $WORKDIR
         check_port
         check_website

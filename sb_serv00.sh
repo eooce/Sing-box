@@ -222,7 +222,7 @@ reading "\n确定重置系统吗吗？【y/n】: " choice
           find "${HOME}" -mindepth 1 ! -name "domains" ! -name "mail" ! -name "repo" ! -name "backups" ! -name ".*" -exec rm -rf {} + > /dev/null 2>&1
           devil www del $USERNAME.serv00.net > /dev/null 2>&1
           devil www del keep.$USERNAME.serv00.net > /dev/null 2>&1
-          rm -rf $HOME/$USERNAME/domains/* > /dev/null 2>&1
+          rm -rf $HOME/domains/* > /dev/null 2>&1
           green "\n初始化系统完成!\n"
          ;;
        *) menu ;;

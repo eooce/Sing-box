@@ -481,7 +481,7 @@ install_singbox() {
     cd $WORKDIR
     check_port
     check_website
-    download_and_run_singbox
+    download_singbox
     get_links
 }
 install_singbox

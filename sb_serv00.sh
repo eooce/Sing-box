@@ -13,7 +13,7 @@ reading() { read -p "$(red "$1")" "$2"; }
 export LC_ALL=C
 HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
-export UUID=${UUID:-$(uuidgen)}  
+export UUID=${UUID:-$(uuidgen -r)}  
 export NEZHA_SERVER=${NEZHA_SERVER:-''}  # v1哪吒形式：nezha.abc.com:8008,v0哪吒形式：nezha.abc.com
 export NEZHA_PORT=${NEZHA_PORT:-''}      # v1哪吒不需要此变量
 export NEZHA_KEY=${NEZHA_KEY:-''}        # v1的NZ_CLIENT_SECRET或v0的agent密钥
@@ -596,6 +596,7 @@ echo "$IP"
 
 generate_sub_link () {
 echo ""
+rm -rf ${FILE_PATH}/.htaccess
 base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
 V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
 PHP_URL="https://00.ssss.nyc.mn/sub.php"
@@ -723,7 +724,7 @@ RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
 </Files>
 EOF
     devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
-  # devil ssl www add $available_ip le le keep.${USERNAME}.serv00.net > /dev/null 2>&1
+    # devil ssl www add $available_ip le le keep.${USERNAME}.serv00.net > /dev/null 2>&1
     ln -fs /usr/local/bin/node18 ~/bin/node > /dev/null 2>&1
     ln -fs /usr/local/bin/npm18 ~/bin/npm > /dev/null 2>&1
     mkdir -p ~/.npm-global
@@ -732,7 +733,7 @@ EOF
     rm -rf $HOME/.npmrc > /dev/null 2>&1
     cd ${keep_path} && npm install dotenv axios --silent > /dev/null 2>&1
     rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
-    devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
+    # devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     devil www restart keep.${USERNAME}.serv00.net > /dev/null 2>&1
     generate_sub_link
     if curl -skL "http://keep.${USERNAME}.serv00.net/start" | grep -q "running"; then

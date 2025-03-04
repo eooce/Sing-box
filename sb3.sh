@@ -13,7 +13,7 @@ reading() { read -p "$(red "$1")" "$2"; }
 export LC_ALL=C
 HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
-export UUID=${UUID:-$(uuidgen)}
+export UUID=${UUID:-$(uuidgen -r)}
 export NEZHA_SERVER=${NEZHA_SERVER:-''} 
 export NEZHA_PORT=${NEZHA_PORT:-''}     
 export NEZHA_KEY=${NEZHA_KEY:-''} 
@@ -89,8 +89,8 @@ else
     udp_port1=$(echo "$udp_ports" | sed -n '1p')
     udp_port2=$(echo "$udp_ports" | sed -n '2p')
 
-    purple "当前TCP端口: $tcp_port"
-    purple "当前UDP端口: $udp_port1 和 $udp_port2"
+    purple "reality使用的端口: $tcp_port"
+    purple "tuic和hy2分别使用的udp端口: $udp_port1 和 $udp_port2"
 fi
 
 export VLESS_PORT=$tcp_port
@@ -432,7 +432,18 @@ echo "$IP"
 }
 
 generate_sub_link () {
-echo ""
+rm -rf ${FILE_PATH}/.htaccess 
+base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
+V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
+PHP_URL="https://00.ssss.nyc.mn/sub.php"
+QR_URL="https://00.ssss.nyc.mn/qrencode"  
+$COMMAND "${FILE_PATH}/${SUB_TOKEN}.php" "$PHP_URL" 
+$COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
+curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
+curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
+"${WORKDIR}/qrencode" -m 2 -t UTF8 "https://${USERNAME}.serv00.net/${SUB_TOKEN}"
+purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n"
+green "二维码和节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n\n"
 cat > ${FILE_PATH}/.htaccess << EOF
 RewriteEngine On
 RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
@@ -445,17 +456,6 @@ RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
     Allow from all
 </Files>
 EOF
-base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
-V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
-PHP_URL="https://00.ssss.nyc.mn/sub.php"
-QR_URL="https://00.ssss.nyc.mn/qrencode"  
-$COMMAND "${FILE_PATH}/${SUB_TOKEN}.php" "$PHP_URL" 
-$COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
-curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
-curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
-"${WORKDIR}/qrencode" -m 2 -t UTF8 "https://${USERNAME}.serv00.net/${SUB_TOKEN}"
-purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n"
-green "二维码和节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n\n"
 }
 
 get_links(){

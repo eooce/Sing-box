@@ -13,7 +13,7 @@ reading() { read -p "$(red "$1")" "$2"; }
 export LC_ALL=C
 HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
-export UUID=${UUID:-$(uuidgen)}          
+export UUID=${UUID:-$(uuidgen -r)}          
 export NEZHA_SERVER=${NEZHA_SERVER:-''}  # v1哪吒形式：nezha.abc.com:8008,v0哪吒形式：nezha.abc.com
 export NEZHA_PORT=${NEZHA_PORT:-''}      # v1哪吒不需要此变量
 export NEZHA_KEY=${NEZHA_KEY:-''}        # v1的NZ_CLIENT_SECRET或v0的agent密钥
@@ -97,8 +97,8 @@ else
     udp_port1=$(echo "$udp_ports" | sed -n '1p')
     udp_port2=$(echo "$udp_ports" | sed -n '2p')
 
-    purple "当前TCP端口: $tcp_port"
-    purple "当前UDP端口: $udp_port1 和 $udp_port2"
+    purple "vmess-argo使用的tcp端口为: $tcp_port"
+    purple "tuic和hy2使用的udp端口分别为: $udp_port1 和 $udp_port2"
 fi
 
 export VMESS_PORT=$tcp_port
@@ -486,6 +486,18 @@ get_ip() {
 
 generate_sub_link () {
 echo ""
+rm -rf ${FILE_PATH}/.htaccess
+base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
+V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
+PHP_URL="https://00.ssss.nyc.mn/sub.php"
+QR_URL="https://00.ssss.nyc.mn/qrencode"  
+$COMMAND "${FILE_PATH}/${SUB_TOKEN}.php" "$PHP_URL" 
+$COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
+curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
+curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
+"${WORKDIR}/qrencode" -m 2 -t UTF8 "https://${USERNAME}.serv00.net/${SUB_TOKEN}"
+purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n"
+green "二维码和节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n\n"
 cat > ${FILE_PATH}/.htaccess << EOF
 RewriteEngine On
 RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
@@ -498,17 +510,6 @@ RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
     Allow from all
 </Files>
 EOF
-base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
-V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
-PHP_URL="https://00.ssss.nyc.mn/sub.php"
-QR_URL="https://00.ssss.nyc.mn/qrencode"  
-$COMMAND "${FILE_PATH}/${SUB_TOKEN}.php" "$PHP_URL" 
-$COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
-curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
-curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
-"${WORKDIR}/qrencode" -m 2 -t UTF8 "https://${USERNAME}.serv00.net/${SUB_TOKEN}"
-purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n"
-green "二维码和节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n\n"
 }
 
 get_links(){
@@ -571,7 +572,7 @@ EOF
     rm -rf $HOME/.npmrc > /dev/null 2>&1
     cd ${keep_path} && npm install dotenv axios --silent > /dev/null 2>&1
     rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
-    devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
+    # devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     devil www restart keep.${USERNAME}.serv00.net > /dev/null 2>&1
     if curl -skL "http://keep.${USERNAME}.serv00.net/start" | grep -q "running"; then
         green "\n全自动保活服务安装成功\n"
@@ -583,7 +584,7 @@ EOF
         purple "如果需要TG通知,在${yellow}https://t.me/laowang_serv00_bot${re}${purple}获取CHAT_ID,并带CHAT_ID环境变量运行${re}\n\n"
         quick_command
     else
-        red "\n全自动保活服务安装失败,存在未运行的进程,请执行以下命令后重装: \n\ndevil www del ${USERNAME}.serv00.net\ndevil www del keep.${USERNAME}.serv00.net\nrm -rf $HOME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backups)\n\n"
+        red "\n全自动保活服务安装失败,存在未运行的进程\n访问 ${yellow}http://keep.${USERNAME}.serv00.net/status ${red}检查,建议执行以下命令后重装: \n\ndevil www del ${USERNAME}.serv00.net\ndevil www del keep.${USERNAME}.serv00.net\nrm -rf $HOME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backups)\n\n${re}"
     fi
 }
 

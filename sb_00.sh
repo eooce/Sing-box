@@ -18,7 +18,7 @@ export NEZHA_SERVER=${NEZHA_SERVER:-''}
 export NEZHA_PORT=${NEZHA_PORT:-''}     
 export NEZHA_KEY=${NEZHA_KEY:-''} 
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
-export UPLOAD_URL=${UPLOAD_URL:-''}  # 订阅自动添加到汇聚订阅器，需要先部署Merge-sub项目,环境变量填写部署后的首页地址,例如: SUB_URL=https://merge.serv00.net
+export UPLOAD_URL=${UPLOAD_URL:-''}  # 订阅自动添加到汇聚订阅器，需要先部署Merge-sub项目,环境变量填写部署后的首页地址,例如: UPLOAD_URL=https://merge.serv00.net
 
 [[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="${HOME}/domains/${USERNAME}.ct8.pl/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.ct8.pl/public_html" || WORKDIR="${HOME}/domains/${USERNAME}.serv00.net/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
 rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" "$FILE_PATH" >/dev/null 2>&1
@@ -90,8 +90,8 @@ else
     udp_port1=$(echo "$udp_ports" | sed -n '1p')
     udp_port2=$(echo "$udp_ports" | sed -n '2p')
 
-    purple "当前TCP端口: $tcp_port"
-    purple "当前UDP端口: $udp_port1 和 $udp_port2"
+    purple "reality使用的端口: $tcp_port"
+    purple "tuic和hy2分别使用的UDP端口: $udp_port1 和 $udp_port2"
 fi
 
 export VLESS_PORT=$tcp_port
@@ -141,7 +141,7 @@ if [[ -z "$choice" || "$choice" == "y" || "$choice" == "Y" ]]; then
             red "Failed to remove port ${port}/${proto}"
         fi
     done
-    check_binexec_and_port
+    check_port
 else
     menu  
 fi
@@ -537,6 +537,18 @@ echo "$IP"
 
 generate_sub_link () {
 echo ""
+rm -rf ${FILE_PATH}/.htaccess
+base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
+V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
+PHP_URL="https://00.ssss.nyc.mn/sub.php"
+QR_URL="https://00.ssss.nyc.mn/qrencode"  
+$COMMAND "${FILE_PATH}/${SUB_TOKEN}.php" "$PHP_URL" 
+$COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
+curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
+curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
+"${WORKDIR}/qrencode" -m 2 -t UTF8 "https://${USERNAME}.serv00.net/${SUB_TOKEN}"
+purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n"
+green "二维码和节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n\n"
 cat > ${FILE_PATH}/.htaccess << EOF
 RewriteEngine On
 RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
@@ -549,17 +561,6 @@ RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
     Allow from all
 </Files>
 EOF
-base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
-V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
-PHP_URL="https://00.ssss.nyc.mn/sub.php"
-QR_URL="https://00.ssss.nyc.mn/qrencode"  
-$COMMAND "${FILE_PATH}/${SUB_TOKEN}.php" "$PHP_URL" 
-$COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
-curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
-curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
-"${WORKDIR}/qrencode" -m 2 -t UTF8 "https://${USERNAME}.serv00.net/${SUB_TOKEN}"
-purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n"
-green "二维码和节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n\n"
 }
 
 get_links(){
@@ -630,7 +631,7 @@ ${nezha_port:+NEZHA_PORT=$nezha_port}
 ${nezha_key:+NEZHA_KEY=$nezha_key}
 EOF
     devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
-  # devil ssl www add $available_ip le le keep.${USERNAME}.serv00.net > /dev/null 2>&1
+    # devil ssl www add $available_ip le le keep.${USERNAME}.serv00.net > /dev/null 2>&1
     ln -fs /usr/local/bin/node18 ~/bin/node > /dev/null 2>&1
     ln -fs /usr/local/bin/npm18 ~/bin/npm > /dev/null 2>&1
     mkdir -p ~/.npm-global
@@ -639,12 +640,12 @@ EOF
     rm -rf $HOME/.npmrc > /dev/null 2>&1
     cd ${keep_path} && npm install dotenv axios --silent > /dev/null 2>&1
     rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
-    devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
+    # devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
     generate_sub_link
     devil www restart keep.${USERNAME}.serv00.net > /dev/null 2>&1
     if curl -skL "http://keep.${USERNAME}.serv00.net/start" | grep -q "running"; then
         green "\n全自动保活服务安装成功\n"
-	green "所有服务都运行正常,全自动保活任务添加成功\n\n"
+	    green "所有服务都运行正常,全自动保活任务添加成功\n\n"
         purple "访问 http://keep.${USERNAME}.serv00.net/stop 结束进程\n"
         purple "访问 http://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
         yellow "访问 http://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
@@ -652,7 +653,7 @@ EOF
         purple "如果需要TG通知,在${yellow}https://t.me/laowang_serv00_bot${re}${purple}获取CHAT_ID,并带CHAT_ID环境变量运行${re}\n\n"
         quick_command
     else
-        red "\n全自动保活服务安装失败,存在未运行的进程,请执行以下命令后重装: \n\ndevil www del ${USERNAME}.serv00.net\ndevil www del keep.${USERNAME}.serv00.net\nrm -rf $HOME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backups)\n\n"
+        red "\n全自动保活服务安装失败,存在未运行的进程\n访问 ${yellow}http://keep.${USERNAME}.serv00.net/status ${red}检查,建议执行以下命令后重装: \n\ndevil www del ${USERNAME}.serv00.net\ndevil www del keep.${USERNAME}.serv00.net\nrm -rf $HOME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backups)\n\n${re}"
     fi
 }
 
@@ -685,6 +686,8 @@ get_url_info() {
 get_nodes(){
 cat ${FILE_PATH}/list.txt
 TOKEN=$(sed -n 's/^SUB_TOKEN=\(.*\)/\1/p' $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/.env)
+echo ""
+"${WORKDIR}/qrencode" -m 2 -t UTF8 "https://${USERNAME}.serv00.net/${TOKEN}"
 yellow "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${TOKEN}\n二维码和节点订阅链接适用于V2rayN/Nekoray/ShadowRocket/Clash/Sing-box/karing/Loon/sterisand 等\n"
 }
 

@@ -456,15 +456,15 @@ function execPromise(command) {
 function getFilesForArchitecture(architecture) {
   if (architecture === 'arm') {
     return [
-      { fileName: "npm", fileUrl: "https://arm64.ssss.ync.mn/agent" },
-      { fileName: "web", fileUrl: "https://arm64.ssss.ync.mn/sb" },
-      { fileName: "bot", fileUrl: "https://arm64.ssss.ync.mn/bot" },
+      { fileName: "npm", fileUrl: "https://arm64.ssss.nyc.mn/agent" },
+      { fileName: "web", fileUrl: "https://arm64.ssss.nyc.mn/sb" },
+      { fileName: "bot", fileUrl: "https://arm64.ssss.nyc.mn/bot" },
     ];
   } else if (architecture === 'amd') {
     return [
-      { fileName: "npm", fileUrl: "https://amd64.ssss.ync.mn/agent" },
-      { fileName: "web", fileUrl: "https://amd64.ssss.ync.mn/sb" },
-      { fileName: "bot", fileUrl: "https://amd64.ssss.ync.mn/2go" },
+      { fileName: "npm", fileUrl: "https://amd64.ssss.nyc.mn/agent" },
+      { fileName: "web", fileUrl: "https://amd64.ssss.nyc.mn/sb" },
+      { fileName: "bot", fileUrl: "https://amd64.ssss.nyc.mn/2go" },
     ];
   }
   return [];

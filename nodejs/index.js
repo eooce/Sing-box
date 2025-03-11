@@ -491,7 +491,6 @@ function execPromise(command) {
 }
 
 // 根据系统架构返回对应的url
-// 根据系统架构返回对应的url
 function getFilesForArchitecture(architecture) {
   let baseFiles;
   if (architecture === 'arm') {

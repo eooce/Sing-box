@@ -93,11 +93,9 @@ else
     udp_ports=$(echo "$port_list" | awk '/udp/ {print $1}')
     udp_port1=$(echo "$udp_ports" | sed -n '1p')
     udp_port2=$(echo "$udp_ports" | sed -n '2p')
-
-    purple "当前TCP端口: $tcp_port"
-    purple "当前UDP端口: $udp_port1 和 $udp_port2"
 fi
-
+purple "vmess-argo使用的tcp端口为: $tcp_port"
+purple "tuic和hy2使用的udp端口分别为: $udp_port1 和 $udp_port2"
 export VMESS_PORT=$tcp_port
 export TUIC_PORT=$udp_port1
 export HY2_PORT=$udp_port2
@@ -700,7 +698,7 @@ install_keepalive () {
 UUID=${UUID}
 CFIP=${CFIP}
 CFPORT=${CFPORT}
-SUB_TOKEN=${UUID:0:8}
+SUB_TOKEN=${SUB_TOKEN}
 ${UPLOAD_URL:+API_SUB_URL=$UPLOAD_URL}
 ${tg_chat_id:+TELEGRAM_CHAT_ID=$tg_chat_id}
 ${tg_token:+TELEGRAM_BOT_TOKEN=$tg_token}

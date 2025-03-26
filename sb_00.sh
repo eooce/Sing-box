@@ -19,7 +19,7 @@ export NEZHA_PORT=${NEZHA_PORT:-''}
 export NEZHA_KEY=${NEZHA_KEY:-''} 
 export ARGO_DOMAIN=${ARGO_DOMAIN:-''}   
 export ARGO_AUTH=${ARGO_AUTH:-''}
-export CFIP=${CFIP:-'www.visa.com.tw'} 
+export CFIP=${CFIP:-'www.visa.com.sg'} 
 export CFPORT=${CFPORT:-'443'} 
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
 
@@ -56,7 +56,7 @@ if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
         while true; do
             tcp_port=$(shuf -i 10000-65535 -n 1) 
             result=$(devil port add tcp $tcp_port 2>&1)
-            if [[ $result == *"succesfully"* ]]; then
+            if [[ $result == *"Ok"* ]]; then
                 green "已添加TCP端口: $tcp_port"
                 break
             else
@@ -71,7 +71,7 @@ if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
         while [[ $udp_ports_added -lt $udp_ports_to_add ]]; do
             udp_port=$(shuf -i 10000-65535 -n 1) 
             result=$(devil port add udp $udp_port 2>&1)
-            if [[ $result == *"succesfully"* ]]; then
+            if [[ $result == *"Ok"* ]]; then
                 green "已添加UDP端口: $udp_port"
                 if [[ $udp_ports_added -eq 0 ]]; then
                     udp_port1=$udp_port
@@ -496,16 +496,18 @@ purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKE
 green "二维码和节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n\n"
 cat > ${FILE_PATH}/.htaccess << EOF
 RewriteEngine On
-RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
-<FilesMatch "^(clash\.yaml|singbox\.yaml|list\.txt|v2\.log||sub\.php)$">
+DirectoryIndex index.html
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /(\?|$)
+RewriteRule ^$ /index.html [L]
+<FilesMatch "^(index\.html|${SUB_TOKEN}\.php)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+<FilesMatch "^(clash\.yaml|singbox\.yaml|list\.txt|v2\.log|sub\.php)$">
     Order Allow,Deny
     Deny from all
 </FilesMatch>
-<Files "${SUB_TOKEN}.php">
-    Order Allow,Deny
-    Allow from all
-</Files>
-EOF
+RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
 }
 
 get_links(){

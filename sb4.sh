@@ -24,7 +24,7 @@ export CFPORT=${CFPORT:-'443'}
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
 export CHAT_ID=${CHAT_ID:-''} 
 export BOT_TOKEN=${BOT_TOKEN:-''}
-export UPLOAD_URL=${UPLOAD_URL:-''} # 订阅自动上传到Merge-sub汇聚订阅器，示例：https://merge.serv00.net
+export UPLOAD_URL=${UPLOAD_URL:-''}  # 订阅自动上传到Merge-sub汇聚订阅器，示例：https://merge.serv00.net
 
 if [[ "$HOSTNAME" =~ ct8 ]]; then
     CURRENT_DOMAIN="ct8.pl"
@@ -160,6 +160,7 @@ ingress:
 EOF
   else
     green "ARGO_AUTH mismatch TunnelSecret,use token connect to tunnel"
+    yellow "\n当前使用的是token,请在cloudflare后台设置隧道端口为${purple}${VMESS_PORT}${re}"
   fi
 }
 

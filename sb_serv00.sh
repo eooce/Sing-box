@@ -650,7 +650,7 @@ EOF
 install_keepalive () {
     [[ "$HOSTNAME" =~ ct8|useruno ]] && return
     purple "正在安装保活服务中,请稍等......"
-    devil www del keep.${USERNAME}.serv00.net nodejs > /dev/null 2>&1
+    devil www del keep.${USERNAME}.serv00.net > /dev/null 2>&1
     devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
     keep_path="$HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs"
     [ -d "$keep_path" ] || mkdir -p "$keep_path"

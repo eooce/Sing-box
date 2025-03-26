@@ -33,8 +33,6 @@ else
 fi
 WORKDIR="${HOME}/domains/${USERNAME}.${CURRENT_DOMAIN}/logs"
 FILE_PATH="${HOME}/domains/${USERNAME}.${CURRENT_DOMAIN}/public_html"
-V2rayN_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/v2.log"
-AUTO_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/${SUB_TOKEN}"
 rm -rf "$WORKDIR" "$FILE_PATH" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" "$FILE_PATH" >/dev/null 2>&1
 command -v curl &>/dev/null && COMMAND="curl -so" || command -v wget &>/dev/null && COMMAND="wget -qO" || { red "Error: neither curl nor wget found, please install one of them." >&2; exit 1; }
 
@@ -625,6 +623,8 @@ PHP_URL="https://00.ssss.nyc.mn/sub.php"
 QR_URL="https://00.ssss.nyc.mn/qrencode"  
 $COMMAND "${FILE_PATH}/${SUB_TOKEN}.php" "$PHP_URL" 
 $COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
+V2rayN_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/v2.log"
+AUTO_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/${SUB_TOKEN}"
 curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
 curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
 "${WORKDIR}/qrencode" -m 2 -t UTF8 "${AUTO_LINK}"
@@ -728,7 +728,7 @@ quick_command() {
   echo "bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh)" >> "$SCRIPT_PATH"
   chmod +x "$SCRIPT_PATH"
   if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
-      echo "export PATH=\"\$HOME/bin:\$PATH\"" >> "$HOME/.bashrc"
+      echo "export PATH=\"\$HOME/bin:\$PATH\"" >> "$HOME/.bashrc"  > /dev/null 2>&1
       source "$HOME/.bashrc"
   fi
   green "快捷指令00创建成功,下次运行输入00快速进入菜单\n"

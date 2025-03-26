@@ -19,7 +19,7 @@ export NEZHA_PORT=${NEZHA_PORT:-''}      # v1哪吒不需要此变量
 export NEZHA_KEY=${NEZHA_KEY:-''}        # v1的NZ_CLIENT_SECRET或v0的agent密钥
 export ARGO_DOMAIN=${ARGO_DOMAIN:-''}   
 export ARGO_AUTH=${ARGO_AUTH:-''}
-export CFIP=${CFIP:-'www.visa.com.tw'} 
+export CFIP=${CFIP:-'www.visa.com.sg'} 
 export CFPORT=${CFPORT:-'443'}
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
 export UPLOAD_URL=${UPLOAD_URL:-''}  # 订阅自动添加到汇聚订阅器，需要先部署Merge-sub项目,环境变量填写部署后的首页地址,例如: SUB_URL=https://merge.serv00.net 

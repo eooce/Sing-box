@@ -261,7 +261,6 @@ argo_configure() {
           green "你的argo固定隧道域名为: $ARGO_DOMAIN"
           reading "请输入argo固定隧道密钥（Json或Token）: " ARGO_AUTH
           green "你的argo固定隧道密钥为: $ARGO_AUTH"
-	      [[ $ARGO_AUTH =~ ^[A-Z0-9a-z=]{120,250}$ ]] && yellow "\n当前使用的是token,请在cloudflare后台设置隧道端口为${purple}${VMESS_PORT}${re}"
       else
           green "ARGO隧道变量未设置，将使用临时隧道"
           return
@@ -284,6 +283,7 @@ ingress:
 EOF
   else
     green "ARGO_AUTH mismatch TunnelSecret,use token connect to tunnel"
+    yellow "\n当前使用的是token,请在cloudflare后台设置隧道端口为${purple}${VMESS_PORT}${re}"
   fi
 }
 

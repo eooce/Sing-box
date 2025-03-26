@@ -22,10 +22,20 @@ export ARGO_AUTH=${ARGO_AUTH:-''}
 export CFIP=${CFIP:-'www.visa.com.tw'} 
 export CFPORT=${CFPORT:-'443'}
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
-export UPLOAD_URL=${UPLOAD_URL:-''}  # 订阅自动添加到汇聚订阅器，需要先部署Merge-sub项目,环境变量填写部署后的首页地址,例如: SUB_URL=https://merge.serv00.net
+export UPLOAD_URL=${UPLOAD_URL:-''}  # 订阅自动添加到汇聚订阅器，需要先部署Merge-sub项目,环境变量填写部署后的首页地址,例如: SUB_URL=https://merge.serv00.net 
 
-[[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="${HOME}/domains/${USERNAME}.ct8.pl/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.ct8.pl/public_html" || WORKDIR="${HOME}/domains/${USERNAME}.serv00.net/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
-rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" "$FILE_PATH" >/dev/null 2>&1
+if [[ "$HOSTNAME" =~ ct8 ]]; then
+    CURRENT_DOMAIN="ct8.pl"
+elif [[ "$HOSTNAME" =~ useruno ]]; then
+    CURRENT_DOMAIN="useruno.com"
+else
+    CURRENT_DOMAIN="serv00.net"
+fi
+WORKDIR="${HOME}/domains/${USERNAME}.${CURRENT_DOMAIN}/logs"
+FILE_PATH="${HOME}/domains/${USERNAME}.${CURRENT_DOMAIN}/public_html"
+V2rayN_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/v2.log"
+AUTO_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/${SUB_TOKEN}"
+rm -rf "$WORKDIR" "$FILE_PATH" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" "$FILE_PATH" >/dev/null 2>&1
 command -v curl &>/dev/null && COMMAND="curl -so" || command -v wget &>/dev/null && COMMAND="wget -qO" || { red "Error: neither curl nor wget found, please install one of them." >&2; exit 1; }
 
 check_port () {
@@ -56,7 +66,7 @@ if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
         while true; do
             tcp_port=$(shuf -i 10000-65535 -n 1) 
             result=$(devil port add tcp $tcp_port 2>&1)
-            if [[ $result == *"succesfully"* ]]; then
+            if [[ $result == *"Ok"* ]]; then
                 green "已添加TCP端口: $tcp_port"
                 break
             else
@@ -71,7 +81,7 @@ if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
         while [[ $udp_ports_added -lt $udp_ports_to_add ]]; do
             udp_port=$(shuf -i 10000-65535 -n 1) 
             result=$(devil port add udp $udp_port 2>&1)
-            if [[ $result == *"succesfully"* ]]; then
+            if [[ $result == *"Ok"* ]]; then
                 green "已添加UDP端口: $udp_port"
                 if [[ $udp_ports_added -eq 0 ]]; then
                     udp_port1=$udp_port
@@ -130,44 +140,58 @@ fi
 }
 
 check_website() {
-CURRENT_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" && $2 == "php" {print $0}')
+FULL_DOMAIN="${USERNAME}.${CURRENT_DOMAIN}"
+CURRENT_SITE=$(devil www list | awk -v domain="$FULL_DOMAIN" '$1 == domain && $2 == "php"')
 if [ -n "$CURRENT_SITE" ]; then
-    green "检测到已存在${USERNAME}.serv00.net的php站点,无需修改"
+    green "已存在 ${FULL_DOMAIN} 的PHP站点，无需修改"
 else
-    EXIST_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" {print $0}')
+    EXIST_SITE=$(devil www list | awk -v domain="$FULL_DOMAIN" '$1 == domain')
+    
     if [ -n "$EXIST_SITE" ]; then
-        red "不存在${USERNAME}.serv00.net的php站点,正在为你调整..."
-        devil www del "${USERNAME}.serv00.net" > /dev/null 2>&1
-        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net" > /dev/null 2>&1
-        green "已删除旧站点并创建新的php站点"
+        devil www del "$FULL_DOMAIN" >/dev/null 2>&1
+        devil www add "$FULL_DOMAIN" php "$HOME/domains/$FULL_DOMAIN" >/dev/null 2>&1
+        green "已删除旧的站点并添加新的php站点"
     else
-        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net" > /dev/null 2>&1
-        green "php站点创建完成"
+        devil www add "$FULL_DOMAIN" php "$HOME/domains/$FULL_DOMAIN" >/dev/null 2>&1
+        green "已创建新PHP站点 ${FULL_DOMAIN}"
     fi
 fi
+
 index_url="https://github.com/eooce/Sing-box/releases/download/00/index.html"
 [ -f "${FILE_PATH}/index.html" ] || $COMMAND "${FILE_PATH}/index.html" "$index_url"
 }
 
-read_nz_variables() {
+read_variables() {
   if [ -n "$NEZHA_SERVER" ] && [ -n "$NEZHA_KEY" ]; then
       green "使用自定义变量哪吒运行哪吒探针"
       return
   else
-      reading "是否需要安装哪吒探针？(直接回车则不安装)【y/n】: " nz_choice
-      [[ -z $nz_choice ]] && return
-      [[ "$nz_choice" != "y" && "$nz_choice" != "Y" ]] && return
-      reading "\n请输入哪吒探针域名或ip\nv1哪吒形式：nezha.abc.com:8008,v0哪吒形式：nezha.abc.com :" NEZHA_SERVER
-      green "你的哪吒域名为: $NEZHA_SERVER"
-      if [[ "$NEZHA_SERVER" != *":"* ]]; then
-      	reading "请输入哪吒v0探针端口(直接回车将设置为5555)：" NEZHA_PORT
-      	[[ -z $NEZHA_PORT ]] && NEZHA_PORT="5555"
-      	green "你的哪吒端口为: $NEZHA_PORT"
-      else
-      	  NEZHA_PORT=""
-      fi
-      reading "请输入v0的agent密钥或v1的NZ_CLIENT_SECRET：" NEZHA_KEY
-      green "你的哪吒密钥为: $NEZHA_KEY"
+    reading "是否需要安装哪吒探针？(直接回车则不安装)【y/n】: " nz_choice
+    [[ -z $nz_choice ]] && return
+    [[ "$nz_choice" != "y" && "$nz_choice" != "Y" ]] && return
+    reading "\n请输入哪吒探针域名或ip\nv1哪吒形式：nezha.abc.com:8008,v0哪吒形式：nezha.abc.com ：" NEZHA_SERVER
+    green "你的哪吒域名为: $NEZHA_SERVER"
+    if [[ "$NEZHA_SERVER" != *":"* ]]; then
+    reading "请输入哪吒v0探针端口(直接回车将设置为5555)：" NEZHA_PORT
+    [[ -z $NEZHA_PORT ]] && NEZHA_PORT="5555"
+    green "你的哪吒端口为: $NEZHA_PORT"
+    else
+        NEZHA_PORT=""
+    fi
+    reading "请输入v0的agent密钥或v1的NZ_CLIENT_SECRET：" NEZHA_KEY
+    green "你的哪吒密钥为: $NEZHA_PORT"
+
+    reading "是否需要Telegram通知？(直接回车则不启用)【y/n】: " tg_notification
+    if [[ "$tg_notification" == "y" || "$tg_notification" == "Y" ]]; then
+
+        reading "请输入Telegram chat ID (tg上@laowang_serv00_bot获取): " tg_chat_id
+        [[ -z $tg_chat_id ]] && { red "Telegram chat ID不能为空"; return; }
+        green "你设置的Telegram chat_id为: ${tg_chat_id}"
+
+        reading "请输入Telegram Bot Token (直接回车使用老王的bot通知或填写自己的): " tg_token
+        [[ -z $tg_token ]] && tg_token=""
+        green "你设置的Telegram bot token为: ${tg_token}"
+    fi
   fi
 }
 
@@ -181,7 +205,7 @@ reading "\n确定继续安装吗？(直接回车即确认安装)【y/n】: " cho
         cd $WORKDIR
         check_port
         check_website
-        read_nz_variables
+        read_variables
         argo_configure
         generate_config
         download_singbox
@@ -199,8 +223,8 @@ uninstall_singbox() {
         [Yy])
 	    bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
        	    rm -rf $WORKDIR && find ${FILE_PATH} -mindepth 1 ! -name 'index.html' -exec rm -rf {} +
-            devil www del keep.${USERNAME}.serv00.net nodejs 2>/dev/null || true
-            rm -rf ${HOME}/domains/${USERNAME}.serv00.net/public_nodejs 2 >/dev/null || true
+            devil www del keep.${USERNAME}.${CURRENT_DOMAIN} 2>/dev/null || true
+            rm -rf ${HOME}/domains/${USERNAME}.${CURRENT_DOMAIN}/public_nodejs 2 >/dev/null || true
             rm -rf "${HOME}/bin/00" >/dev/null 2>&1
             [ -d "${HOME}/bin" ] && [ -z "$(ls -A "${HOME}/bin")" ] && rmdir "${HOME}/bin"
             sed -i '/export PATH="\$HOME\/bin:\$PATH"/d' "${HOME}/.bashrc" >/dev/null 2>&1
@@ -218,8 +242,8 @@ reading "\n确定重置系统吗吗？【y/n】: " choice
   case "$choice" in
     [Yy]) bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
           find "${HOME}" -mindepth 1 ! -name "domains" ! -name "mail" ! -name "repo" ! -name "backups" ! -name ".*" -exec rm -rf {} + > /dev/null 2>&1
-          devil www del $USERNAME.serv00.net > /dev/null 2>&1
-          devil www del keep.$USERNAME.serv00.net > /dev/null 2>&1
+          devil www del $USERNAME.${CURRENT_DOMAIN} > /dev/null 2>&1
+          devil www del keep.$USERNAME.${CURRENT_DOMAIN} > /dev/null 2>&1
           rm -rf $HOME/domains/* > /dev/null 2>&1
           green "\n初始化系统完成!\n"
          ;;
@@ -237,7 +261,7 @@ argo_configure() {
           green "你的argo固定隧道域名为: $ARGO_DOMAIN"
           reading "请输入argo固定隧道密钥（Json或Token）: " ARGO_AUTH
           green "你的argo固定隧道密钥为: $ARGO_AUTH"
-	        echo -e "${red}注意：${purple}使用token，需要在cloudflare后台设置隧道端口和面板开放的tcp端口一致${re}"
+	      [[ $ARGO_AUTH =~ ^[A-Z0-9a-z=]{120,250}$ ]] && yellow "\n当前使用的是token,请在cloudflare后台设置隧道端口为${purple}${VMESS_PORT}${re}"
       else
           green "ARGO隧道变量未设置，将使用临时隧道"
           return
@@ -266,7 +290,7 @@ EOF
 generate_config() {
 
   openssl ecparam -genkey -name prime256v1 -out "private.key"
-  openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=$USERNAME.serv00.net"
+  openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=$USERNAME.${CURRENT_DOMAIN}"
   
   yellow "获取可用IP中，请稍等..."
   available_ip=$(get_ip)
@@ -348,8 +372,8 @@ cat > config.json <<EOF
   ],
 EOF
 
-# 如果是s14/s15/s16,google和youtube相关的服务走warp出站
-if [[ "$HOSTNAME" =~ s14|s15|s16 ]]; then
+# 如果是s14/s15,google/youtube/spotify相关的服务走warp出站
+if [[ "$HOSTNAME" =~ s14|s15 ]]; then
   cat >> config.json <<EOF
   "outbounds": [
     {
@@ -440,6 +464,7 @@ if [ -n "$NEZHA_PORT" ]; then
     FILE_INFO+=("$BASE_URL/npm npm")
 else
     FILE_INFO+=("$BASE_URL/v1 php")
+    NEZHA_TLS=$(case "${NEZHA_SERVER##*:}" in 443|8443|2096|2087|2083|2053) echo -n tls;; *) echo -n false;; esac)
     cat > "${WORKDIR}/config.yaml" << EOF
 client_secret: ${NEZHA_KEY}
 debug: false
@@ -456,7 +481,7 @@ server: ${NEZHA_SERVER}
 skip_connection_count: false
 skip_procs_count: false
 temperature: false
-tls: false
+tls: ${NEZHA_TLS}
 use_gitee_to_upgrade: false
 use_ipv6_country_code: false
 uuid: ${UUID}
@@ -596,33 +621,84 @@ generate_sub_link () {
 echo ""
 rm -rf ${FILE_PATH}/.htaccess
 base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
-V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
 PHP_URL="https://00.ssss.nyc.mn/sub.php"
 QR_URL="https://00.ssss.nyc.mn/qrencode"  
 $COMMAND "${FILE_PATH}/${SUB_TOKEN}.php" "$PHP_URL" 
 $COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
 curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
 curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
-"${WORKDIR}/qrencode" -m 2 -t UTF8 "https://${USERNAME}.serv00.net/${SUB_TOKEN}"
-purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n"
+"${WORKDIR}/qrencode" -m 2 -t UTF8 "${AUTO_LINK}"
+purple "\n自适应节点订阅链接: ${AUTO_LINK}\n"
 green "二维码和节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n\n"
 cat > ${FILE_PATH}/.htaccess << EOF
 RewriteEngine On
-RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
-<FilesMatch "^(clash\.yaml|singbox\.yaml|list\.txt|v2\.log||sub\.php)$">
+DirectoryIndex index.html
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /(\?|$)
+RewriteRule ^$ /index.html [L]
+<FilesMatch "^(index\.html|${SUB_TOKEN}\.php)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+<FilesMatch "^(clash\.yaml|singbox\.yaml|list\.txt|v2\.log|sub\.php)$">
     Order Allow,Deny
     Deny from all
 </FilesMatch>
-<Files "${SUB_TOKEN}.php">
-    Order Allow,Deny
-    Allow from all
-</Files>
+RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
 EOF
+}
+
+install_keepalive () {
+    [[ "$HOSTNAME" =~ ct8|useruno ]] && return
+    purple "正在安装保活服务中,请稍等......"
+    devil www del keep.${USERNAME}.serv00.net nodejs > /dev/null 2>&1
+    devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
+    keep_path="$HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs"
+    [ -d "$keep_path" ] || mkdir -p "$keep_path"
+    app_file_url="https://00.ssss.nyc.mn/app.js"
+    $COMMAND "${keep_path}/app.js" "$app_file_url"
+
+    cat > ${keep_path}/.env <<EOF
+UUID=${UUID}
+CFIP=${CFIP}
+CFPORT=${CFPORT}
+SUB_TOKEN=${SUB_TOKEN}
+${UPLOAD_URL:+API_SUB_URL=$UPLOAD_URL}
+${tg_chat_id:+TELEGRAM_CHAT_ID=$tg_chat_id}
+${tg_token:+TELEGRAM_BOT_TOKEN=$tg_token}
+${NEZHA_SERVER:+NEZHA_SERVER=$NEZHA_SERVER}
+${NEZHA_PORT:+NEZHA_PORT=$NEZHA_PORT}
+${NEZHA_KEY:+NEZHA_KEY=$NEZHA_KEY}
+ARGO_DOMAIN=$ARGO_DOMAIN
+ARGO_AUTH=$([[ -z "$ARGO_AUTH" ]] && echo "" || ([[ "$ARGO_AUTH" =~ ^\{.* ]] && echo "'$ARGO_AUTH'" || echo "$ARGO_AUTH"))
+EOF
+    # devil ssl www add $available_ip le le keep.${USERNAME}.serv00.net > /dev/null 2>&1
+    ln -fs /usr/local/bin/node18 ~/bin/node > /dev/null 2>&1
+    ln -fs /usr/local/bin/npm18 ~/bin/npm > /dev/null 2>&1
+    mkdir -p ~/.npm-global
+    npm config set prefix '~/.npm-global'
+    echo 'export PATH=~/.npm-global/bin:~/bin:$PATH' >> $HOME/.bash_profile && source $HOME/.bash_profile
+    rm -rf $HOME/.npmrc > /dev/null 2>&1
+    cd ${keep_path} && npm install dotenv axios --silent > /dev/null 2>&1
+    rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
+    # devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
+    devil www restart keep.${USERNAME}.serv00.net > /dev/null 2>&1
+    if curl -skL "http://keep.${USERNAME}.serv00.net/start" | grep -q "running"; then
+        green "\n全自动保活服务安装成功\n"
+	    green "所有服务都运行正常,全自动保活任务添加成功\n\n"
+        purple "访问 http://keep.${USERNAME}.serv00.net/stop 结束进程\n"
+        purple "访问 http://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
+        yellow "访问 http://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
+        purple "访问 http://keep.${USERNAME}.serv00.net/status 查看进程状态\n\n"
+        purple "如果需要TG通知,在${yellow}https://t.me/laowang_serv00_bot${re}${purple}获取CHAT_ID,并带CHAT_ID环境变量运行${re}\n\n"
+        quick_command
+    else
+        red "\n全自动保活服务安装失败,存在未运行的进程,请执行以下命令后重装: \n\ndevil www del ${USERNAME}.serv00.net\ndevil www del keep.${USERNAME}.serv00.net\nrm -rf $HOME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backups)\n\n"
+    fi
 }
 
 get_links(){
 argodomain=$(get_argodomain)
-echo -e "\e[1;32mArgoDomain:\e[1;35m${argodomain}\e[0m\n"
+echo -e "\e[1;32mArgoDomain: \e[1;35m${argodomain}\e[0m\n"
 ISP=$(curl -s --max-time 2 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
 get_name() { if [ "$HOSTNAME" = "s1.ct8.pl" ]; then SERVER="CT8"; else SERVER=$(echo "$HOSTNAME" | cut -d '.' -f 1); fi; echo "$SERVER"; }
 NAME="$ISP-$(get_name)"
@@ -638,114 +714,10 @@ tuic://$UUID:admin123@$available_ip:$TUIC_PORT?sni=www.bing.com&congestion_contr
 EOF
 cat ${FILE_PATH}/list.txt
 generate_sub_link
+install_keepalive
 rm -rf boot.log config.json sb.log core tunnel.yml tunnel.json fake_useragent_0.2.0.json
-quick_command
 green "Running done!\n"
 
-}
-
-install_keepalive () {
-    clear
-    reading "是否需要Telegram通知？(直接回车则不启用)【y/n】: " tg_notification
-    if [[ "$tg_notification" == "y" || "$tg_notification" == "Y" ]]; then
-
-        reading "请输入Telegram chat ID (tg上@laowang_serv00_bot获取): " tg_chat_id
-        [[ -z $tg_chat_id ]] && { red "Telegram chat ID不能为空"; return; }
-        green "你设置的Telegram chat_id为: ${tg_chat_id}"
-
-        reading "请输入Telegram Bot Token (直接回车使用老王的bot通知或填写自己的): " tg_token
-        [[ -z $tg_token ]] && tg_token=""
-        green "你设置的Telegram bot token为: ${tg_token}"
-    fi
-
-    reading "是否需要保活哪吒探针？(直接回车则不启用)【y/n】: " keep_nezha
-    if [[ "$keep_nezha" == "y" || "$keep_nezha" == "Y" ]]; then
-        reading "请输入哪吒面板域名【v1须带面板端口】：" nezha_server
-        green "你的哪吒面板域名为: $nezha_server"
-
-        if [[ "$nezha_server" != *":"* ]]; then
-          reading "请输入哪吒agent端口(v1请直接回车留空): " nezha_port
-          [[ -z $nezha_port ]] && nezha_port="5555"
-          green "你的哪吒agent端口为: $nezha_port"
-        else
-          nezha_port=""
-        fi
-
-        reading "请输入哪吒v0的agent密钥或v1的NZ_CLIENT_SECRET: " nezha_key
-        [[ -z $nezha_key ]] && { red "哪吒agent密钥不能为空"; return; }
-        green "你的哪吒agent密钥为: $nezha_key"
-    fi
-
-    reading "是否需要设置Argo固定隧道？(直接回车则使用临时隧道)【y/n】: " argo
-    if [[ "$argo" == "y" || "$argo" == "Y" ]]; then
-
-        reading "请输入Argo固定隧道域名: " argo_domain
-        [[ -z $argo_domain ]] && { red "Argo固定隧道域名不能为空"; return; }
-        green "你的Argo固定隧道域名为: $argo_domain"
-
-        reading "请输入Argo固定隧道密钥(json或token): " argo_key
-        [[ -z $argo_key ]] && { red "Argo固定隧道密钥不能为空"; return; }
-        green "你的Argo固定隧道密钥为: $argo_key"
-    fi
-
-    purple "正在安装保活服务中,请稍等......"
-    keep_path="$HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs"
-    [ -d "$keep_path" ] || mkdir -p "$keep_path"
-    app_file_url="https://00.ssss.nyc.mn/app.js"
-    $COMMAND "${keep_path}/app.js" "$app_file_url"
-
-    cat > ${keep_path}/.env <<EOF
-UUID=${UUID}
-CFIP=${CFIP}
-CFPORT=${CFPORT}
-SUB_TOKEN=${SUB_TOKEN}
-${UPLOAD_URL:+API_SUB_URL=$UPLOAD_URL}
-${tg_chat_id:+TELEGRAM_CHAT_ID=$tg_chat_id}
-${tg_token:+TELEGRAM_BOT_TOKEN=$tg_token}
-${nezha_server:+NEZHA_SERVER=$nezha_server}
-${nezha_port:+NEZHA_PORT=$nezha_port}
-${nezha_key:+NEZHA_KEY=$nezha_key}
-ARGO_DOMAIN=$argo_domain
-ARGO_AUTH=$([[ -z "$argo_key" ]] && echo "" || ([[ "$argo_key" =~ ^\{.* ]] && echo "'$argo_key'" || echo "$argo_key"))
-EOF
-
-cat > ${FILE_PATH}/.htaccess << EOF
-RewriteEngine On
-RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
-<FilesMatch "^(clash\.yaml|singbox\.yaml|list\.txt|v2\.log||sub\.php)$">
-    Order Allow,Deny
-    Deny from all
-</FilesMatch>
-<Files "${SUB_TOKEN}.php">
-    Order Allow,Deny
-    Allow from all
-</Files>
-EOF
-    devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
-    # devil ssl www add $available_ip le le keep.${USERNAME}.serv00.net > /dev/null 2>&1
-    ln -fs /usr/local/bin/node18 ~/bin/node > /dev/null 2>&1
-    ln -fs /usr/local/bin/npm18 ~/bin/npm > /dev/null 2>&1
-    mkdir -p ~/.npm-global
-    npm config set prefix '~/.npm-global'
-    echo 'export PATH=~/.npm-global/bin:~/bin:$PATH' >> $HOME/.bash_profile && source $HOME/.bash_profile
-    rm -rf $HOME/.npmrc > /dev/null 2>&1
-    cd ${keep_path} && npm install dotenv axios --silent > /dev/null 2>&1
-    rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
-    # devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
-    devil www restart keep.${USERNAME}.serv00.net > /dev/null 2>&1
-    generate_sub_link
-    if curl -skL "http://keep.${USERNAME}.serv00.net/start" | grep -q "running"; then
-        green "\n全自动保活服务安装成功\n"
-	green "所有服务都运行正常,全自动保活任务添加成功\n\n"
-        purple "访问 http://keep.${USERNAME}.serv00.net/stop 结束进程\n"
-        purple "访问 http://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
-        yellow "访问 http://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
-        purple "访问 http://keep.${USERNAME}.serv00.net/status 查看进程状态\n\n"
-        purple "如果需要TG通知,在${yellow}https://t.me/laowang_serv00_bot${re}${purple}获取CHAT_ID,并带CHAT_ID环境变量运行${re}\n\n"
-        quick_command
-    else
-        red "\n全自动保活服务安装失败,存在未运行的进程,请执行以下命令后重装: \n\ndevil www del ${USERNAME}.serv00.net\ndevil www del keep.${USERNAME}.serv00.net\nrm -rf $HOME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backups)\n\n"
-    fi
 }
 
 quick_command() {
@@ -763,7 +735,7 @@ quick_command() {
 }
 
 get_url_info() {
-  if devil www list 2>&1 | grep -q "keep.${USERNAME}.serv00.net"; then
+  if devil www list 2>&1 | grep -q "keep.${USERNAME}.${CURRENT_DOMAIN}"; then
     purple "\n-------------------保活相关链接------------------\n\n"
     purple "http://keep.${USERNAME}.serv00.net/stop 结束进程\n"
     purple "http://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
@@ -776,8 +748,8 @@ get_url_info() {
 
 get_nodes(){
 cat ${FILE_PATH}/list.txt
-TOKEN=$(sed -n 's/^SUB_TOKEN=\(.*\)/\1/p' $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/.env)
-yellow "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${TOKEN}\n二维码和节点订阅链接适用于V2rayN/Nekoray/ShadowRocket/Clash/Sing-box/karing/Loon/sterisand 等\n"
+TOKEN=$(sed -n 's/^SUB_TOKEN=\(.*\)/\1/p' $HOME/domains/keep.${USERNAME}.${CURRENT_DOMAIN}/public_nodejs/.env)
+yellow "\n自适应节点订阅链接: https://${USERNAME}.${CURRENT_DOMAIN}/${TOKEN}\n二维码和节点订阅链接适用于V2rayN/Nekoray/ShadowRocket/Clash/Sing-box/karing/Loon/sterisand 等\n"
 }
 
 menu() {
@@ -789,34 +761,31 @@ menu() {
   echo -e "${green}TG反馈群组：${re}${yellow}https://t.me/vps888${re}\n"
   purple "转载请著名出处，请勿滥用\n"
   yellow "快速启动命令00\n"
-  green "1. 安装sing-box"
+  green "1. 安装四合一"
   echo  "==============="
-  green "2. 安装全自动保活"
+  red "2. 卸载四合一"
   echo  "==============="
-  red "3. 卸载sing-box"
+  green "3. 查看节点信息"
   echo  "==============="
-  green "4. 查看节点信息"
+  green "4. 查看保活链接"
   echo  "==============="
-  green "5. 查看保活链接"
+  yellow "5. 更换节点端口"
   echo  "==============="
-  yellow "6. 更换节点端口"
-  echo  "==============="
-  yellow "7. 初始化系统"
+  yellow "6. 初始化系统"
   echo  "==============="
   red "0. 退出脚本"
   echo "==========="
-  reading "请输入选择(0-7): " choice
+  reading "请输入选择(0-6): " choice
   echo ""
   case "${choice}" in
       1) install_singbox ;;
-      2) install_keepalive ;;
-      3) uninstall_singbox ;; 
-      4) get_nodes ;; 
-      5) get_url_info ;;
-      6) changge_ports ;;
-      7) reset_system ;;
+      2) uninstall_singbox ;; 
+      3) get_nodes ;; 
+      4) get_url_info ;;
+      5) changge_ports ;;
+      6) reset_system ;;
       0) exit 0 ;;
-      *) red "无效的选项，请输入 0 到 7" ;;
+      *) red "无效的选项，请输入 0 到 6" ;;
   esac
 }
 menu

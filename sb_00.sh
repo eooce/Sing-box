@@ -19,11 +19,19 @@ export NEZHA_PORT=${NEZHA_PORT:-''}
 export NEZHA_KEY=${NEZHA_KEY:-''} 
 export ARGO_DOMAIN=${ARGO_DOMAIN:-''}   
 export ARGO_AUTH=${ARGO_AUTH:-''}
-export CFIP=${CFIP:-'www.visa.com.sg'} 
+export CFIP=${CFIP:-'www.visa.com.tw'} 
 export CFPORT=${CFPORT:-'443'} 
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
 
-[[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="${HOME}/domains/${USERNAME}.ct8.pl/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.ct8.pl/public_html" || WORKDIR="${HOME}/domains/${USERNAME}.serv00.net/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
+if [[ "$HOSTNAME" =~ ct8 ]]; then
+    CURRENT_DOMAIN="ct8.pl"
+elif [[ "$HOSTNAME" =~ useruno ]]; then
+    CURRENT_DOMAIN="useruno.com"
+else
+    CURRENT_DOMAIN="serv00.net"
+fi
+WORKDIR="${HOME}/domains/${USERNAME}.${CURRENT_DOMAIN}/logs"
+FILE_PATH="${HOME}/domains/${USERNAME}.${CURRENT_DOMAIN}/public_html"
 rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" "$FILE_PATH" >/dev/null 2>&1
 bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
 command -v curl &>/dev/null && COMMAND="curl -so" || command -v wget &>/dev/null && COMMAND="wget -qO" || { red "Error: neither curl nor wget found, please install one of them." >&2; exit 1; }
@@ -92,32 +100,33 @@ else
     udp_ports=$(echo "$port_list" | awk '/udp/ {print $1}')
     udp_port1=$(echo "$udp_ports" | sed -n '1p')
     udp_port2=$(echo "$udp_ports" | sed -n '2p')
-
-    purple "vmess-argo使用的tcp端口为: $tcp_port"
-    purple "tuic和hy2使用的udp端口分别为: $udp_port1 和 $udp_port2"
 fi
 
 export VMESS_PORT=$tcp_port
 export TUIC_PORT=$udp_port1
 export HY2_PORT=$udp_port2
+purple "vmess-argo使用的tcp端口: $tcp_port"
+purple "tuic和hy2分别使用的UDP端口: $udp_port1 和 $udp_port2"
 }
 
 check_website() {
-CURRENT_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" && $2 == "php" {print $0}')
+FULL_DOMAIN="${USERNAME}.${CURRENT_DOMAIN}"
+CURRENT_SITE=$(devil www list | awk -v domain="$FULL_DOMAIN" '$1 == domain && $2 == "php"')
 if [ -n "$CURRENT_SITE" ]; then
-    green "检测到已存在${USERNAME}.serv00.net的php站点,无需修改"
+    green "已存在 ${FULL_DOMAIN} 的PHP站点，无需修改"
 else
-    EXIST_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" {print $0}')
+    EXIST_SITE=$(devil www list | awk -v domain="$FULL_DOMAIN" '$1 == domain')
+    
     if [ -n "$EXIST_SITE" ]; then
-        red "不存在${USERNAME}.serv00.net的php站点,正在为你调整..."
-        devil www del "${USERNAME}.serv00.net" > /dev/null 2>&1
-        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net" > /dev/null 2>&1
-        green "已删除旧站点并创建新的php站点"
+        devil www del "$FULL_DOMAIN" >/dev/null 2>&1
+        devil www add "$FULL_DOMAIN" php "$HOME/domains/$FULL_DOMAIN" >/dev/null 2>&1
+        green "已删除旧的站点并创建新的php站点"
     else
-        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net" > /dev/null 2>&1
-        green "php站点创建完成"
+        devil www add "$FULL_DOMAIN" php "$HOME/domains/$FULL_DOMAIN" >/dev/null 2>&1
+        green "已创建php站点 ${FULL_DOMAIN}"
     fi
 fi
+
 index_url="https://github.com/eooce/Sing-box/releases/download/00/index.html"
 [ -f "${FILE_PATH}/index.html" ] || $COMMAND "${FILE_PATH}/index.html" "$index_url"
 }
@@ -151,8 +160,8 @@ EOF
 
 generate_config() {
 
-    openssl ecparam -genkey -name prime256v1 -out "private.key"
-    openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=$USERNAME.serv00.net"
+  openssl ecparam -genkey -name prime256v1 -out "private.key"
+  openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=$USERNAME.${CURRENT_DOMAIN}"
 
   yellow "获取可用IP中,请稍等..."
   available_ip=$(get_ip)
@@ -234,8 +243,8 @@ cat > config.json <<EOF
   ],
 EOF
 
-# 如果是s14/s15/s16,google/youtube/spotify相关的服务走warp出站
-if [[ "$HOSTNAME" =~ s14|s15|s16 ]]; then
+# 如果是s14/s15,google/youtube/spotify相关的服务走warp出站
+if [[ "$HOSTNAME" =~ s14|s15 ]]; then
   cat >> config.json <<EOF
   "outbounds": [
     {
@@ -327,6 +336,7 @@ if [ -n "$NEZHA_PORT" ]; then
     FILE_INFO+=("$BASE_URL/npm npm")
 else
     FILE_INFO+=("$BASE_URL/v1 php")
+    NEZHA_TLS=$(case "${NEZHA_SERVER##*:}" in 443|8443|2096|2087|2083|2053) echo -n tls;; *) echo -n false;; esac)
     cat > "${WORKDIR}/config.yaml" << EOF
 client_secret: ${NEZHA_KEY}
 debug: false
@@ -343,7 +353,7 @@ server: ${NEZHA_SERVER}
 skip_connection_count: false
 skip_procs_count: false
 temperature: false
-tls: false
+tls: ${NEZHA_TLS}
 use_gitee_to_upgrade: false
 use_ipv6_country_code: false
 uuid: ${UUID}
@@ -484,15 +494,16 @@ generate_sub_link () {
 echo ""
 rm -rf ${FILE_PATH}/.htaccess
 base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
-V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
 PHP_URL="https://00.ssss.nyc.mn/sub.php"
 QR_URL="https://00.ssss.nyc.mn/qrencode"  
 $COMMAND "${FILE_PATH}/${SUB_TOKEN}.php" "$PHP_URL" 
 $COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
+V2rayN_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/v2.log"
+AUTO_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/${SUB_TOKEN}"
 curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
 curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
-"${WORKDIR}/qrencode" -m 2 -t UTF8 "https://${USERNAME}.serv00.net/${SUB_TOKEN}"
-purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n"
+"${WORKDIR}/qrencode" -m 2 -t UTF8 "${AUTO_LINK}"
+purple "\n自适应节点订阅链接: ${AUTO_LINK}\n"
 green "二维码和节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n\n"
 cat > ${FILE_PATH}/.htaccess << EOF
 RewriteEngine On
@@ -508,6 +519,7 @@ RewriteRule ^$ /index.html [L]
     Deny from all
 </FilesMatch>
 RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
+EOF
 }
 
 get_links(){

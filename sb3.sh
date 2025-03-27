@@ -18,8 +18,17 @@ export NEZHA_SERVER=${NEZHA_SERVER:-''}
 export NEZHA_PORT=${NEZHA_PORT:-''}     
 export NEZHA_KEY=${NEZHA_KEY:-''} 
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
+export PROXYIP=${PROXYIP:-''}      # true开启proxyip，false关闭,默认关闭
 
-[[ "$HOSTNAME" == "s1.ct8.pl" ]] && WORKDIR="${HOME}/domains/${USERNAME}.ct8.pl/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.ct8.pl/public_html" || WORKDIR="${HOME}/domains/${USERNAME}.serv00.net/logs" && FILE_PATH="${HOME}/domains/${USERNAME}.serv00.net/public_html"
+if [[ "$HOSTNAME" =~ ct8 ]]; then
+    CURRENT_DOMAIN="ct8.pl"
+elif [[ "$HOSTNAME" =~ useruno ]]; then
+    CURRENT_DOMAIN="useruno.com"
+else
+    CURRENT_DOMAIN="serv00.net"
+fi
+WORKDIR="${HOME}/domains/${USERNAME}.${CURRENT_DOMAIN}/logs"
+FILE_PATH="${HOME}/domains/${USERNAME}.${CURRENT_DOMAIN}/public_html"
 rm -rf "$WORKDIR" && mkdir -p "$WORKDIR" "$FILE_PATH" && chmod 777 "$WORKDIR" "$FILE_PATH" >/dev/null 2>&1
 bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
 command -v curl &>/dev/null && COMMAND="curl -so" || command -v wget &>/dev/null && COMMAND="wget -qO" || { red "Error: neither curl nor wget found, please install one of them." >&2; exit 1; }
@@ -52,7 +61,7 @@ if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
         while true; do
             tcp_port=$(shuf -i 10000-65535 -n 1) 
             result=$(devil port add tcp $tcp_port 2>&1)
-            if [[ $result == *"succesfully"* ]]; then
+            if [[ $result == *"Ok"* ]]; then
                 green "已添加TCP端口: $tcp_port"
                 break
             else
@@ -67,7 +76,7 @@ if [[ $tcp_ports -ne 1 || $udp_ports -ne 2 ]]; then
         while [[ $udp_ports_added -lt $udp_ports_to_add ]]; do
             udp_port=$(shuf -i 10000-65535 -n 1) 
             result=$(devil port add udp $udp_port 2>&1)
-            if [[ $result == *"succesfully"* ]]; then
+            if [[ $result == *"Ok"* ]]; then
                 green "已添加UDP端口: $udp_port"
                 if [[ $udp_ports_added -eq 0 ]]; then
                     udp_port1=$udp_port
@@ -88,30 +97,29 @@ else
     udp_ports=$(echo "$port_list" | awk '/udp/ {print $1}')
     udp_port1=$(echo "$udp_ports" | sed -n '1p')
     udp_port2=$(echo "$udp_ports" | sed -n '2p')
-
-    purple "reality使用的端口: $tcp_port"
-    purple "tuic和hy2分别使用的udp端口: $udp_port1 和 $udp_port2"
 fi
-
+purple "reality使用的端口: $tcp_port"
+purple "tuic和hy2分别使用的udp端口: $udp_port1 和 $udp_port2"
 export VLESS_PORT=$tcp_port
 export TUIC_PORT=$udp_port1
 export HY2_PORT=$udp_port2
 }
 
 check_website() {
-CURRENT_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" && $2 == "php" {print $0}')
+FULL_DOMAIN="${USERNAME}.${CURRENT_DOMAIN}"
+CURRENT_SITE=$(devil www list | awk -v domain="$FULL_DOMAIN" '$1 == domain && $2 == "php"')
 if [ -n "$CURRENT_SITE" ]; then
-    green "检测到已存在${USERNAME}.serv00.net的php站点,无需修改"
+    green "已存在 ${FULL_DOMAIN} 的PHP站点，无需修改"
 else
-    EXIST_SITE=$(devil www list | awk -v username="${USERNAME}" '$1 == username".serv00.net" {print $0}')
+    EXIST_SITE=$(devil www list | awk -v domain="$FULL_DOMAIN" '$1 == domain')
+    
     if [ -n "$EXIST_SITE" ]; then
-        red "不存在${USERNAME}.serv00.net的php站点,正在为你调整..."
-        devil www del "${USERNAME}.serv00.net" >/dev/null 2>&1
-        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net" >/dev/null 2>&1
-        green "已删除旧站点并创建新的php站点"
+        devil www del "$FULL_DOMAIN" >/dev/null 2>&1
+        devil www add "$FULL_DOMAIN" php "$HOME/domains/$FULL_DOMAIN" >/dev/null 2>&1
+        green "已删除旧的站点并添加新的php站点"
     else
-        devil www add "${USERNAME}.serv00.net" php "$HOME/domains/${USERNAME}.serv00.net" >/dev/null 2>&1
-        green "php站点创建完成"
+        devil www add "$FULL_DOMAIN" php "$HOME/domains/$FULL_DOMAIN" >/dev/null 2>&1
+        green "已创建新PHP站点 ${FULL_DOMAIN}"
     fi
 fi
 index_url="https://github.com/eooce/Sing-box/releases/download/00/index.html"
@@ -133,6 +141,7 @@ if [ -n "$NEZHA_PORT" ]; then
     FILE_INFO+=("$BASE_URL/npm npm")
 else
     FILE_INFO+=("$BASE_URL/v1 php")
+    NEZHA_TLS=$(case "${NEZHA_SERVER##*:}" in 443|8443|2096|2087|2083|2053) echo -n tls;; *) echo -n false;; esac)
     cat > "${WORKDIR}/config.yaml" << EOF
 client_secret: ${NEZHA_KEY}
 debug: false
@@ -203,7 +212,7 @@ wait
 output=$(./"$(basename ${FILE_MAP[web]})" generate reality-keypair)
 private_key=$(echo "${output}" | awk '/PrivateKey:/ {print $2}')
 public_key=$(echo "${output}" | awk '/PublicKey:/ {print $2}')
-
+[[ "$PROXYIP" == "true" ]] && SNI="time.is" || SNI="www.cerebrium.ai"
 openssl ecparam -genkey -name prime256v1 -out "private.key"
 openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=$USERNAME.serv00.net"
   
@@ -264,11 +273,11 @@ cat > config.json << EOF
         ],
         "tls": {
             "enabled": true,
-            "server_name": "www.cerebrium.ai",
+            "server_name": "$SNI",
             "reality": {
                 "enabled": true,
                 "handshake": {
-                    "server": "www.cerebrium.ai",
+                    "server": "$SNI",
                     "server_port": 443
                 },
                 "private_key": "$private_key",
@@ -302,8 +311,8 @@ cat > config.json << EOF
  ],
 EOF
 
-# 如果是s14/s15/s16,google/youtube/spotify相关的服务走warp出站
-if [[ "$HOSTNAME" =~ s14|s15|s16 ]]; then
+# 如果是s14/s15,google/youtube/spotify相关的服务走warp出站
+if [[ "$HOSTNAME" =~ s14|s15 ]]; then
   cat >> config.json <<EOF
   "outbounds": [
     {
@@ -432,29 +441,34 @@ echo "$IP"
 }
 
 generate_sub_link () {
-rm -rf ${FILE_PATH}/.htaccess 
+echo ""
+rm -rf ${FILE_PATH}/.htaccess
 base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
-V2rayN_LINK="https://${USERNAME}.serv00.net/v2.log"
 PHP_URL="https://00.ssss.nyc.mn/sub.php"
 QR_URL="https://00.ssss.nyc.mn/qrencode"  
 $COMMAND "${FILE_PATH}/${SUB_TOKEN}.php" "$PHP_URL" 
 $COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
+V2rayN_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/v2.log"
+AUTO_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/${SUB_TOKEN}"
 curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
 curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
-"${WORKDIR}/qrencode" -m 2 -t UTF8 "https://${USERNAME}.serv00.net/${SUB_TOKEN}"
-purple "\n自适应节点订阅链接: https://${USERNAME}.serv00.net/${SUB_TOKEN}\n"
+"${WORKDIR}/qrencode" -m 2 -t UTF8 "${AUTO_LINK}"
+purple "\n自适应节点订阅链接: ${AUTO_LINK}\n"
 green "二维码和节点订阅链接适用于 V2rayN/Nekoray/ShadowRocket/Clash/Mihomo/Sing-box/karing/Loon/sterisand 等\n\n"
 cat > ${FILE_PATH}/.htaccess << EOF
 RewriteEngine On
-RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
-<FilesMatch "^(clash\.yaml|singbox\.yaml|list\.txt|v2\.log||sub\.php)$">
+DirectoryIndex index.html
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /(\?|$)
+RewriteRule ^$ /index.html [L]
+<FilesMatch "^(index\.html|${SUB_TOKEN}\.php)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+<FilesMatch "^(clash\.yaml|singbox\.yaml|list\.txt|v2\.log|sub\.php)$">
     Order Allow,Deny
     Deny from all
 </FilesMatch>
-<Files "${SUB_TOKEN}.php">
-    Order Allow,Deny
-    Allow from all
-</Files>
+RewriteRule ^${SUB_TOKEN}$ ${SUB_TOKEN}.php [L]
 EOF
 }
 
@@ -464,13 +478,14 @@ get_name() { if [ "$HOSTNAME" = "s1.ct8.pl" ]; then SERVER="CT8"; else SERVER=$(
 NAME="$ISP-$(get_name)"
 yellow "注意：v2ray或其他软件的跳过证书验证需设置为true,否则hy2或tuic节点可能不通\n"
 cat > ${FILE_PATH}/list.txt <<EOF
-vless://$UUID@$available_ip:$VLESS_PORT?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.cerebrium.ai&fp=chrome&pbk=$public_key&type=tcp&headerType=none#$NAME-reality
+vless://$UUID@$available_ip:$VLESS_PORT?encryption=none&flow=xtls-rprx-vision&security=reality&sni=$NSI&fp=chrome&pbk=$public_key&type=tcp&headerType=none#$NAME-reality
 
 hysteria2://$UUID@$available_ip:$HY2_PORT/?sni=www.bing.com&alpn=h3&insecure=1#$NAME-hysteria2
 
 tuic://$UUID:admin@$available_ip:$TUIC_PORT?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#$NAME-tuic
 EOF
 cat ${FILE_PATH}/list.txt
+[[ "$PROXYIP" == "true" ]] && purple "\n你的ProxyIP为: $available_ip:$VLESS_PORT"
 generate_sub_link
 rm -rf config.json sb.log core fake_useragent_0.2.0.json
 green "Running done!"

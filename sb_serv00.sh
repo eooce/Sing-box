@@ -19,7 +19,7 @@ export NEZHA_PORT=${NEZHA_PORT:-''}      # v1哪吒不需要此变量
 export NEZHA_KEY=${NEZHA_KEY:-''}        # v1的NZ_CLIENT_SECRET或v0的agent密钥
 export ARGO_DOMAIN=${ARGO_DOMAIN:-''}   
 export ARGO_AUTH=${ARGO_AUTH:-''}
-export CFIP=${CFIP:-'www.visa.com.sg'} 
+export CFIP=${CFIP:-'www.visa.com.tw'} 
 export CFPORT=${CFPORT:-'443'}
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
 export UPLOAD_URL=${UPLOAD_URL:-''}  # 订阅自动添加到汇聚订阅器，需要先部署Merge-sub项目,环境变量填写部署后的首页地址,例如: SUB_URL=https://merge.serv00.net 
@@ -238,7 +238,8 @@ uninstall_singbox() {
 reset_system() {
 reading "\n确定重置系统吗吗？【y/n】: " choice
   case "$choice" in
-    [Yy]) bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
+    [Yy]) yellow "\n初始化系统中,请稍后...\n"
+          bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
           find "${HOME}" -mindepth 1 ! -name "domains" ! -name "mail" ! -name "repo" ! -name "backups" ! -name ".*" -exec rm -rf {} + > /dev/null 2>&1
           devil www del $USERNAME.${CURRENT_DOMAIN} > /dev/null 2>&1
           devil www del keep.$USERNAME.${CURRENT_DOMAIN} > /dev/null 2>&1
@@ -280,7 +281,6 @@ ingress:
   - service: http_status:404
 EOF
   else
-    green "ARGO_AUTH mismatch TunnelSecret,use token connect to tunnel"
     yellow "\n当前使用的是token,请在cloudflare后台设置隧道端口为${purple}${VMESS_PORT}${re}"
   fi
 }
@@ -622,9 +622,9 @@ base64 -w0 ${FILE_PATH}/list.txt > ${FILE_PATH}/v2.log
 PHP_URL="https://00.ssss.nyc.mn/sub.php"
 QR_URL="https://00.ssss.nyc.mn/qrencode"  
 $COMMAND "${FILE_PATH}/${SUB_TOKEN}.php" "$PHP_URL" 
-$COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
 V2rayN_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/v2.log"
 AUTO_LINK="https://${USERNAME}.${CURRENT_DOMAIN}/${SUB_TOKEN}"
+$COMMAND "${WORKDIR}/qrencode" "$QR_URL" && chmod +x "${WORKDIR}/qrencode"
 curl -sS "https://sublink.eooce.com/clash?config=${V2rayN_LINK}" -o ${FILE_PATH}/clash.yaml
 curl -sS "https://sublink.eooce.com/singbox?config=${V2rayN_LINK}" -o ${FILE_PATH}/singbox.yaml
 "${WORKDIR}/qrencode" -m 2 -t UTF8 "${AUTO_LINK}"
@@ -648,13 +648,12 @@ EOF
 }
 
 install_keepalive () {
-    [[ "$HOSTNAME" =~ ct8|useruno ]] && return
     purple "正在安装保活服务中,请稍等......"
-    devil www del keep.${USERNAME}.serv00.net > /dev/null 2>&1
-    devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
-    keep_path="$HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs"
+    devil www del keep.${USERNAME}.${CURRENT_DOMAIN} > /dev/null 2>&1
+    devil www add keep.${USERNAME}.${CURRENT_DOMAIN} nodejs /usr/local/bin/node18 > /dev/null 2>&1
+    keep_path="$HOME/domains/keep.${USERNAME}.${CURRENT_DOMAIN}/public_nodejs"
     [ -d "$keep_path" ] || mkdir -p "$keep_path"
-    app_file_url="https://00.ssss.nyc.mn/app.js"
+    app_file_url="https://00.ssss.nyc.mn/sb4.js"
     $COMMAND "${keep_path}/app.js" "$app_file_url"
 
     cat > ${keep_path}/.env <<EOF
@@ -671,7 +670,7 @@ ${NEZHA_KEY:+NEZHA_KEY=$NEZHA_KEY}
 ARGO_DOMAIN=$ARGO_DOMAIN
 ARGO_AUTH=$([[ -z "$ARGO_AUTH" ]] && echo "" || ([[ "$ARGO_AUTH" =~ ^\{.* ]] && echo "'$ARGO_AUTH'" || echo "$ARGO_AUTH"))
 EOF
-    # devil ssl www add $available_ip le le keep.${USERNAME}.serv00.net > /dev/null 2>&1
+    # devil ssl www add $available_ip le le keep.${USERNAME}.${CURRENT_DOMAIN} > /dev/null 2>&1
     ln -fs /usr/local/bin/node18 ~/bin/node > /dev/null 2>&1
     ln -fs /usr/local/bin/npm18 ~/bin/npm > /dev/null 2>&1
     mkdir -p ~/.npm-global
@@ -679,20 +678,20 @@ EOF
     echo 'export PATH=~/.npm-global/bin:~/bin:$PATH' >> $HOME/.bash_profile && source $HOME/.bash_profile
     rm -rf $HOME/.npmrc > /dev/null 2>&1
     cd ${keep_path} && npm install dotenv axios --silent > /dev/null 2>&1
-    rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
-    # devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
-    devil www restart keep.${USERNAME}.serv00.net > /dev/null 2>&1
-    if curl -skL "http://keep.${USERNAME}.serv00.net/start" | grep -q "running"; then
+    rm $HOME/domains/keep.${USERNAME}.${CURRENT_DOMAIN}/public_nodejs/public/index.html > /dev/null 2>&1
+    # devil www options keep.${USERNAME}.${CURRENT_DOMAIN} sslonly on > /dev/null 2>&1
+    devil www restart keep.${USERNAME}.${CURRENT_DOMAIN}> /dev/null 2>&1
+    if curl -skL "http://keep.${USERNAME}.${CURRENT_DOMAIN}/${USERNAME}" | grep -q "running"; then
         green "\n全自动保活服务安装成功\n"
-	    green "所有服务都运行正常,全自动保活任务添加成功\n\n"
-        purple "访问 http://keep.${USERNAME}.serv00.net/stop 结束进程\n"
-        purple "访问 http://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
-        yellow "访问 http://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
-        purple "访问 http://keep.${USERNAME}.serv00.net/status 查看进程状态\n\n"
+	green "所有服务都运行正常,全自动保活任务添加成功\n\n"
+        purple "访问 http://keep.${USERNAME}.${CURRENT_DOMAIN}/stop 结束进程\n"
+        purple "访问 http://keep.${USERNAME}.${CURRENT_DOMAIN}/list 全部进程列表\n"
+        yellow "访问 http://keep.${USERNAME}.${CURRENT_DOMAIN}/${USERNAME} 调起保活程序   备用保活路径: /run  /go  /start\n"
+        purple "访问 http://keep.${USERNAME}.${CURRENT_DOMAIN}/status 查看进程状态\n\n"
         purple "如果需要TG通知,在${yellow}https://t.me/laowang_serv00_bot${re}${purple}获取CHAT_ID,并带CHAT_ID环境变量运行${re}\n\n"
         quick_command
     else
-        red "\n全自动保活服务安装失败,存在未运行的进程,请执行以下命令后重装: \n\ndevil www del ${USERNAME}.serv00.net\ndevil www del keep.${USERNAME}.serv00.net\nrm -rf $HOME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backups)\n\n"
+        red "\n全自动保活服务安装失败,存在未运行的进程,请执行以下命令后重装: \n\ndevil www del ${USERNAME}.${CURRENT_DOMAIN}\ndevil www del keep.${USERNAME}.${CURRENT_DOMAIN}\nrm -rf $HOME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backups)\n\n"
     fi
 }
 
@@ -720,11 +719,13 @@ green "Running done!\n"
 
 }
 
+
 quick_command() {
   COMMAND="00"
   SCRIPT_PATH="$HOME/bin/$COMMAND"
   mkdir -p "$HOME/bin"
-  echo "#!/bin/bash" > "$SCRIPT_PATH"
+  set +H
+  printf '#!/bin/bash\n' > "$SCRIPT_PATH"
   echo "bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh)" >> "$SCRIPT_PATH"
   chmod +x "$SCRIPT_PATH"
   if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
@@ -734,13 +735,14 @@ quick_command() {
   green "快捷指令00创建成功,下次运行输入00快速进入菜单\n"
 }
 
+
 get_url_info() {
   if devil www list 2>&1 | grep -q "keep.${USERNAME}.${CURRENT_DOMAIN}"; then
     purple "\n-------------------保活相关链接------------------\n\n"
-    purple "http://keep.${USERNAME}.serv00.net/stop 结束进程\n"
-    purple "http://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
-    yellow "http://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
-    purple "http://keep.${USERNAME}.serv00.net/status 查看进程状态\n\n"
+    purple "http://keep.${USERNAME}.${CURRENT_DOMAIN}/stop 结束进程\n"
+    purple "http://keep.${USERNAME}.${CURRENT_DOMAIN}/list 全部进程列表\n"
+    yellow "http://keep.${USERNAME}.${CURRENT_DOMAIN}/${USERNAME} 调起保活程序\n"
+    purple "http://keep.${USERNAME}.${CURRENT_DOMAIN}/status 查看进程状态\n\n"
   else 
     red "尚未安装自动保活服务\n" && sleep 2 && menu
   fi

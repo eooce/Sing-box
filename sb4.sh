@@ -588,7 +588,7 @@ EOF
     rm $HOME/domains/keep.${USERNAME}.${CURRENT_DOMAIN}/public_nodejs/public/index.html > /dev/null 2>&1
     # devil www options keep.${USERNAME}.${CURRENT_DOMAIN} sslonly on > /dev/null 2>&1
     devil www restart keep.${USERNAME}.${CURRENT_DOMAIN} > /dev/null 2>&1
-    if curl -skL "http://keep.${USERNAME}.${CURRENT_DOMAIN}/start" | grep -q "running"; then
+    if curl -skL "http://keep.${USERNAME}.${CURRENT_DOMAIN}/${USERNAME}" | grep -q "running"; then
         green "\n全自动保活服务安装成功\n"
 	green "所有服务都运行正常,全自动保活任务添加成功\n\n"
         purple "访问 http://keep.${USERNAME}.${CURRENT_DOMAIN}/stop 结束进程\n"

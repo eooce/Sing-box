@@ -24,7 +24,7 @@ export CFPORT=${CFPORT:-'443'}
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
 export CHAT_ID=${CHAT_ID:-''} 
 export BOT_TOKEN=${BOT_TOKEN:-''}
-export UPLOAD_URL=${UPLOAD_URL:-''}  # 订阅自动上传到Merge-sub汇聚订阅器，示例：https://merge.serv00.net
+export UPLOAD_URL=${UPLOAD_URL:-''} 
 
 if [[ "$HOSTNAME" =~ ct8 ]]; then
     CURRENT_DOMAIN="ct8.pl"
@@ -125,10 +125,10 @@ else
     if [ -n "$EXIST_SITE" ]; then
         devil www del "$FULL_DOMAIN" >/dev/null 2>&1
         devil www add "$FULL_DOMAIN" php "$HOME/domains/$FULL_DOMAIN" >/dev/null 2>&1
-        green "已删除旧的站点并添加新的php站点"
+        green "已删除旧的站点并创建新的php站点"
     else
         devil www add "$FULL_DOMAIN" php "$HOME/domains/$FULL_DOMAIN" >/dev/null 2>&1
-        green "已创建新PHP站点 ${FULL_DOMAIN}"
+        green "已创建php站点 ${FULL_DOMAIN}"
     fi
 fi
 
@@ -246,7 +246,7 @@ cat > config.json <<EOF
   ],
 EOF
 
-# 如果是s14/s15/s16,google/youtube/spotify相关的服务走warp出站
+# 如果是s14/s15,google/youtube/spotify相关的服务走warp出站
 if [[ "$HOSTNAME" =~ s14|s15 ]]; then
   cat >> config.json <<EOF
   "outbounds": [
@@ -556,13 +556,12 @@ rm -rf sb.log core boot.log config.json tunnel.yml tunnel.json fake_useragent_0.
 }
 
 install_keepalive () {
-    [[ "$HOSTNAME" =~ ct8|useruno ]] && return
     purple "正在安装保活服务中,请稍等......"
-    devil www del keep.${USERNAME}.serv00.net nodejs > /dev/null 2>&1
-    devil www add keep.${USERNAME}.serv00.net nodejs /usr/local/bin/node18 > /dev/null 2>&1
-    keep_path="$HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs"
+    devil www del keep.${USERNAME}.${CURRENT_DOMAIN} > /dev/null 2>&1
+    devil www add keep.${USERNAME}.${CURRENT_DOMAIN} nodejs /usr/local/bin/node18 > /dev/null 2>&1
+    keep_path="$HOME/domains/keep.${USERNAME}.${CURRENT_DOMAIN}/public_nodejs"
     [ -d "$keep_path" ] || mkdir -p "$keep_path"
-    app_file_url="https://00.ssss.nyc.mn/app.js"
+    app_file_url="https://00.ssss.nyc.mn/sb4.js"
     $COMMAND "${keep_path}/app.js" "$app_file_url"
 
     cat > ${keep_path}/.env <<EOF
@@ -586,20 +585,20 @@ EOF
     echo 'export PATH=~/.npm-global/bin:~/bin:$PATH' >> $HOME/.bash_profile && source $HOME/.bash_profile
     rm -rf $HOME/.npmrc > /dev/null 2>&1
     cd ${keep_path} && npm install dotenv axios --silent > /dev/null 2>&1
-    rm $HOME/domains/keep.${USERNAME}.serv00.net/public_nodejs/public/index.html > /dev/null 2>&1
-    # devil www options keep.${USERNAME}.serv00.net sslonly on > /dev/null 2>&1
-    devil www restart keep.${USERNAME}.serv00.net > /dev/null 2>&1
-    if curl -skL "http://keep.${USERNAME}.serv00.net/start" | grep -q "running"; then
+    rm $HOME/domains/keep.${USERNAME}.${CURRENT_DOMAIN}/public_nodejs/public/index.html > /dev/null 2>&1
+    # devil www options keep.${USERNAME}.${CURRENT_DOMAIN} sslonly on > /dev/null 2>&1
+    devil www restart keep.${USERNAME}.${CURRENT_DOMAIN} > /dev/null 2>&1
+    if curl -skL "http://keep.${USERNAME}.${CURRENT_DOMAIN}/start" | grep -q "running"; then
         green "\n全自动保活服务安装成功\n"
 	green "所有服务都运行正常,全自动保活任务添加成功\n\n"
-        purple "访问 http://keep.${USERNAME}.serv00.net/stop 结束进程\n"
-        purple "访问 http://keep.${USERNAME}.serv00.net/list 全部进程列表\n"
-        yellow "访问 http://keep.${USERNAME}.serv00.net/start 调起保活程序\n"
-        purple "访问 http://keep.${USERNAME}.serv00.net/status 查看进程状态\n\n"
+        purple "访问 http://keep.${USERNAME}.${CURRENT_DOMAIN}/stop 结束进程\n"
+        purple "访问 http://keep.${USERNAME}.${CURRENT_DOMAIN}/list 全部进程列表\n"
+        yellow "访问 http://keep.${USERNAME}.${CURRENT_DOMAIN}/${USERNAME} 调起保活程序   备用保活路径: /run  /go  /start\n"
+        purple "访问 http://keep.${USERNAME}.${CURRENT_DOMAIN}/status 查看进程状态\n\n"
         purple "如果需要TG通知,在${yellow}https://t.me/laowang_serv00_bot${re}${purple}获取CHAT_ID,并带CHAT_ID环境变量运行${re}\n\n"
         quick_command
     else
-        red "\n全自动保活服务安装失败,存在未运行的进程\n访问 ${yellow}http://keep.${USERNAME}.serv00.net/status ${red}检查,建议执行以下命令后重装: \n\ndevil www del ${USERNAME}.serv00.net\ndevil www del keep.${USERNAME}.serv00.net\nrm -rf $HOME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backups)\n\n${re}"
+        red "\n全自动保活服务安装失败,存在未运行的进程\n访问 ${yellow}http://keep.${USERNAME}.${CURRENT_DOMAIN}/status ${red}检查,建议执行以下命令后重装: \n\ndevil www del ${USERNAME}.${CURRENT_DOMAIN}\ndevil www del keep.${USERNAME}.${CURRENT_DOMAIN}\nrm -rf $HOME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backups)\n\n${re}"
     fi
 }
 
@@ -611,7 +610,7 @@ quick_command() {
   echo "bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh)" >> "$SCRIPT_PATH"
   chmod +x "$SCRIPT_PATH"
   if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
-      echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc" 2>/dev/null
+      echo "export PATH=\"\$HOME/bin:\$PATH\"" >> "$HOME/.bashrc" > /dev/null 2>&1
       source "$HOME/.bashrc"
   fi
   green "快捷指令00创建成功,下次运行输入00快速启动\n"

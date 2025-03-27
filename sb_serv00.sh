@@ -653,7 +653,7 @@ install_keepalive () {
     devil www add keep.${USERNAME}.${CURRENT_DOMAIN} nodejs /usr/local/bin/node18 > /dev/null 2>&1
     keep_path="$HOME/domains/keep.${USERNAME}.${CURRENT_DOMAIN}/public_nodejs"
     [ -d "$keep_path" ] || mkdir -p "$keep_path"
-    app_file_url="https://00.ssss.nyc.mn/sb4.js"
+    app_file_url="https://00.ssss.nyc.mn/sbx4.js"
     $COMMAND "${keep_path}/app.js" "$app_file_url"
 
     cat > ${keep_path}/.env <<EOF

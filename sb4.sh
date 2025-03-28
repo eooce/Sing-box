@@ -610,7 +610,7 @@ quick_command() {
   echo "bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sb_serv00.sh)" >> "$SCRIPT_PATH"
   chmod +x "$SCRIPT_PATH"
   if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
-      echo "export PATH=\"\$HOME/bin:\$PATH\"" >> "$HOME/.bashrc" > /dev/null 2>&1
+      echo "export PATH=\"\$HOME/bin:\$PATH\"" >> "$HOME/.bashrc" 2>/dev/null
       source "$HOME/.bashrc"
   fi
   green "快捷指令00创建成功,下次运行输入00快速启动\n"

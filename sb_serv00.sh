@@ -19,7 +19,7 @@ export NEZHA_PORT=${NEZHA_PORT:-''}      # v1哪吒不需要此变量
 export NEZHA_KEY=${NEZHA_KEY:-''}        # v1的NZ_CLIENT_SECRET或v0的agent密钥
 export ARGO_DOMAIN=${ARGO_DOMAIN:-''}   
 export ARGO_AUTH=${ARGO_AUTH:-''}
-export CFIP=${CFIP:-'www.visa.com.tw'} 
+export CFIP=${CFIP:-'www.visa.com.sg'} 
 export CFPORT=${CFPORT:-'443'}
 export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
 export UPLOAD_URL=${UPLOAD_URL:-''}  # 订阅自动添加到汇聚订阅器，需要先部署Merge-sub项目,环境变量填写部署后的首页地址,例如: SUB_URL=https://merge.serv00.net 
@@ -691,7 +691,7 @@ EOF
         purple "如果需要TG通知,在${yellow}https://t.me/laowang_serv00_bot${re}${purple}获取CHAT_ID,并带CHAT_ID环境变量运行${re}\n\n"
         quick_command
     else
-        red "\n全自动保活服务安装失败,存在未运行的进程,请执行以下命令后重装: \n\ndevil www del ${USERNAME}.${CURRENT_DOMAIN}\ndevil www del keep.${USERNAME}.${CURRENT_DOMAIN}\nrm -rf $HOME/domains/*\nshopt -s extglob dotglob\nrm -rf $HOME/!(domains|mail|repo|backups)\n\n"
+        red "\n全自动保活服务安装失败,存在未运行的进程,请执行以下命令后重装: \n\ndevil www del ${USERNAME}.${CURRENT_DOMAIN}\ndevil www del keep.${USERNAME}.${CURRENT_DOMAIN}\nrm -rf $HOME/domains/*\n\n"
     fi
 }
 

@@ -240,9 +240,8 @@ reading "\n确定重置系统吗吗？【y/n】: " choice
   case "$choice" in
     [Yy]) yellow "\n初始化系统中,请稍后...\n"
           bash -c 'ps aux | grep $(whoami) | grep -v "sshd\|bash\|grep" | awk "{print \$2}" | xargs -r kill -9 >/dev/null 2>&1' >/dev/null 2>&1
-          find "${HOME}" -mindepth 1 ! -name "domains" ! -name "mail" ! -name "repo" ! -name "backups" ! -name ".*" -exec rm -rf {} + > /dev/null 2>&1
-          devil www del $USERNAME.${CURRENT_DOMAIN} > /dev/null 2>&1
-          devil www del keep.$USERNAME.${CURRENT_DOMAIN} > /dev/null 2>&1
+          find "${HOME}" -mindepth 1 ! -name "domains" ! -name "mail" ! -name "repo" ! -name "backups" -exec rm -rf {} + > /dev/null 2>&1
+          devil www list | awk 'NF>=2 && $1 ~ /\./ {print $1}' | while read -r domain; do devil www del "$domain"; done
           rm -rf $HOME/domains/* > /dev/null 2>&1
           green "\n初始化系统完成!\n"
          ;;

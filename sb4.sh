@@ -28,7 +28,7 @@ export UPLOAD_URL=${UPLOAD_URL:-''}
 
 if [[ "$HOSTNAME" =~ ct8 ]]; then
     CURRENT_DOMAIN="ct8.pl"
-elif [[ "$HOSTNAME" =~ useruno ]]; then
+elif [[ "$HOSTNAME" =~ hostuno ]]; then
     CURRENT_DOMAIN="useruno.com"
 else
     CURRENT_DOMAIN="serv00.net"

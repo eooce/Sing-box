@@ -26,7 +26,7 @@ export UPLOAD_URL=${UPLOAD_URL:-''}  # 订阅自动添加到汇聚订阅器，�
 
 if [[ "$HOSTNAME" =~ ct8 ]]; then
     CURRENT_DOMAIN="ct8.pl"
-elif [[ "$HOSTNAME" =~ useruno ]]; then
+elif [[ "$HOSTNAME" =~ hostuno ]]; then
     CURRENT_DOMAIN="useruno.com"
 else
     CURRENT_DOMAIN="serv00.net"

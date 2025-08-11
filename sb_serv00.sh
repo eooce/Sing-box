@@ -734,7 +734,6 @@ quick_command() {
   green "快捷指令00创建成功,下次运行输入00快速进入菜单\n"
 }
 
-
 get_url_info() {
   if devil www list 2>&1 | grep -q "keep.${USERNAME}.${CURRENT_DOMAIN}"; then
     purple "\n-------------------保活相关链接------------------\n\n"

@@ -86,7 +86,7 @@ manage_packages() {
             fi
             yellow "正在安装 ${package}..."
             if command -v apt &>/dev/null; then
-                apt install -y "$package"
+                DEBIAN_FRONTEND=noninteractive apt install -y "$package"
             elif command -v dnf &>/dev/null; then
                 dnf install -y "$package"
             elif command -v yum &>/dev/null; then
@@ -136,9 +136,64 @@ get_realip() {
           ipv6=$(curl -s --max-time 1 ipv6.ip.sb)
           echo "[$ipv6]"
       else
-          echo "$ip"
+          RESPONSE=$(curl -s --max-time 8 "https://status.eooce.com/api/$ip")
+          if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
+              echo "$ip"
+          else
+              ipv6=$(curl -s --max-time 1 ipv6.ip.sb)
+              if [ -z "$ipv6" ]; then
+                  echo "$ip"
+              else
+                  echo "[$ipv6]"
+              fi
+          fi
       fi
   fi
+}
+
+# 处理防火墙
+allow_port() {
+    has_ufw=0
+    has_firewalld=0
+    has_iptables=0
+    has_ip6tables=0
+
+    command -v ufw >/dev/null 2>&1 && has_ufw=1
+    command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active firewalld >/dev/null 2>&1 && has_firewalld=1
+    command -v iptables >/dev/null 2>&1 && has_iptables=1
+    command -v ip6tables >/dev/null 2>&1 && has_ip6tables=1
+
+    # 出站
+    [ "$has_ufw" -eq 1 ] && ufw --force default allow outgoing
+    [ "$has_firewalld" -eq 1 ] && firewall-cmd --permanent --zone=public --set-target=ACCEPT
+    [ "$has_iptables" -eq 1 ] && iptables -P OUTPUT ACCEPT
+    [ "$has_ip6tables" -eq 1 ] && ip6tables -P OUTPUT ACCEPT
+
+    # 入站
+    for rule in "$@"; do
+        port=${rule%/*}
+        proto=${rule#*/}
+        [ "$has_ufw" -eq 1 ] && ufw allow in ${port}/${proto}
+        [ "$has_firewalld" -eq 1 ] && firewall-cmd --permanent --add-port=${port}/${proto}
+        [ "$has_iptables" -eq 1 ] && (iptables -C INPUT -p ${proto} --dport ${port} -j ACCEPT 2>/dev/null || iptables -A INPUT -p ${proto} --dport ${port} -j ACCEPT)
+        [ "$has_ip6tables" -eq 1 ] && (ip6tables -C INPUT -p ${proto} --dport ${port} -j ACCEPT 2>/dev/null || ip6tables -A INPUT -p ${proto} --dport ${port} -j ACCEPT)
+    done
+
+    [ "$has_firewalld" -eq 1 ] && firewall-cmd --reload
+
+    # 规则持久化
+    if [ -f /etc/alpine-release ]; then
+        [ "$has_iptables" -eq 1 ] && iptables-save > /etc/iptables/rules.v4
+        [ "$has_ip6tables" -eq 1 ] && ip6tables-save > /etc/iptables/rules.v6
+    else
+        if ! command -v netfilter-persistent >/dev/null 2>&1; then
+            manage_packages install iptables-persistent || yellow "请手动安装netfilter-persistent或保存iptables规则" 
+            netfilter-persistent save >/dev/null 2>&1
+        elif [ -x "$(command -v service)" ]; then
+            service iptables save 2>/dev/null
+            service ip6tables save 2>/dev/null
+        fi
+    fi
 }
 
 # 下载并安装 sing-box,cloudflared
@@ -179,10 +234,8 @@ install_singbox() {
     private_key=$(echo "${output}" | awk '/PrivateKey:/ {print $2}')
     public_key=$(echo "${output}" | awk '/PublicKey:/ {print $2}')
 
-    iptables -F > /dev/null 2>&1 && iptables -P INPUT ACCEPT > /dev/null 2>&1 && iptables -P FORWARD ACCEPT > /dev/null 2>&1 && iptables -P OUTPUT ACCEPT > /dev/null 2>&1
-    command -v ip6tables &> /dev/null && ip6tables -F > /dev/null 2>&1 && ip6tables -P INPUT ACCEPT > /dev/null 2>&1 && ip6tables -P FORWARD ACCEPT > /dev/null 2>&1 && ip6tables -P OUTPUT ACCEPT > /dev/null 2>&1
-    
-    manage_packages uninstall ufw firewalld > /dev/null 2>&1
+    # 放行端口
+    allow_port $vless_port/tcp $nginx_port/tcp $tuic_port/udp $hy2_port/udp > /dev/null 2>&1
 
     # 生成自签名证书
     openssl ecparam -genkey -name prime256v1 -out "${work_dir}/private.key"
@@ -193,17 +246,9 @@ cat > "${config_dir}" << EOF
 {
   "log": {
     "disabled": false,
-    "level": "info",
+    "level": "error",
     "output": "$work_dir/sb.log",
     "timestamp": true
-  },
-  "dns": {
-    "servers": [
-      {
-        "tag": "google",
-        "address": "tls://8.8.8.8"
-      }
-    ]
   },
   "inbounds": [
     {
@@ -299,148 +344,58 @@ cat > "${config_dir}" << EOF
   ],
   "outbounds": [
     {
-      "type": "direct",
-      "tag": "direct"
+      "tag": "direct",
+      "type": "direct"
     },
     {
-      "type": "direct",
-      "tag": "direct-ipv4-prefer-out",
-      "domain_strategy": "prefer_ipv4"
+      "tag": "block",
+      "type": "block"
     },
     {
-      "type": "direct",
-      "tag": "direct-ipv4-only-out",
-      "domain_strategy": "ipv4_only"
-    },
-    {
-      "type": "direct",
-      "tag": "direct-ipv6-prefer-out",
-      "domain_strategy": "prefer_ipv6"
-    },
-    {
-      "type": "direct",
-      "tag": "direct-ipv6-only-out",
-      "domain_strategy": "ipv6_only"
-    },
-    {
-      "type": "wireguard",
       "tag": "wireguard-out",
-      "server": "engage.cloudflareclient.com",
-      "server_port": 2408,
+      "type": "wireguard",
       "local_address": [
         "172.16.0.2/32",
-        "2606:4700:110:812a:4929:7d2a:af62:351c/128"
+        "2606:4700:110:8f77:1ca9:f086:846c:5f9e/128"
       ],
-      "private_key": "gBthRjevHDGyV0KvYwYE52NIPy29sSrVr6rcQtYNcXA=",
+      "server": "162.159.192.200",
+      "server_port": 4500,
       "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+      "private_key": "wIxszdR2nMdA7a2Ul3XQcniSfSZqdqjPb6w6opvf5AU=",
       "reserved": [
-        6,
-        146,
-        6
+        126,
+        246,
+        173
       ]
-    },
-    {
-      "type": "direct",
-      "tag": "wireguard-ipv4-prefer-out",
-      "detour": "wireguard-out",
-      "domain_strategy": "prefer_ipv4"
-    },
-    {
-      "type": "direct",
-      "tag": "wireguard-ipv4-only-out",
-      "detour": "wireguard-out",
-      "domain_strategy": "ipv4_only"
-    },
-    {
-      "type": "direct",
-      "tag": "wireguard-ipv6-prefer-out",
-      "detour": "wireguard-out",
-      "domain_strategy": "prefer_ipv6"
-    },
-    {
-      "type": "direct",
-      "tag": "wireguard-ipv6-only-out",
-      "detour": "wireguard-out",
-      "domain_strategy": "ipv6_only"
     }
   ],
   "route": {
+    "final": "direct",
     "rule_set": [
       {
-        "tag": "geosite-netflix",
-        "type": "remote",
+        "download_detour": "direct",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-netflix.srs",
-        "update_interval": "1d"
+        "tag": "netflix",
+        "type": "remote",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/netflix.srs"
       },
       {
-        "tag": "geosite-openai",
-        "type": "remote",
+        "download_detour": "direct",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs",
-        "update_interval": "1d"
+        "tag": "openai",
+        "type": "remote",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs"
       }
     ],
     "rules": [
       {
+        "outbound": "wireguard-out",
         "rule_set": [
-          "geosite-netflix"
-        ],
-        "outbound": "wireguard-ipv6-only-out"
-      },
-      {
-        "domain": [
-          "api.statsig.com",
-          "browser-intake-datadoghq.com",
-          "cdn.openai.com",
-          "chat.openai.com",
-          "auth.openai.com",
-          "chat.openai.com.cdn.cloudflare.net",
-          "ios.chat.openai.com",
-          "o33249.ingest.sentry.io",
-          "openai-api.arkoselabs.com",
-          "openaicom-api-bdcpf8c6d2e9atf6.z01.azurefd.net",
-          "openaicomproductionae4b.blob.core.windows.net",
-          "production-openaicom-storage.azureedge.net",
-          "static.cloudflareinsights.com"
-        ],
-        "domain_suffix": [
-          ".algolia.net",
-          ".auth0.com",
-          ".chatgpt.com",
-          ".challenges.cloudflare.com",
-          ".client-api.arkoselabs.com",
-          ".events.statsigapi.net",
-          ".featuregates.org",
-          ".identrust.com",
-          ".intercom.io",
-          ".intercomcdn.com",
-          ".launchdarkly.com",
-          ".oaistatic.com",
-          ".oaiusercontent.com",
-          ".observeit.net",
-          ".openai.com",
-          ".openaiapi-site.azureedge.net",
-          ".openaicom.imgix.net",
-          ".segment.io",
-          ".sentry.io",
-          ".stripe.com"
-        ],
-        "domain_keyword": [
-          "openaicom-api"
-        ],
-        "outbound": "wireguard-ipv6-prefer-out"
+          "netflix",
+          "openai"
+        ]
       }
-    ],
-    "final": "direct"
-   },
-   "experimental": {
-      "cache_file": {
-      "enabled": true,
-      "path": "$work_dir/cache.db",
-      "cache_id": "mycacheid",
-      "store_fakeip": true
-    }
+    ]
   }
 }
 EOF
@@ -529,9 +484,9 @@ EOF
 }
 
 get_info() {  
-  clear
+  yellow "ip检测中,请稍等...\n"
   server_ip=$(get_realip)
-
+  clear
   isp=$(curl -s --max-time 2 https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g' || echo "vps")
 
   if [ -f "${work_dir}/argo.log" ]; then
@@ -581,7 +536,7 @@ fix_nginx() {
 
 # nginx订阅配置
 add_nginx_conf() {
-cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak
+cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak > /dev/null 2>&1
     cat > /etc/nginx/nginx.conf << EOF
 # nginx_conf
 user nginx;
@@ -930,6 +885,7 @@ if [ ${check_singbox} -eq 0 ]; then
                     [ -z "$new_port" ] && new_port=$(shuf -i 2000-65000 -n 1)
                     sed -i '/"type": "vless"/,/listen_port/ s/"listen_port": [0-9]\+/"listen_port": '"$new_port"'/' $config_dir
                     restart_singbox
+                    allow_port $new_port/tcp > /dev/null 2>&1
                     sed -i 's/\(vless:\/\/[^@]*@[^:]*:\)[0-9]\{1,\}/\1'"$new_port"'/' $client_dir
                     base64 -w0 /etc/sing-box/url.txt > /etc/sing-box/sub.txt
                     while IFS= read -r line; do yellow "$line"; done < ${work_dir}/url.txt
@@ -940,6 +896,7 @@ if [ ${check_singbox} -eq 0 ]; then
                     [ -z "$new_port" ] && new_port=$(shuf -i 2000-65000 -n 1)
                     sed -i '/"type": "hysteria2"/,/listen_port/ s/"listen_port": [0-9]\+/"listen_port": '"$new_port"'/' $config_dir
                     restart_singbox
+                    allow_port $new_port/udp > /dev/null 2>&1
                     sed -i 's/\(hysteria2:\/\/[^@]*@[^:]*:\)[0-9]\{1,\}/\1'"$new_port"'/' $client_dir
                     base64 -w0 $client_dir > /etc/sing-box/sub.txt
                     while IFS= read -r line; do yellow "$line"; done < ${work_dir}/url.txt
@@ -950,6 +907,7 @@ if [ ${check_singbox} -eq 0 ]; then
                     [ -z "$new_port" ] && new_port=$(shuf -i 2000-65000 -n 1)
                     sed -i '/"type": "tuic"/,/listen_port/ s/"listen_port": [0-9]\+/"listen_port": '"$new_port"'/' $config_dir
                     restart_singbox
+                    allow_port $new_port/udp > /dev/null 2>&1
                     sed -i 's/\(tuic:\/\/[^@]*@[^:]*:\)[0-9]\{1,\}/\1'"$new_port"'/' $client_dir
                     base64 -w0 $client_dir > /etc/sing-box/sub.txt
                     while IFS= read -r line; do yellow "$line"; done < ${work_dir}/url.txt
@@ -1139,6 +1097,7 @@ if [ ${check_singbox} -eq 0 ]; then
             sed -i 's/listen [0-9]\+;/listen '$sub_port';/g' /etc/nginx/nginx.conf
             path=$(sed -n 's/.*location \/\([^ ]*\).*/\1/p' /etc/nginx/nginx.conf)
             server_ip=$(get_realip)
+            allow_port $sub_port/tcp > /dev/null 2>&1
             restart_nginx
             green "\n订阅端口更换成功\n"
             green "新的订阅链接为：http://$server_ip:$sub_port/$path\n"

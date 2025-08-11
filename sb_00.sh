@@ -25,7 +25,7 @@ export SUB_TOKEN=${SUB_TOKEN:-${UUID:0:8}}
 
 if [[ "$HOSTNAME" =~ ct8 ]]; then
     CURRENT_DOMAIN="ct8.pl"
-elif [[ "$HOSTNAME" =~ useruno ]]; then
+elif [[ "$HOSTNAME" =~ hostuno ]]; then
     CURRENT_DOMAIN="useruno.com"
 else
     CURRENT_DOMAIN="serv00.net"

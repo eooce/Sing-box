@@ -22,7 +22,7 @@ export PROXYIP=${PROXYIP:-''}      # true开启proxyip，false关闭,默认关�
 
 if [[ "$HOSTNAME" =~ ct8 ]]; then
     CURRENT_DOMAIN="ct8.pl"
-elif [[ "$HOSTNAME" =~ useruno ]]; then
+elif [[ "$HOSTNAME" =~ hostuno ]]; then
     CURRENT_DOMAIN="useruno.com"
 else
     CURRENT_DOMAIN="serv00.net"

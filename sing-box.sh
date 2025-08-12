@@ -1390,7 +1390,7 @@ new_vmess_url="vmess://$new_encoded_part"
 new_content=$(echo "$content" | sed "s|$vmess_url|$new_vmess_url|")
 echo "$new_content" > "$client_dir"
 base64 -w0 "${work_dir}/url.txt" > "${work_dir}/sub.txt"
-green "\nvmess节点优选域名已更新为：${purple}${cfip}:${cfport}${re},更新订阅或手动复制以下vmess-argo节点\n"
+green "\nvmess节点优选域名已更新为：${purple}${cfip}:${cfport},${green}更新订阅或手动复制以下vmess-argo节点${re}\n"
 purple "$new_vmess_url\n"
 }
 

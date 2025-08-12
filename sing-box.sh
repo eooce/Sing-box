@@ -942,8 +942,9 @@ if [ ${check_singbox} -eq 0 ]; then
                         restart_argo
                     fi
 
-                    if grep -q "--token" /etc/systemd/system/argo.service || grep -q "--token" /etc/init.d/argo; then
-                        red "请在cloudflared里也对应修改端口为：${purple}${new_port}${re}\n"
+                    if ([ -f /etc/systemd/system/argo.service ] && grep -q -- "--token" /etc/systemd/system/argo.service) || \
+                       ([ -f /etc/init.d/argo ] && grep -q -- "--token" /etc/init.d/argo); then
+                        yellow "请在cloudflared里也对应修改端口为：${purple}${new_port}${re}\n"
                     fi
 
                     restart_singbox

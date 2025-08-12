@@ -6,7 +6,7 @@ red="\033[1;91m"
 green="\e[1;32m"
 yellow="\e[1;33m"
 purple="\e[1;35m"
-skybule="\e[1;36m"
+skyblue="\e[1;36m"
 red() { echo -e "\e[1;91m$1\033[0m"; }
 green() { echo -e "\e[1;32m$1\033[0m"; }
 yellow() { echo -e "\e[1;33m$1\033[0m"; }
@@ -127,28 +127,21 @@ manage_packages() {
 
 # 获取ip
 get_realip() {
-  ip=$(curl -s --max-time 2 ipv4.ip.sb)
-  if [ -z "$ip" ]; then
-      ipv6=$(curl -s --max-time 1 ipv6.ip.sb)
-      echo "[$ipv6]"
-  else
-      if echo "$(curl -s http://ipinfo.io/org)" | grep -qE 'Cloudflare|UnReal|AEZA|Andrei'; then
-          ipv6=$(curl -s --max-time 1 ipv6.ip.sb)
-          echo "[$ipv6]"
-      else
-          RESPONSE=$(curl -s --max-time 8 "https://status.eooce.com/api/$ip")
-          if [[ $(echo "$RESPONSE" | jq -r '.status') == "Available" ]]; then
-              echo "$ip"
-          else
-              ipv6=$(curl -s --max-time 1 ipv6.ip.sb)
-              if [ -z "$ipv6" ]; then
-                  echo "$ip"
-              else
-                  echo "[$ipv6]"
-              fi
-          fi
-      fi
-  fi
+    ip=$(curl -4 -s -m 2 ip.sb)
+    ipv6() { curl -6 -s -m 2 ip.sb; }
+    if [ -z "$ip" ]; then
+        echo "[$(ipv6)]"
+    elif curl -4 -s -m 2 http://ipinfo.io/org | grep -qE 'Cloudflare|UnReal|AEZA|Andrei'; then
+        echo "[$(ipv6)]"
+    else
+        resp=$(curl -s -m 8 "https://status.eooce.com/api/$ip" | jq -r '.status')
+        if [ "$resp" = "Available" ]; then
+            echo "$ip"
+        else
+            v6=$(ipv6)
+            [ -n "$v6" ] && echo "[$v6]" || echo "$ip"
+        fi
+    fi
 }
 
 # 处理防火墙
@@ -373,18 +366,18 @@ cat > "${config_dir}" << EOF
     "final": "direct",
     "rule_set": [
       {
-        "download_detour": "direct",
-        "format": "binary",
         "tag": "netflix",
         "type": "remote",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/netflix.srs"
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/netflix.srs",
+        "download_detour": "direct"
       },
       {
-        "download_detour": "direct",
-        "format": "binary",
         "tag": "openai",
         "type": "remote",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs"
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs",
+        "download_detour": "direct"
       }
     ],
     "rules": [
@@ -504,7 +497,7 @@ get_info() {
 
   green "\nArgoDomain：${purple}$argodomain${re}\n"
 
-  VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"${CFIP}\", \"port\": \"${CFPORT}\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess-argo?ed=2048\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"randomized\", \"allowlnsecure\": \"flase\"}"
+  VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"${CFIP}\", \"port\": \"${CFPORT}\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess-argo?ed=2560\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"chrome\", \"allowlnsecure\": \"flase\"}"
 
   cat > ${work_dir}/url.txt <<EOF
 vless://${uuid}@${server_ip}:${vless_port}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=chrome&pbk=${public_key}&type=tcp&headerType=none#${isp}
@@ -519,17 +512,25 @@ echo ""
 while IFS= read -r line; do echo -e "${purple}$line"; done < ${work_dir}/url.txt
 base64 -w0 ${work_dir}/url.txt > ${work_dir}/sub.txt
 yellow "\n温馨提醒：需打开V2rayN或其他软件里的 “跳过证书验证”，或将节点的Insecure或TLS里设置为“true”\n"
-green "节点订阅链接：http://${server_ip}:${nginx_port}/${password}\n\n订阅链接适用于V2rayN,Nekbox,Sterisand,Loon,小火箭,圈X等\n"
-green "订阅二维码"
+green "V2rayN,Shadowrocket,Nekobox,Loon,Karing,Sterisand订阅链接：http://${server_ip}:${nginx_port}/${password}\n"
 $work_dir/qrencode "http://${server_ip}:${nginx_port}/${password}"
-echo ""
+yellow "\n=========================================================================================="
+green "\n\nClash,Mihomo系列订阅链接：https://sublink.eooce.com/clash?config=http://${server_ip}:${nginx_port}/${password}\n"
+$work_dir/qrencode "https://sublink.eooce.com/clash?config=http://${server_ip}:${nginx_port}/${password}"
+yellow "\n=========================================================================================="
+green "\n\nSing-box订阅链接：https://sublink.eooce.com/singbox?config=http://${server_ip}:${nginx_port}/${password}\n"
+$work_dir/qrencode "https://sublink.eooce.com/singbox?config=http://${server_ip}:${nginx_port}/${password}"
+yellow "\n=========================================================================================="
+green "\n\nSurge订阅链接：https://sublink.eooce.com/surge?config=http://${server_ip}:${nginx_port}/${password}\n"
+$work_dir/qrencode "https://sublink.eooce.com/surge?config=http://${server_ip}:${nginx_port}/${password}"
+yellow "\n==========================================================================================\n"
 }
 
 # 修复nginx因host无法安装的问题
 fix_nginx() {
     HOSTNAME=$(hostname)
     NGINX_CONFIG_FILE="/etc/nginx/nginx.conf"
-    grep -q "127.0.1.1 $HOSTNAME" /etc/hosts || echo "127.0.1.1 $HOSTNAME" | tee -a /etc/hosts >/dev/null
+    grep -q "127.0.1.1 $HOSTNAME" /etc/hosts || echo "127.0.1.1 $HOSTNAME" | tee -a /etc/hosts >/dev/null 2>&1
     id -u nginx >/dev/null 2>&1 || useradd -r -d /var/www -s /sbin/nologin nginx >/dev/null 2>&1
     grep -q "^user nginx;" $NGINX_CONFIG_FILE || sed -i "s/^user .*/user nginx;/" $NGINX_CONFIG_FILE >/dev/null 2>&1
 }
@@ -864,7 +865,9 @@ if [ ${check_singbox} -eq 0 ]; then
     skyblue "------------"
     green "5. 删除hysteria2端口跳跃"
     skyblue "------------"
-    purple "${purple}6. 返回主菜单"
+    green "6. 修改vmess-argo优选域名"
+    skyblue "------------"
+    purple "0. 返回主菜单"
     skyblue "------------"
     reading "请输入选择: " choice
     case "${choice}" in
@@ -876,7 +879,9 @@ if [ ${check_singbox} -eq 0 ]; then
             skyblue "------------"
             green "3. 修改tuic端口"
             skyblue "------------"
-            purple "4. 返回上一级菜单"
+            green "4. 修改vmess-argo端口"
+            skyblue "------------"
+            purple "0. 返回上一级菜单"
             skyblue "------------"
             reading "请输入选择: " choice
             case "${choice}" in
@@ -913,7 +918,38 @@ if [ ${check_singbox} -eq 0 ]; then
                     while IFS= read -r line; do yellow "$line"; done < ${work_dir}/url.txt
                     green "\ntuic端口已修改为：${purple}${new_port}${re} ${green}请更新订阅或手动更改tuic端口${re}\n"
                     ;;
-                4)  change_config ;;
+                4)  
+                    reading "\n请输入vmess-argo端口 (回车跳过将使用随机端口): " new_port
+                    [ -z "$new_port" ] && new_port=$(shuf -i 2000-65000 -n 1)
+                    sed -i '/"type": "vmess"/,/listen_port/ s/"listen_port": [0-9]\+/"listen_port": '"$new_port"'/' $config_dir
+                    allow_port $new_port/tcp > /dev/null 2>&1
+                    if [ -f /etc/alpine-release ]; then
+                        if grep -q "localhost:" /etc/init.d/argo; then
+                            sed -i 's/localhost:[0-9]\{1,\}/localhost:'"$new_port"'/' /etc/init.d/argo
+                            get_quick_tunnel
+                            change_argo_domain 
+                        fi
+                    else
+                        if grep -q "localhost:" /etc/systemd/system/argo.service; then
+                            sed -i 's/localhost:[0-9]\{1,\}/localhost:'"$new_port"'/' /etc/systemd/system/argo.service
+                            get_quick_tunnel
+                            change_argo_domain 
+                        fi
+                    fi
+
+                    if [ -f /etc/sing-box/tunnel.yml ]; then
+                        sed -i 's/localhost:[0-9]\{1,\}/localhost:'"$new_port"'/' /etc/sing-box/tunnel.yml
+                        restart_argo
+                    fi
+
+                    if grep -q "--token" /etc/systemd/system/argo.service || grep -q "--token" /etc/init.d/argo; then
+                        red "请在cloudflared里也对应修改端口为：${purple}${new_port}${re}\n"
+                    fi
+
+                    restart_singbox
+                    green "\nvmess-argo端口已修改为：${purple}${new_port}${re}\n"
+                    ;;                    
+                0)  change_config ;;
                 *)  red "无效的选项，请输入 1 到 4" ;;
             esac
             ;;
@@ -931,7 +967,7 @@ if [ ${check_singbox} -eq 0 ]; then
             sed -i "s/tuic:\/\/[0-9a-f\-]\{36\}/tuic:\/\/$new_uuid/" /etc/sing-box/url.txt
             isp=$(curl -s https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g')
             argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
-            VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"www.visa.com.tw\", \"port\": \"443\", \"id\": \"${new_uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess-argo?ed=2048\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"\", \"allowlnsecure\": \"flase\"}"
+            VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"www.visa.com.tw\", \"port\": \"443\", \"id\": \"${new_uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess-argo?ed=2560\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"\", \"allowlnsecure\": \"flase\"}"
             encoded_vmess=$(echo "$VMESS" | base64 -w0)
             sed -i -E '/vmess:\/\//{s@vmess://.*@vmess://'"$encoded_vmess"'@}' $client_dir
             base64 -w0 $client_dir > /etc/sing-box/sub.txt
@@ -952,7 +988,7 @@ if [ ${check_singbox} -eq 0 ]; then
                     new_sni="www.wedgehr.com"
                 elif [[ "$new_sni" == "4" ]]; then
                     new_sni="www.cerebrium.ai"
-	        elif [[ "$new_sni" == "5" ]]; then
+	            elif [[ "$new_sni" == "5" ]]; then
                     new_sni="www.nazhumi.com"
                 else
                     new_sni="$new_sni"
@@ -1037,7 +1073,8 @@ EOF
             base64 -w0 $client_dir > /etc/sing-box/sub.txt
             green "\n端口跳跃已删除\n"
             ;;
-        6)  menu ;;
+        6)  change_cfip ;;
+        0)  menu ;;
         *)  read "无效的选项！" ;; 
     esac
 else
@@ -1279,7 +1316,7 @@ encoded_vmess="${vmess_url#"$vmess_prefix"}"
 decoded_vmess=$(echo "$encoded_vmess" | base64 --decode)
 updated_vmess=$(echo "$decoded_vmess" | jq --arg new_domain "$ArgoDomain" '.host = $new_domain | .sni = $new_domain')
 encoded_updated_vmess=$(echo "$updated_vmess" | base64 | tr -d '\n')
-new_vmess_url="$vmess_prefix$encoded_updated_vmess"
+new_vmess_url="${vmess_prefix}${encoded_updated_vmess}"
 new_content=$(echo "$content" | sed "s|$vmess_url|$new_vmess_url|")
 echo "$new_content" > "$client_dir"
 base64 -w0 ${work_dir}/url.txt > ${work_dir}/sub.txt
@@ -1300,6 +1337,60 @@ else
     sleep 1
     menu
 fi
+}
+
+change_cfip() {
+    clear
+    yellow "修改vmess-argo优选域名\n"
+    green "1: cf.090227.xyz   2: cf.877774.xyz  3: time.is  4: ip.sb\n"
+    reading "请输入你的优选域名或优选IP\n(请输入1至4或自定义输入,可输入域名:端口 或 IP:端口,直接回车默认使用1): " cfip_input
+
+    if [ -z "$cfip_input" ]; then
+        cfip="cf.090227.xyz"
+        cfport="443"
+    else
+        case "$cfip_input" in
+            "1")
+                cfip="cf.090227.xyz"
+                cfport="443"
+                ;;
+            "2")
+                cfip="cf.877774.xyz"
+                cfport="443"
+                ;;
+            "3")
+                cfip="time.is"
+                cfport="443"
+                ;;
+            "4")
+                cfip="ip.sb"
+                cfport="443"
+                ;;
+            *)
+                if [[ "$cfip_input" =~ : ]]; then
+                    cfip=$(echo "$cfip_input" | cut -d':' -f1)
+                    cfport=$(echo "$cfip_input" | cut -d':' -f2)
+                else
+                    cfip="$cfip_input"
+                    cfport="443"
+                fi
+                ;;
+        esac
+    fi
+
+content=$(cat "$client_dir")
+vmess_url=$(grep -o 'vmess://[^ ]*' "$client_dir")
+encoded_part="${vmess_url#vmess://}"
+decoded_json=$(echo "$encoded_part" | base64 --decode 2>/dev/null)
+updated_json=$(echo "$decoded_json" | jq --arg cfip "$cfip" --argjson cfport "$cfport" \
+    '.add = $cfip | .port = $cfport')
+new_encoded_part=$(echo "$updated_json" | base64 -w0)
+new_vmess_url="vmess://$new_encoded_part"
+new_content=$(echo "$content" | sed "s|$vmess_url|$new_vmess_url|")
+echo "$new_content" > "$client_dir"
+base64 -w0 "${work_dir}/url.txt" > "${work_dir}/sub.txt"
+green "\nvmess节点优选域名已更新为：${purple}${cfip}:${cfport}${re},更新订阅或手动复制以下vmess-argo节点\n"
+purple "$new_vmess_url\n"
 }
 
 # 主菜单
@@ -1376,7 +1467,7 @@ while true; do
         7) disable_open_sub ;;
         8) 
            clear
-           curl -fsSL https://raw.githubusercontent.com/eooce/ssh_tool/main/ssh_tool.sh -o ssh_tool.sh && chmod +x ssh_tool.sh && ./ssh_tool.sh
+           bash <(curl -Ls ssh_tool.eooce.com)
            ;;           
         0) exit 0 ;;
         *) red "无效的选项，请输入 0 到 8" ;; 

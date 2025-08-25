@@ -1,4 +1,2 @@
-rich
-Flask
+dotenv
 requests
-pyOpenSSL

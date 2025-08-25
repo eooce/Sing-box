@@ -1,7 +1,22 @@
+<div align="center">
+
+# sing-box多协议代理工具
+
+![Debian](https://img.shields.io/badge/Debian-A81D33?logo=debian&logoColor=white)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?logo=ubuntu&logoColor=white)
+![Fedora](https://img.shields.io/badge/Fedora-294172?logo=fedora&logoColor=white)
+![Alpine](https://img.shields.io/badge/Alpine-0D597F?logo=alpinelinux&logoColor=white)
+![Red Hat](https://img.shields.io/badge/Red%20Hat-EE0000?logo=redhat&logoColor=white)
+[![npm](https://img.shields.io/badge/npm-CB3837?logo=npm&logoColor=white)](https://www.npmjs.com/package/node-sbx)
+[![PyPI](https://img.shields.io/badge/PyPI-3775A9?logo=pypi&logoColor=white)](https://pypi.org/project/singbox)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?&logo=docker&logoColor=white)](https://hub.docker.com/r/eooce/sbx)
+
+sing-box是一个强大的代理脚本，多种环境下使用。它支持多种代理协议（VLESS-reality-verison、VMess-ws-tls(tunnel)、Hysteria2、Tuic），并集成了哪吒(v0/v1)探针功能。
+
+</div>
+
+
 # 1：vps一键命令，已集成到ssh工具箱中
-* 一键四协议安装脚本，支持纯v6 VPS，支持订阅，默认解锁GPT和奈飞
-* 最好用的四协议组合vless-reality|vmess-ws-tls(argo)|hysteria2|tuic5
-* 支持的系统：Ubuntu/Debian/CentOS/Alpine/Fedora/Rocky/Almalinux/kail
 * 注意nat小鸡安装完一键脚本之后需手动更改订阅端口和节点端口在允许范围内的端口，否则节点不通
 * 可在脚本前添加PORT变量，随脚本一起运行，即可定义端口，需确保PORT端口后面的3个端口可用，否则节点不通
 * 可选环境变量PORT CFIP CFPORT

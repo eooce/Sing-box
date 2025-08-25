@@ -1,39 +1,113 @@
 import os
-import json
-import subprocess
-import base64
-import time
-import requests
-import random
-import string
-import OpenSSL
 import re
-from pathlib import Path
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from rich.console import Console
+import json
+import time
+import base64
+import shutil
+import asyncio
+import requests
+import platform
+import subprocess
+import threading
+from threading import Thread
+from dotenv import load_dotenv
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-console = Console()
+load_dotenv()
 
-# 配置环境变量
-ENV = {
-    'UUID': os.getenv('UUID', 'cfa8c36c-9652-484a-89e1-34dcc98faac3'),  # 默认UUID
-    'NEZHA_SERVER': os.getenv('NEZHA_SERVER', 'nz.abc.cn'),             # 哪吒面板地址
-    'NEZHA_PORT': os.getenv('NEZHA_PORT', '5555'),                      # 哪吒agent端口，为{443,8443,2096,2087,2083,2053}时自动开启tls
-    'NEZHA_KEY': os.getenv('NEZHA_KEY', ''),                            # 哪吒密钥
-    'ARGO_DOMAIN': os.getenv('ARGO_DOMAIN', ''),                        # 固定隧道Argo域名，留空即使用临时隧道
-    'ARGO_AUTH': os.getenv('ARGO_AUTH', ''),                            # 固定argo隧道密钥，token或json，留空即使用临时隧道
-    'CFIP': os.getenv('CFIP', 'www.visa.com.tw'),                       # 优选域名或优选ip
-    'CFPORT': os.getenv('CFPORT', '8443'),                              # 优选域名或优选ip对应端口
-    'NAME': os.getenv('NAME', 'AAA'),                                   # 节点名称
-    'FILE_PATH': os.getenv('FILE_PATH', './.cache'),                    # 节点文件路径
-    'ARGO_PORT': os.getenv('ARGO_PORT', '8001'),                        # ARGO端口,使用固定隧道token时,cloudflared 后台设置和需这里一致
-    'TUIC_PORT': os.getenv('TUIC_PORT', '40000'),                       # TUIC端口,支持多端口的容器或玩具可以填写，否则不动
-    'HY2_PORT': os.getenv('HY2_PORT', '50000'),                         # HY2端口，支持多端口的容器或玩具可以填写，否则不动
-    'REALITY_PORT': os.getenv('REALITY_PORT', '60000'),                 # REALITY端口，支持多端口的容器或玩具可以填写，否则不动
-    'PORT': os.getenv('PORT', '7860'),                                  # HTTP订阅端口，支持多端口可以订阅的可以填写开启订阅，否则不动
-    'TELEGRAM_BOT_TOKEN': os.getenv('TELEGRAM_BOT_TOKEN', ''),          # Telegram Bot Token
-    'TELEGRAM_CHAT_ID': os.getenv('TELEGRAM_CHAT_ID', ''),              # Telegram Chat ID
-}
+# Environment variables
+UPLOAD_URL = os.environ.get('UPLOAD_URL', '')          # 节点或订阅上传地址,只填写这个地址将上传节点,同时填写PROJECT_URL将上传订阅
+PROJECT_URL = os.environ.get('PROJECT_URL', '')        # 项目url,需要自动保活或自动上传订阅需要填写,例如：https://www.google.com,
+AUTO_ACCESS = os.environ.get('AUTO_ACCESS', 'false').lower() == 'true'  # false关闭自动保活, true开启自动保活，默认关闭
+FILE_PATH = os.environ.get('FILE_PATH', './.cache')    # 运行路径,sub.txt保存路径
+SUB_PATH = os.environ.get('SUB_PATH', 'sub')           # 订阅token,默认sub，例如：https://www.google.com/sub
+UUID = os.environ.get('UUID', 'f929c4da-dc2e-4e0d-9a6f-1799036af214')  # UUID,如使用哪吒v1,在不同的平台部署需要修改,否则会覆盖
+NEZHA_SERVER = os.environ.get('NEZHA_SERVER', '')      # 哪吒面板域名或ip, v1格式: nz.serv00.net:8008, v0格式: nz.serv00.net
+NEZHA_PORT = os.environ.get('NEZHA_PORT', '')          # v1哪吒请留空, v0哪吒的agent通信端口
+NEZHA_KEY = os.environ.get('NEZHA_KEY', 'nezha123@')   # v1哪吒的NZ_CLIENT_SECRET或v0哪吒agent密钥
+ARGO_DOMAIN = os.environ.get('ARGO_DOMAIN', '')        # Argo固定隧道域名,留空即使用临时隧道
+ARGO_AUTH = os.environ.get('ARGO_AUTH', '')            # Argo固定隧道密钥,留空即使用临时隧道
+ARGO_PORT = int(os.environ.get('ARGO_PORT', '8001'))   # Argo端口,使用固定隧道token需在cloudflare后台设置端口和这里一致
+TUIC_PORT_STR = os.environ.get('TUIC_PORT', '')        # tuic端口,支持多端口的玩具可以填写开启,否则保持不变
+HY2_PORT_STR = os.environ.get('HY2_PORT', '')          # hy2端口,支持多端口的玩具可以填写开启,否则保持不变
+REALITY_PORT_STR = os.environ.get('REALITY_PORT', '')  # Reality端口,支持多端口的玩具可以填写开启,否则保持不变
+CFIP = os.environ.get('CFIP', 'time.is')               # 优选ip或优选域名
+CFPORT = int(os.environ.get('CFPORT', '443'))          # 优选ip或优选域名对应端口
+PORT = int(os.environ.get('PORT', '3000'))             # http服务端口,订阅端口
+NAME = os.environ.get('NAME', '')                      # 节点名称
+CHAT_ID = os.environ.get('CHAT_ID', '')                # Telegram chat_id,推送节点到tg,两个便来给你同时填写才会推送
+BOT_TOKEN = os.environ.get('BOT_TOKEN', '')            # Telegram bot_token
+
+# Create running folder
+def create_directory():
+    print('\033c', end='')
+    if not os.path.exists(FILE_PATH):
+        os.makedirs(FILE_PATH)
+        print(f"{FILE_PATH} is created")
+    else:
+        print(f"{FILE_PATH} already exists")
+
+# 端口变量赋值
+TUIC_PORT = int(TUIC_PORT_STR) if TUIC_PORT_STR and TUIC_PORT_STR.isdigit() else None
+HY2_PORT = int(HY2_PORT_STR) if HY2_PORT_STR and HY2_PORT_STR.isdigit() else None
+REALITY_PORT = int(REALITY_PORT_STR) if REALITY_PORT_STR and REALITY_PORT_STR.isdigit() else None
+
+# Global variables
+private_key = ''
+public_key = ''
+npm_path = os.path.join(FILE_PATH, 'npm')
+php_path = os.path.join(FILE_PATH, 'php')
+web_path = os.path.join(FILE_PATH, 'web')
+bot_path = os.path.join(FILE_PATH, 'bot')
+sub_path = os.path.join(FILE_PATH, 'sub.txt')
+list_path = os.path.join(FILE_PATH, 'list.txt')
+boot_log_path = os.path.join(FILE_PATH, 'boot.log')
+config_path = os.path.join(FILE_PATH, 'config.json')
+
+# Delete nodes
+def delete_nodes():
+    try:
+        if not UPLOAD_URL:
+            return
+
+        if not os.path.exists(sub_path):
+            return
+
+        try:
+            with open(sub_path, 'r') as file:
+                file_content = file.read()
+        except:
+            return None
+
+        decoded = base64.b64decode(file_content).decode('utf-8')
+        nodes = [line for line in decoded.split('\n') if any(protocol in line for protocol in ['vless://', 'vmess://', 'trojan://', 'hysteria2://', 'tuic://'])]
+
+        if not nodes:
+            return
+
+        try:
+            requests.post(f"{UPLOAD_URL}/api/delete-nodes", 
+                          data=json.dumps({"nodes": nodes}),
+                          headers={"Content-Type": "application/json"})
+        except:
+            return None
+    except Exception as e:
+        print(f"Error in delete_nodes: {e}")
+        return None
+
+# Clean up old files
+def cleanup_old_files():
+    paths_to_delete = ['web', 'bot', 'npm', 'boot.log', 'list.txt']
+    for file in paths_to_delete:
+        file_path = os.path.join(FILE_PATH, file)
+        try:
+            if os.path.exists(file_path):
+                if os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+                else:
+                    os.remove(file_path)
+        except Exception as e:
+            print(f"Error removing {file_path}: {e}")
 
 class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -43,9 +117,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'Hello World')
             
-        elif self.path == '/sub':
+        elif self.path == f'/{SUB_PATH}':
             try:
-                with open(f"{ENV['FILE_PATH']}/sub.txt", 'rb') as f:
+                with open(sub_path, 'rb') as f:
                     content = f.read()
                 self.send_response(200)
                 self.send_header('Content-type', 'text/plain')
@@ -53,468 +127,675 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(content)
             except:
                 self.send_response(404)
-                self.end_headers()             
+                self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
 
-def send_telegram():
-    """发送 Telegram 消息"""
-    TELEGRAM_BOT_TOKEN = ENV['TELEGRAM_BOT_TOKEN']
-    TELEGRAM_CHAT_ID = ENV['TELEGRAM_CHAT_ID']
-    FILE_PATH = Path(ENV['FILE_PATH'])
-    NAME = ENV.get('NAME', 'Node')  # 获取NAME，如果不存在则默认为'Node'
+    def log_message(self, format, *args):
+        pass
+    
+# Determine system architecture
+def get_system_architecture():
+    architecture = platform.machine().lower()
+    if 'arm' in architecture or 'aarch64' in architecture:
+        return 'arm'
+    else:
+        return 'amd'
 
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        console.print("\n[bold magenta]Telegram bot token or chat ID is empty. Skip pushing nodes to TG[/bold magenta]")
+# Download file based on architecture
+def download_file(file_name, file_url):
+    file_path = os.path.join(FILE_PATH, file_name)
+    try:
+        response = requests.get(file_url, stream=True)
+        response.raise_for_status()
+        
+        with open(file_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        
+        print(f"Download {file_name} successfully")
+        return True
+    except Exception as e:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        print(f"Download {file_name} failed: {e}")
+        return False
+
+# Get files for architecture
+def get_files_for_architecture(architecture):
+    if architecture == 'arm':
+        base_files = [
+            {"fileName": "web", "fileUrl": "https://arm64.ssss.nyc.mn/sb"},
+            {"fileName": "bot", "fileUrl": "https://arm64.ssss.nyc.mn/2go"}
+        ]
+    else:
+        base_files = [
+            {"fileName": "web", "fileUrl": "https://amd64.ssss.nyc.mn/sb"},
+            {"fileName": "bot", "fileUrl": "https://amd64.ssss.nyc.mn/2go"}
+        ]
+
+    if NEZHA_SERVER and NEZHA_KEY:
+        if NEZHA_PORT:
+            npm_url = "https://arm64.ssss.nyc.mn/agent" if architecture == 'arm' else "https://amd64.ssss.nyc.mn/agent"
+            base_files.insert(0, {"fileName": "npm", "fileUrl": npm_url})
+        else:
+            php_url = "https://arm64.ssss.nyc.mn/v1" if architecture == 'arm' else "https://amd64.ssss.nyc.mn/v1"
+            base_files.insert(0, {"fileName": "php", "fileUrl": php_url})
+
+    return base_files
+
+# Authorize files with execute permission
+def authorize_files(file_paths):
+    for relative_file_path in file_paths:
+        absolute_file_path = os.path.join(FILE_PATH, relative_file_path)
+        if os.path.exists(absolute_file_path):
+            try:
+                os.chmod(absolute_file_path, 0o775)
+                print(f"Empowerment success for {absolute_file_path}: 775")
+            except Exception as e:
+                print(f"Empowerment failed for {absolute_file_path}: {e}")
+
+# Configure Argo tunnel
+def argo_type():
+    if not ARGO_AUTH or not ARGO_DOMAIN:
+        print("ARGO_DOMAIN or ARGO_AUTH variable is empty, use quick tunnels")
         return
 
-    try:
-        with open(FILE_PATH / 'sub.txt', 'r', encoding='utf-8') as file:
-            message = file.read().strip()
-
-        # 处理特殊字符
-        escaped_name = NAME
-        for char in '_*[]()~`>#+=|{}.!-':
-            escaped_name = escaped_name.replace(char, f'\\{char}')
-
-        # 构建Markdown格式的消息
-        formatted_message = f"**{escaped_name}节点推送通知**\n```\n{message}\n```"
-
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        params = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": formatted_message,
-            "parse_mode": "MarkdownV2"
-        }
+    if "TunnelSecret" in ARGO_AUTH:
+        with open(os.path.join(FILE_PATH, 'tunnel.json'), 'w') as f:
+            f.write(ARGO_AUTH)
         
-        response = requests.post(url, params=params)
+        tunnel_id = ARGO_AUTH.split('"')[11]
+        tunnel_yml = f"""
+tunnel: {tunnel_id}
+credentials-file: {os.path.join(FILE_PATH, 'tunnel.json')}
+protocol: http2
 
-        if response.status_code == 200:
-            console.print("\n[bold green]Telegram message sent successfully[/bold green]")
-        else:
-            console.print(f"\n[bold red]Failed to send Telegram message. Status code: {response.status_code}[/bold red]")
-    except Exception as e:
-        console.print(f"\n[bold red]Failed to send Telegram message: {e}[/bold red]")
-
-def generate_cert():
-    key = OpenSSL.crypto.PKey()
-    key.generate_key(OpenSSL.crypto.TYPE_RSA, 2048)
-    
-    cert = OpenSSL.crypto.X509()
-    cert.get_subject().CN = "bing.com"
-    cert.set_serial_number(1000)
-    cert.gmtime_adj_notBefore(0)
-    cert.gmtime_adj_notAfter(10*365*24*60*60)
-    cert.set_issuer(cert.get_subject())
-    cert.set_pubkey(key)
-    cert.sign(key, 'sha256')
-    
-    with open("cert.pem", "wb") as f:
-        f.write(OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, cert))
-    with open("private.key", "wb") as f:
-        f.write(OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, key))
-
-def download_files():
-    arch = os.uname().machine
-    if arch in ['arm', 'arm64', 'aarch64']:
-        files = {
-            'web': 'https://arm64.ssss.nyc.mn/sb',
-            'bot': 'https://arm64.ssss.nyc.mn/bot',
-            'npm': 'https://arm64.ssss.nyc.mn/agent'
-        }
+ingress:
+  - hostname: {ARGO_DOMAIN}
+    service: http://localhost:{ARGO_PORT}
+    originRequest:
+      noTLSVerify: true
+  - service: http_status:404
+"""
+        with open(os.path.join(FILE_PATH, 'tunnel.yml'), 'w') as f:
+            f.write(tunnel_yml)
     else:
-        files = {
-            'web': 'https://amd64.ssss.nyc.mn/sb',
-            'bot': 'https://amd64.ssss.nyc.mn/2go',
-            'npm': 'https://amd64.ssss.nyc.mn/agent'
-        }
-    
-    file_map = {}
-    for name, url in files.items():
-        random_name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
-        try:
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
-            with open(random_name, 'wb') as f:
-                f.write(response.content)
-            os.chmod(random_name, 0o755)
-            file_map[name] = random_name
-            console.print(f"[bold green]Downloaded {random_name} successfully[/bold green]")
-        except Exception as e:
-            console.print(f"[bold red]Failed to download {random_name}: {str(e)}[/bold red]")
-    
-    return file_map
+        print("ARGO_AUTH mismatch TunnelSecret, use token connect to tunnel")
 
-def generate_reality_keypair(web_file):
-    cmd = f'./{web_file} generate reality-keypair'
-    output = subprocess.check_output(cmd, shell=True).decode()
-    private_key = ''
-    public_key = ''
-    for line in output.splitlines():
-        if 'PrivateKey:' in line:
-            private_key = line.split()[1]
-        elif 'PublicKey:' in line:
-            public_key = line.split()[1]
-    return private_key, public_key
+# Execute shell command and return output
+def exec_cmd(command):
+    try:
+        process = subprocess.Popen(
+            command, 
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        stdout, stderr = process.communicate()
+        return stdout + stderr
+    except Exception as e:
+        print(f"Error executing command: {e}")
+        return str(e)
 
-def generate_config(file_map):
-    private_key, public_key = generate_reality_keypair(file_map['web'])
+# Download and run necessary files
+async def download_files_and_run():
+    global private_key, public_key
     
+    architecture = get_system_architecture()
+    files_to_download = get_files_for_architecture(architecture)
+    
+    if not files_to_download:
+        print("Can't find a file for the current architecture")
+        return
+    
+    # Download all files
+    download_success = True
+    for file_info in files_to_download:
+        if not download_file(file_info["fileName"], file_info["fileUrl"]):
+            download_success = False
+    
+    if not download_success:
+        print("Error downloading files")
+        return
+    
+    # Authorize files
+    files_to_authorize = ['npm', 'web', 'bot'] if NEZHA_PORT else ['php', 'web', 'bot']
+    authorize_files(files_to_authorize)
+    
+    # Check TLS
+    port = NEZHA_SERVER.split(":")[-1] if ":" in NEZHA_SERVER else ""
+    if port in ["443", "8443", "2096", "2087", "2083", "2053"]:
+        nezha_tls = "tls"
+    else:
+        nezha_tls = "false"
+
+    # Configure nezha
+    if NEZHA_SERVER and NEZHA_KEY:
+        if not NEZHA_PORT:
+            # Generate config.yaml for v1
+            config_yaml = f"""
+client_secret: {NEZHA_KEY}
+debug: false
+disable_auto_update: true
+disable_command_execute: false
+disable_force_update: true
+disable_nat: false
+disable_send_query: false
+gpu: false
+insecure_tls: false
+ip_report_period: 1800
+report_delay: 1
+server: {NEZHA_SERVER}
+skip_connection_count: false
+skip_procs_count: false
+temperature: false
+tls: {nezha_tls}
+use_gitee_to_upgrade: false
+use_ipv6_country_code: false
+uuid: {UUID}"""
+            
+            with open(os.path.join(FILE_PATH, 'config.yaml'), 'w') as f:
+                f.write(config_yaml)
+    
+    # Generate reality-keypair
+    keypair_output = exec_cmd(f"{os.path.join(FILE_PATH, 'web')} generate reality-keypair")
+    
+    # Extract private and public keys
+    private_key_match = re.search(r'PrivateKey:\s*(.*)', keypair_output)
+    public_key_match = re.search(r'PublicKey:\s*(.*)', keypair_output)
+    
+    if private_key_match and public_key_match:
+        private_key = private_key_match.group(1)
+        public_key = public_key_match.group(1)
+        
+        print(f'Private Key: {private_key}')
+        print(f'Public Key: {public_key}')
+    else:
+        print('Failed to extract privateKey or publicKey from output.')
+        return
+    
+    # Generate private.key
+    exec_cmd('openssl ecparam -genkey -name prime256v1 -out "private.key"')
+    
+    # Generate cert.pem
+    exec_cmd('openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=bing.com"')
+    
+    # Generate configuration file
     config = {
         "log": {
-            "disabled": False,
+            "disabled": True,
             "level": "info",
             "timestamp": True
         },
         "dns": {
             "servers": [
                 {
-                    "tag": "google",
-                    "address": "tls://8.8.8.8"
+                    "address": "8.8.8.8",
+                    "address_resolver": "local"
+                },
+                {
+                    "tag": "local",
+                    "address": "local"
                 }
             ]
         },
         "inbounds": [
             {
-                "tag": "vless-ws-in",
-                "type": "vless",
+                "tag": "vmess-ws-in",
+                "type": "vmess",
                 "listen": "::",
-                "listen_port": int(ENV['ARGO_PORT']),
+                "listen_port": ARGO_PORT,
                 "users": [
                     {
-                        "uuid": ENV['UUID']
+                        "uuid": UUID
                     }
                 ],
                 "transport": {
                     "type": "ws",
-                    "path": "/vless",
+                    "path": "/vmess-argo",
                     "early_data_header_name": "Sec-WebSocket-Protocol"
-                }
-            },
-            {
-                "tag": "tuic-in",
-                "type": "tuic",
-                "listen": "::",
-                "listen_port": int(ENV['TUIC_PORT']),
-                "users": [
-                    {
-                        "uuid": ENV['UUID'],
-                        "password": "admin"
-                    }
-                ],
-                "congestion_control": "bbr",
-                "tls": {
-                    "enabled": True,
-                    "alpn": ["h3"],
-                    "certificate_path": "cert.pem",
-                    "key_path": "private.key"
-                }
-            },
-            {
-                "tag": "hysteria2-in",
-                "type": "hysteria2",
-                "listen": "::",
-                "listen_port": int(ENV['HY2_PORT']),
-                "users": [
-                    {
-                        "password": ENV['UUID']
-                    }
-                ],
-                "masquerade": "https://bing.com",
-                "tls": {
-                    "enabled": True,
-                    "alpn": ["h3"],
-                    "certificate_path": "cert.pem",
-                    "key_path": "private.key"
-                }
-            },
-            {
-                "tag": "vless-reality-vesion",
-                "type": "vless",
-                "listen": "::",
-                "listen_port": int(ENV['REALITY_PORT']),
-                "users": [
-                    {
-                        "uuid": ENV['UUID'],
-                        "flow": "xtls-rprx-vision"
-                    }
-                ],
-                "tls": {
-                    "enabled": True,
-                    "server_name": "who.cx",
-                    "reality": {
-                        "enabled": True,
-                        "handshake": {
-                            "server": "who.cx",
-                            "server_port": 443
-                        },
-                        "private_key": private_key,
-                        "short_id": [""]
-                    }
                 }
             }
         ],
         "outbounds": [
-            {"type": "direct", "tag": "direct"},
-            {"type": "direct", "tag": "direct-ipv4-prefer-out", "domain_strategy": "prefer_ipv4"},
-            {"type": "direct", "tag": "direct-ipv4-only-out", "domain_strategy": "ipv4_only"},
-            {"type": "direct", "tag": "direct-ipv6-prefer-out", "domain_strategy": "prefer_ipv6"},
-            {"type": "direct", "tag": "direct-ipv6-only-out", "domain_strategy": "ipv6_only"},
+            {
+                "type": "direct",
+                "tag": "direct"
+            },
+            {
+                "type": "block",
+                "tag": "block"
+            },
             {
                 "type": "wireguard",
                 "tag": "wireguard-out",
-                "server": "engage.cloudflareclient.com",
-                "server_port": 2408,
+                "server": "162.159.195.100",
+                "server_port": 4500,
                 "local_address": [
                     "172.16.0.2/32",
-                    "2606:4700:110:812a:4929:7d2a:af62:351c/128"
+                    "2606:4700:110:83c7:b31f:5858:b3a8:c6b1/128"
                 ],
-                "private_key": "gBthRjevHDGyV0KvYwYE52NIPy29sSrVr6rcQtYNcXA=",
+                "private_key": "mPZo+V9qlrMGCZ7+E6z2NI6NOV34PD++TpAR09PtCWI=",
                 "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-                "reserved": [6, 146, 6]
+                "reserved": [26, 21, 228]
             }
         ],
         "route": {
             "rule_set": [
                 {
-                    "tag": "geosite-netflix",
+                    "tag": "netflix",
                     "type": "remote",
                     "format": "binary",
                     "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-netflix.srs",
-                    "update_interval": "1d"
+                    "download_detour": "direct"
                 },
                 {
-                    "tag": "geosite-openai",
+                    "tag": "openai",
                     "type": "remote",
                     "format": "binary",
                     "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs",
-                    "update_interval": "1d"
+                    "download_detour": "direct"
                 }
             ],
             "rules": [
-              {
-                "ip_is_private": True,
-                "outbound": "direct"
-              },
-              {
-                "rule_set": ["geosite-openai"],
-                "outbound": "wireguard-out"
-              },
-              {
-                "rule_set": ["geosite-netflix"],
-                "outbound": "wireguard-out"
-              }
+                {
+                    "rule_set": ["openai", "netflix"],
+                    "outbound": "wireguard-out"
+                }
             ],
             "final": "direct"
-        },
-        "experimental": {
-            "cache_file": {
-                "path": "cache.db",
-                "cache_id": "mycacheid",
-                "store_fakeip": True
-            }
         }
     }
     
-    with open('config.json', 'w') as f:
+    # 根据端口变量动态添加配置
+    if REALITY_PORT and REALITY_PORT > 0:
+        reality_config = {
+            "tag": "vless-in",
+            "type": "vless",
+            "listen": "::",
+            "listen_port": REALITY_PORT,
+            "users": [
+                {
+                    "uuid": UUID,
+                    "flow": "xtls-rprx-vision"
+                }
+            ],
+            "tls": {
+                "enabled": True,
+                "server_name": "www.iij.ad.jp",
+                "reality": {
+                    "enabled": True,
+                    "handshake": {
+                        "server": "www.iij.ad.jp",
+                        "server_port": 443
+                    },
+                    "private_key": private_key,
+                    "short_id": [""]
+                }
+            }
+        }
+        config["inbounds"].append(reality_config)
+    
+    if HY2_PORT and HY2_PORT > 0:
+        hysteria_config = {
+            "tag": "hysteria-in",
+            "type": "hysteria2",
+            "listen": "::",
+            "listen_port": HY2_PORT,
+            "users": [
+                {
+                    "password": UUID
+                }
+            ],
+            "masquerade": "https://bing.com",
+            "tls": {
+                "enabled": True,
+                "alpn": ["h3"],
+                "certificate_path": "cert.pem",
+                "key_path": "private.key"
+            }
+        }
+        config["inbounds"].append(hysteria_config)
+    
+    if TUIC_PORT and TUIC_PORT > 0:
+        tuic_config = {
+            "tag": "tuic-in",
+            "type": "tuic",
+            "listen": "::",
+            "listen_port": TUIC_PORT,
+            "users": [
+                {
+                    "uuid": UUID
+                }
+            ],
+            "congestion_control": "bbr",
+            "tls": {
+                "enabled": True,
+                "alpn": ["h3"],
+                "certificate_path": "cert.pem",
+                "key_path": "private.key"
+            }
+        }
+        config["inbounds"].append(tuic_config)
+    
+    with open(config_path, 'w') as f:
         json.dump(config, f, indent=2)
     
-    return public_key
+    # Run nezha
+    if NEZHA_SERVER and NEZHA_PORT and NEZHA_KEY:
+        tls_ports = ['443', '8443', '2096', '2087', '2083', '2053']
+        nezha_tls = '--tls' if NEZHA_PORT in tls_ports else ''
+        command = f"nohup {os.path.join(FILE_PATH, 'npm')} -s {NEZHA_SERVER}:{NEZHA_PORT} -p {NEZHA_KEY} {nezha_tls} >/dev/null 2>&1 &"
+        
+        try:
+            exec_cmd(command)
+            print('npm is running')
+            time.sleep(1)
+        except Exception as e:
+            print(f"npm running error: {e}")
+    
+    elif NEZHA_SERVER and NEZHA_KEY:
+        # Run V1
+        command = f"nohup {FILE_PATH}/php -c \"{FILE_PATH}/config.yaml\" >/dev/null 2>&1 &"
+        try:
+            exec_cmd(command)
+            print('php is running')
+            time.sleep(1)
+        except Exception as e:
+            print(f"php running error: {e}")
+    else:
+        print('NEZHA variable is empty, skipping running')
+    
+    # Run sbX
+    command = f"nohup {os.path.join(FILE_PATH, 'web')} run -c {os.path.join(FILE_PATH, 'config.json')} >/dev/null 2>&1 &"
+    try:
+        exec_cmd(command)
+        print('web is running')
+        time.sleep(1)
+    except Exception as e:
+        print(f"web running error: {e}")
+    
+    # Run cloudflared
+    if os.path.exists(os.path.join(FILE_PATH, 'bot')):
+        if re.match(r'^[A-Z0-9a-z=]{120,250}$', ARGO_AUTH):
+            args = f"tunnel --edge-ip-version auto --no-autoupdate --protocol http2 run --token {ARGO_AUTH}"
+        elif "TunnelSecret" in ARGO_AUTH:
+            args = f"tunnel --edge-ip-version auto --config {os.path.join(FILE_PATH, 'tunnel.yml')} run"
+        else:
+            args = f"tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile {os.path.join(FILE_PATH, 'boot.log')} --loglevel info --url http://localhost:{ARGO_PORT}"
+        
+        try:
+            exec_cmd(f"nohup {os.path.join(FILE_PATH, 'bot')} {args} >/dev/null 2>&1 &")
+            print('bot is running')
+            time.sleep(2)
+        except Exception as e:
+            print(f"Error executing command: {e}")
+    
+    time.sleep(5)
+    
+    # Extract domains and generate sub.txt
+    await extract_domains()
 
-def configure_argo():
-    """配置Argo"""
-    if not ENV['ARGO_AUTH'] or not ENV['ARGO_DOMAIN']:
-        console.print("\n[bold green]ARGO_DOMAIN or ARGO_AUTH variable is empty, use quick tunnels[/bold green]")
+# Extract domains from cloudflared logs
+async def extract_domains():
+    argo_domain = None
+
+    if ARGO_AUTH and ARGO_DOMAIN:
+        argo_domain = ARGO_DOMAIN
+        print(f'ARGO_DOMAIN: {argo_domain}')
+        await generate_links(argo_domain)
+    else:
+        try:
+            with open(boot_log_path, 'r') as f:
+                file_content = f.read()
+            
+            lines = file_content.split('\n')
+            argo_domains = []
+            
+            for line in lines:
+                domain_match = re.search(r'https?://([^ ]*trycloudflare\.com)/?', line)
+                if domain_match:
+                    domain = domain_match.group(1)
+                    argo_domains.append(domain)
+            
+            if argo_domains:
+                argo_domain = argo_domains[0]
+                print(f'ArgoDomain: {argo_domain}')
+                await generate_links(argo_domain)
+            else:
+                print('ArgoDomain not found, re-running bot to obtain ArgoDomain')
+                # Remove boot.log and restart bot
+                if os.path.exists(boot_log_path):
+                    os.remove(boot_log_path)
+                
+                try:
+                    exec_cmd('pkill -f "[b]ot" > /dev/null 2>&1')
+                except:
+                    pass
+                
+                time.sleep(1)
+                args = f'tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile {FILE_PATH}/boot.log --loglevel info --url http://localhost:{ARGO_PORT}'
+                exec_cmd(f'nohup {os.path.join(FILE_PATH, "bot")} {args} >/dev/null 2>&1 &')
+                print('bot is running.')
+                time.sleep(6)  # Wait 6 seconds
+                await extract_domains()  # Try again
+        except Exception as e:
+            print(f'Error reading boot.log: {e}')
+
+# Upload nodes to subscription service
+def upload_nodes():
+    if UPLOAD_URL and PROJECT_URL:
+        subscription_url = f"{PROJECT_URL}/{SUB_PATH}"
+        json_data = {
+            "subscription": [subscription_url]
+        }
+        
+        try:
+            response = requests.post(
+                f"{UPLOAD_URL}/api/add-subscriptions",
+                json=json_data,
+                headers={"Content-Type": "application/json"}
+            )
+            
+            if response.status_code == 200:
+                print('Subscription uploaded successfully')
+        except Exception as e:
+            pass
+    
+    elif UPLOAD_URL:
+        if not os.path.exists(list_path):
+            return
+        
+        with open(list_path, 'r') as f:
+            content = f.read()
+        
+        nodes = [line for line in content.split('\n') if any(protocol in line for protocol in ['vless://', 'vmess://', 'trojan://', 'hysteria2://', 'tuic://'])]
+        
+        if not nodes:
+            return
+        
+        json_data = json.dumps({"nodes": nodes})
+        
+        try:
+            response = requests.post(
+                f"{UPLOAD_URL}/api/add-nodes",
+                data=json_data,
+                headers={"Content-Type": "application/json"}
+            )
+            
+            if response.status_code == 200:
+                print('Nodes uploaded successfully')
+        except:
+            return None
+    else:
         return
     
-    if 'TunnelSecret' in ENV['ARGO_AUTH']:
-        with open('tunnel.json', 'w') as f:
-            f.write(ENV['ARGO_AUTH'])
-        
-        tunnel_id = re.search(r'"TunnelID":"([^"]+)"', ENV['ARGO_AUTH']).group(1)
-        
-        with open('tunnel.yml', 'w') as f:
-            f.write(f"""tunnel: {tunnel_id}
-credentials-file: tunnel.json
-protocol: http2
-
-ingress:
-  - hostname: {ENV['ARGO_DOMAIN']}
-    service: http://localhost:{ENV['ARGO_PORT']}
-    originRequest:
-      noTLSVerify: true
-  - service: http_status:404
-""")
-    else:
-        console.print("\n[bold green]ARGO_AUTH mismatch TunnelSecret,use token connect to tunnel[/bold green]")
-        
-def run_service_with_retry(cmd, service_name, max_retries=3):
-    """通用的服务启动函数,包含重试机制"""
-    for attempt in range(max_retries):
-        process = subprocess.Popen(cmd.split(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(2)  # 等待服务启动
-        
-        if process.poll() is None:
-            console.print(f"[bold green]{service_name} is running[/bold green]")
-            return True
-        else:
-            if attempt < max_retries - 1:
-                console.print(f"[bold yellow]{service_name} failed to start, retrying... ({attempt + 1}/{max_retries})[/bold yellow]")
-                process.kill()  # 确保进程被终止
-                time.sleep(1)
-            else:
-                console.print(f"[bold red]{service_name} failed to start after {max_retries} attempts[/bold red]")
-    return False
-
-def run_services(file_map):
-    # 运行 npm
-    if os.path.exists(file_map['npm']):
-        if all([ENV['NEZHA_SERVER'], ENV['NEZHA_PORT'], ENV['NEZHA_KEY']]):
-            tls_ports = ['443', '8443', '2096', '2087', '2083', '2053']
-            nezha_tls = '--tls' if ENV['NEZHA_PORT'] in tls_ports else ''
-            
-            cmd = f'./{file_map["npm"]} -s {ENV["NEZHA_SERVER"]}:{ENV["NEZHA_PORT"]} -p {ENV["NEZHA_KEY"]} {nezha_tls}'
-            run_service_with_retry(cmd, file_map['npm'])
-        else:
-            console.print("\n[bold yellow]NEZHA variable is empty, skipping NEZHA[/bold yellow]")
-    time.sleep(1)
-
-    # 运行 web
-    if os.path.exists(file_map['web']):
-        cmd = f'./{file_map["web"]} run -c config.json'
-        run_service_with_retry(cmd, file_map['web'])
-    time.sleep(1)
-
-    # 运行 bot
-    if os.path.exists(file_map['bot']):
-        if re.match(r'^[A-Z0-9a-z=]{120,250}$', ENV['ARGO_AUTH']):
-            args = f'tunnel --edge-ip-version auto --no-autoupdate --protocol http2 run --token {ENV["ARGO_AUTH"]}'
-        elif 'TunnelSecret' in ENV['ARGO_AUTH']:
-            args = 'tunnel --edge-ip-version auto --config tunnel.yml run'
-        else:
-            args = f'tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile boot.log --loglevel info --url http://localhost:{ENV["ARGO_PORT"]}'
-        
-        cmd = f'./{file_map["bot"]} {args}'
-        run_service_with_retry(cmd, file_map['bot'])
-    time.sleep(3)
+# Send notification to Telegram
+def send_telegram():
+    if not BOT_TOKEN or not CHAT_ID:
+        print('TG variables is empty, Skipping push nodes to TG')
+        return
     
-    # 删除文件
-    for name in ['npm', 'web', 'bot']:
-        if name in file_map and os.path.exists(file_map[name]):
-            os.remove(file_map[name])        
-            
-def get_ip_and_isp():
-    ip = None
     try:
-        ip = subprocess.check_output(['curl', '-s', 'ip.eooce.com'], timeout=2).decode().strip()
-        if ip.startswith('{'): 
-            ip = json.loads(ip).get('ip')
-            if ':' in ip:
-                ip = f'[{ip}]'
+        with open(sub_path, 'r') as f:
+            message = f.read()
+        
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        
+        escaped_name = re.sub(r'([_*\[\]()~>#+=|{}.!\-])', r'\\\1', NAME)
+        
+        params = {
+            "chat_id": CHAT_ID,
+            "text": f"**{escaped_name}节点推送通知**\n{message}",
+            "parse_mode": "MarkdownV2"
+        }
+        
+        requests.post(url, params=params)
+        print('Telegram message sent successfully')
+    except Exception as e:
+        print(f'Failed to send Telegram message: {e}')
+
+# Generate links and subscription content
+async def generate_links(argo_domain):
+    SERVER_IP = ''
+    try:
+        SERVER_IP = subprocess.check_output('curl -s --max-time 2 ipv4.ip.sb', shell=True).decode().strip()
     except:
-        pass
-    
-    if not ip:
         try:
-            ip = subprocess.check_output(['curl', '-s', 'ip.sb'], timeout=2).decode().strip()
-            if ':' in ip:
-                ip = f'[{ip}]'
-        except:
-            ip = "ip not found"
+            SERVER_IP = f"[{subprocess.check_output('curl -s --max-time 1 ipv6.ip.sb', shell=True).decode().strip()}]"
+        except Exception as e:
+            print(f'Failed to get IP address: {e}')
+
+    # Get ISP info
+    try:
+        meta_info = subprocess.check_output(
+            'curl -s https://speed.cloudflare.com/meta | awk -F\\" \'{print $26"-"$18}\' | sed -e \'s/ /_/g\'',
+            shell=True
+        ).decode().strip()
+        ISP = meta_info
+    except:
+        ISP = "Unknown"
+
+    # Wait 2 seconds before generating nodes
+    time.sleep(2)
+
+    # vmess node
+    vmess_config = {
+        "v": "2","ps": f"{NAME}-{ISP}","add": CFIP,"port": CFPORT,"id": UUID,"aid": "0","scy": "none","net": "ws","type": "none",
+        "host": argo_domain,"path": "/vmess-argo?ed=2560","tls": "tls","sni": argo_domain,"alpn": "","fp": "chrome"
+        }
     
-    if not ip or ip.startswith('<'):
-        ip = "ip not found"
+    vmess_node = f"vmess://{base64.b64encode(json.dumps(vmess_config).encode()).decode()}"
+
+    sub_txt = vmess_node  # Always generate vmess node
+
+    # Generate other nodes based on port
+    if TUIC_PORT is not None:
+        tuic_node = f"\ntuic://{UUID}:@{SERVER_IP}:{TUIC_PORT}?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#{NAME}-{ISP}"
+        sub_txt += tuic_node
+
+    if HY2_PORT is not None:
+        hysteria_node = f"\nhysteria2://{UUID}@{SERVER_IP}:{HY2_PORT}/?sni=www.bing.com&insecure=1&alpn=h3&obfs=none#{NAME}-{ISP}"
+        sub_txt += hysteria_node
+
+    if REALITY_PORT is not None:
+        vless_node = f"\nvless://{UUID}@{SERVER_IP}:{REALITY_PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=chrome&pbk={public_key}&type=tcp&headerType=none#{NAME}-{ISP}"
+        sub_txt += vless_node
+
+    # Save to files
+    with open(sub_path, 'w') as f:
+        f.write(base64.b64encode(sub_txt.encode()).decode())
+    
+    with open(list_path, 'w') as f:
+        f.write(sub_txt)
+    
+    print(base64.b64encode(sub_txt.encode()).decode())
+    
+    print(f"{FILE_PATH}/sub.txt saved successfully")
+    
+    # Additional actions
+    send_telegram()
+    upload_nodes()
+  
+    return sub_txt   
+ 
+# Add automatic access task
+def add_visit_task():
+    if not AUTO_ACCESS or not PROJECT_URL:
+        print("Skipping adding automatic access task")
+        return
     
     try:
-        meta = requests.get('https://speed.cloudflare.com/meta', timeout=2).json()
-        isp = f"{meta['colo']}-{meta['asOrganization']}".replace(' ', '_')
-    except:
-        isp = "unknown"
-    
-    return ip, isp
+        response = requests.post(
+            'https://keep.gvrander.eu.org/add-url',
+            json={"url": PROJECT_URL},
+            headers={"Content-Type": "application/json"}
+        )
+        print('automatic access task added successfully')
+    except Exception as e:
+        print(f'Failed to add URL: {e}')
 
-def get_argodomain():
-    if ENV['ARGO_AUTH']:
-        return ENV['ARGO_DOMAIN']
-    
-    for _ in range(5):
-        if os.path.exists('boot.log'):
-            with open('boot.log', 'r') as f:
-                content = f.read()
-                match = re.search(r'https://[0-9a-z.-]+\.trycloudflare\.com', content)
-                if match:
-                    return match.group(0).replace('https://', '')
-        time.sleep(2)
-    return ''
-
-def generate_subscription(argodomain, ip, isp, public_key):
-    vless = f"vless://{ENV['UUID']}@{ENV['CFIP']}:{ENV['CFPORT']}?encryption=none&security=tls&sni={argodomain}&allowInsecure=1&type=ws&host={argodomain}&path=%2Fvless%3Fed%3D2048#{ENV['NAME']}-{isp}"
-    
-    with open('list.txt', 'w') as f:
-        f.write(vless + '\n')
+# Clean up files after 90 seconds
+def clean_files():
+    def _cleanup():
+        time.sleep(90)  # Wait 90 seconds
+        files_to_delete = [boot_log_path, config_path, list_path, web_path, bot_path, php_path, npm_path]
         
-        if ENV['HY2_PORT'] != '50000':
-            hysteria2 = f"hysteria2://{ENV['UUID']}@{ip}:{ENV['HY2_PORT']}/?sni=www.bing.com&alpn=h3&insecure=1#{ENV['NAME']}-{isp}"
-            f.write(hysteria2 + '\n')
+        if NEZHA_PORT:
+            files_to_delete.append(npm_path)
+        elif NEZHA_SERVER and NEZHA_KEY:
+            files_to_delete.append(php_path)
         
-        if ENV['TUIC_PORT'] != '40000':
-            tuic = f"tuic://{ENV['UUID']}:admin@{ip}:{ENV['TUIC_PORT']}?sni=www.bing.com&alpn=h3&congestion_control=bbr#{ENV['NAME']}-{isp}"
-            f.write(tuic + '\n')
+        for file in files_to_delete:
+            try:
+                if os.path.exists(file):
+                    if os.path.isdir(file):
+                        shutil.rmtree(file)
+                    else:
+                        os.remove(file)
+            except:
+                pass
         
-        if ENV['REALITY_PORT'] != '60000':
-            reality = f"vless://{ENV['UUID']}@{ip}:{ENV['REALITY_PORT']}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=who.cx&fp=chrome&pbk={public_key}&type=tcp&headerType=none#{ENV['NAME']}-{isp}"
-            f.write(reality + '\n')
+        print('\033c', end='')
+        print('App is running')
+        print('Thank you for using this script, enjoy!')
     
-    with open('list.txt', 'rb') as f:
-        content = f.read()
-    with open(f"{ENV['FILE_PATH']}/sub.txt", 'wb') as f:
-        f.write(base64.b64encode(content))
+    threading.Thread(target=_cleanup, daemon=True).start()
     
-    console.print(f"[bold green]{ENV['FILE_PATH']}/sub.txt saved successfully[/bold green]")
+# Main function to start the server
+async def start_server():
+    delete_nodes()
+    cleanup_old_files()
+    create_directory()
+    argo_type()
+    await download_files_and_run()
+    add_visit_task()
     
-    with open(f"{ENV['FILE_PATH']}/sub.txt", 'r') as f:
-        sub_content = f.read()
-    console.print(sub_content)
-   
-    send_telegram()  # 发送 Telegram 消息
+    server_thread = Thread(target=run_server)
+    server_thread.daemon = True
+    server_thread.start()   
+    
+    clean_files()
+    
+def run_server():
+    server = HTTPServer(('0.0.0.0', PORT), RequestHandler)
+    print(f"Server is running on port {PORT}")
+    print(f"Running done！")
+    server.serve_forever()
+    
+def run_async():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(start_server()) 
+    
+    while True:
+        time.sleep(3600)
+        
+if __name__ == "__main__":
+    run_async()
 
 def main():
-    os.makedirs(ENV['FILE_PATH'], exist_ok=True)
-    for f in ['boot.log', 'config.json', 'tunnel.json', 'tunnel.yml', f"{ENV['FILE_PATH']}/sub.txt"]:
-        if os.path.exists(f):
-            os.remove(f)
-    
-    configure_argo()
-    generate_cert()
-    file_map = download_files()
-    public_key = generate_config(file_map)
-    run_services(file_map)
-    
-    argodomain = get_argodomain()
-    console.print(f"[bold green]ArgoDomain:[/bold green] [bold cyan]{argodomain}[/bold cyan]")
-    
-    ip, isp = get_ip_and_isp()
-    generate_subscription(argodomain, ip, isp, public_key)
-    console.print("[bold green]Running done![/bold green]")
-    
-    time.sleep(5) 
-    
-    cleanup_files = ['boot.log', 'config.json', 'sb.log', 
-                    'list.txt', 'core', 'fake_useragent_0.2.0.json']
-    for f in cleanup_files:
-        if os.path.exists(f):
-            os.remove(f)
-            # console.print(f"[bold green]Removed {f}[/bold green]")
-
-    os.system('cls' if os.name == 'nt' else 'clear')
-    
-    # 启动http服务
-    port = int(ENV['PORT'])
-    server = HTTPServer(('', port), RequestHandler)
-    console.print(f"\n[bold green]Started HTTP server is running on port {port}[/bold green]")
-    
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        server.server_close()
-
-if __name__ == '__main__':
-    main()
+    run_async()

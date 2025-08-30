@@ -27,9 +27,8 @@ work_dir="/etc/sing-box"
 config_dir="${work_dir}/config.json"
 client_dir="${work_dir}/url.txt"
 export vless_port=${PORT:-$(shuf -i 1000-65000 -n 1)}
-export CFIP=${CFIP:-'cf.877774.xyz'} 
-export CFPORT=${CFPORT:-'443'} 
-
+export CFIP=${CFIP:-'cf.877774.xyz'}
+export CFPORT=${CFPORT:-'443'}
 # 检查是否为root下运行
 [[ $EUID -ne 0 ]] && red "请在root用户下运行脚本" && exit 1
 
@@ -426,7 +425,7 @@ After=network.target
 Type=simple
 NoNewPrivileges=yes
 TimeoutStartSec=0
-ExecStart=/bin/sh -c "/etc/sing-box/argo tunnel --url http://localhost:8001 --no-autoupdate --edge-ip-version auto --protocol http2 > /etc/sing-box/argo.log 2>&1"
+ExecStart=/bin/sh -c "(sleep 5 && /usr/bin/sb update_argo) & exec /etc/sing-box/argo tunnel --url http://localhost:8001 --no-autoupdate --edge-ip-version auto --protocol http2 > /etc/sing-box/argo.log 2>&1"
 Restart=on-failure
 RestartSec=5s
 
@@ -464,7 +463,7 @@ EOF
 
 description="Cloudflare Tunnel"
 command="/bin/sh"
-command_args="-c '/etc/sing-box/argo tunnel --url http://localhost:8001 --no-autoupdate --edge-ip-version auto --protocol http2 > /etc/sing-box/argo.log 2>&1'"
+command_args="-c '(sleep 5 && /usr/bin/sb update_argo) & exec /etc/sing-box/argo tunnel --url http://localhost:8001 --no-autoupdate --edge-ip-version auto --protocol http2 > /etc/sing-box/argo.log 2>&1'"
 command_background=true
 pidfile="/var/run/argo.pid"
 EOF
@@ -839,6 +838,47 @@ change_hosts() {
     sh -c 'echo "0 0" > /proc/sys/net/ipv4/ping_group_range'
     sed -i '1s/.*/127.0.0.1   localhost/' /etc/hosts
     sed -i '2s/.*/::1         localhost/' /etc/hosts
+}
+
+# 自动更新Argo域名(用于服务启动)
+update_argo_domain_non_interactive() {
+    local work_dir="/etc/sing-box"
+    local client_dir="${work_dir}/url.txt"
+    local log_file="${work_dir}/argo.log"
+    local ArgoDomain=""
+
+    # 等待20秒，确保argo日志生成并获取到域名
+    for i in {1..10}; do
+        if [ -f "$log_file" ]; then
+            ArgoDomain=$(grep -o 'https://[^ ]*trycloudflare.com' "$log_file" | sed 's/https:\/\///' | tail -n 1)
+            if [ -n "$ArgoDomain" ]; then
+                break
+            fi
+        fi
+        sleep 2
+    done
+
+    # 如果没获取到域名，则静默退出
+    [ -z "$ArgoDomain" ] && exit 0
+
+    local vmess_url=$(grep -o 'vmess://[^ ]*' "$client_dir")
+    [ -z "$vmess_url" ] && exit 0
+
+    local encoded_vmess="${vmess_url#vmess://}"
+    local current_host=$(echo "$encoded_vmess" | base64 --decode 2>/dev/null | jq -r '.host')
+
+    # 如果域名与当前配置一致，则无需更新
+    [[ "$current_host" == "$ArgoDomain" ]] && exit 0
+
+    # 更新配置文件中的域名
+    local content=$(cat "$client_dir")
+    local decoded_vmess=$(echo "$encoded_vmess" | base64 --decode)
+    local updated_vmess=$(echo "$decoded_vmess" | jq --arg new_domain "$ArgoDomain" '.host = $new_domain | .sni = $new_domain')
+    local encoded_updated_vmess=$(echo "$updated_vmess" | base64 | tr -d '\n')
+    local new_vmess_url="vmess://${encoded_updated_vmess}"
+    local new_content=$(echo "$content" | sed "s|$vmess_url|$new_vmess_url|")
+    echo "$new_content" > "$client_dir"
+    base64 -w0 "${work_dir}/url.txt" > "${work_dir}/sub.txt"
 }
 
 # 变更配置
@@ -1441,6 +1481,12 @@ base64 -w0 "${work_dir}/url.txt" > "${work_dir}/sub.txt"
 green "\nvmess节点优选域名已更新为：${purple}${cfip}:${cfport},${green}更新订阅或手动复制以下vmess-argo节点${re}\n"
 purple "$new_vmess_url\n"
 }
+
+# 非交互式命令处理
+if [[ "$1" == "update_argo" ]]; then
+    update_argo_domain_non_interactive
+    exit 0
+fi
 
 # 主菜单
 menu() {

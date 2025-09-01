@@ -3,7 +3,7 @@
 # =========================
 # 老王sing-box四合一安装脚本
 # vless-version-reality|vmess-ws-tls(tunnel)|hysteria2|tuic5
-# 最后更新时间: 2025.8.18
+# 最后更新时间: 2025.9.1
 # =========================
 
 export LANG=en_US.UTF-8
@@ -157,28 +157,40 @@ allow_port() {
     command_exists iptables && has_iptables=1
     command_exists ip6tables && has_ip6tables=1
 
-    # 出站
-    [ "$has_ufw" -eq 1 ] && ufw --force default allow outgoing
-    [ "$has_firewalld" -eq 1 ] && firewall-cmd --permanent --zone=public --set-target=ACCEPT
-    [ "$has_iptables" -eq 1 ] && iptables -P OUTPUT ACCEPT
-    [ "$has_ip6tables" -eq 1 ] && ip6tables -P OUTPUT ACCEPT
+    # 出站和基础规则
+    [ "$has_ufw" -eq 1 ] && ufw --force default allow outgoing >/dev/null 2>&1
+    [ "$has_firewalld" -eq 1 ] && firewall-cmd --permanent --zone=public --set-target=ACCEPT >/dev/null 2>&1
+    [ "$has_iptables" -eq 1 ] && {
+        iptables -P INPUT DROP 2>/dev/null || true
+        iptables -P FORWARD DROP 2>/dev/null  || true
+        iptables -P OUTPUT ACCEPT 2>/dev/null || true
+        iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited 2>/dev/null || true
+        iptables -D FORWARD -j REJECT --reject-with icmp-host-prohibited 2>/dev/null || true
+    }
+    [ "$has_ip6tables" -eq 1 ] && {
+        ip6tables -P INPUT DROP 2>/dev/null || true 
+        ip6tables -P FORWARD DROP 2>/dev/null || true
+        ip6tables -P OUTPUT ACCEPT 2>/dev/null || true
+        ip6tables -D INPUT -j REJECT --reject-with icmp-host-prohibited 2>/dev/null || true
+        ip6tables -D FORWARD -j REJECT --reject-with icmp-host-prohibited 2>/dev/null || true
+    }
 
     # 入站
     for rule in "$@"; do
         port=${rule%/*}
         proto=${rule#*/}
-        [ "$has_ufw" -eq 1 ] && ufw allow in ${port}/${proto}
-        [ "$has_firewalld" -eq 1 ] && firewall-cmd --permanent --add-port=${port}/${proto}
-        [ "$has_iptables" -eq 1 ] && (iptables -C INPUT -p ${proto} --dport ${port} -j ACCEPT 2>/dev/null || iptables -A INPUT -p ${proto} --dport ${port} -j ACCEPT)
-        [ "$has_ip6tables" -eq 1 ] && (ip6tables -C INPUT -p ${proto} --dport ${port} -j ACCEPT 2>/dev/null || ip6tables -A INPUT -p ${proto} --dport ${port} -j ACCEPT)
+        [ "$has_ufw" -eq 1 ] && ufw allow in ${port}/${proto} >/dev/null 2>&1
+        [ "$has_firewalld" -eq 1 ] && firewall-cmd --permanent --add-port=${port}/${proto} >/dev/null 2>&1
+        [ "$has_iptables" -eq 1 ] && (iptables -C INPUT -p ${proto} --dport ${port} -j ACCEPT 2>/dev/null || iptables -I INPUT 4 -p ${proto} --dport ${port} -j ACCEPT)
+        [ "$has_ip6tables" -eq 1 ] && (ip6tables -C INPUT -p ${proto} --dport ${port} -j ACCEPT 2>/dev/null || ip6tables -I INPUT 4 -p ${proto} --dport ${port} -j ACCEPT)
     done
 
-    [ "$has_firewalld" -eq 1 ] && firewall-cmd --reload
+    [ "$has_firewalld" -eq 1 ] && firewall-cmd --reload >/dev/null 2>&1
 
     # 规则持久化
     if command_exists rc-service 2>/dev/null; then
-        [ "$has_iptables" -eq 1 ] && iptables-save > /etc/iptables/rules.v4
-        [ "$has_ip6tables" -eq 1 ] && ip6tables-save > /etc/iptables/rules.v6
+        [ "$has_iptables" -eq 1 ] && iptables-save > /etc/iptables/rules.v4 2>/dev/null
+        [ "$has_ip6tables" -eq 1 ] && ip6tables-save > /etc/iptables/rules.v6 2>/dev/null
     else
         if ! command_exists netfilter-persistent; then
             manage_packages install iptables-persistent || yellow "请手动安装netfilter-persistent或保存iptables规则" 
@@ -1242,9 +1254,9 @@ manage_argo() {
         2)  stop_argo ;; 
         3)  clear
             if command_exists rc-service 2>/dev/null; then
-                grep -Fq -- '--url http://localhost:8001' /etc/init.d/argo && get_quick_tunnel && change_argo_domain || { green "\n当前使用固定隧道,无需获取临时域名"; sleep 2; menu; }
+                grep -Fq -- '--url http://localhost' /etc/init.d/argo && get_quick_tunnel && change_argo_domain || { green "\n当前使用固定隧道,无需获取临时域名"; sleep 2; menu; }
             else
-                grep -q 'ExecStart=.*--url http://localhost:8001' /etc/systemd/system/argo.service && get_quick_tunnel && change_argo_domain || { green "\n当前使用固定隧道,无需获取临时域名"; sleep 2; menu; }
+                grep -q 'ExecStart=.*--url http://localhost' /etc/systemd/system/argo.service && get_quick_tunnel && change_argo_domain || { green "\n当前使用固定隧道,无需获取临时域名"; sleep 2; menu; }
             fi
          ;; 
         4)
@@ -1305,7 +1317,7 @@ EOF
 
         6)  
             if command_exists rc-service 2>/dev/null; then
-                if grep -Fq -- '--url http://localhost:8001' "/etc/init.d/argo"; then
+                if grep -Fq -- '--url http://localhost' "/etc/init.d/argo"; then
                     get_quick_tunnel
                     change_argo_domain 
                 else
@@ -1314,7 +1326,7 @@ EOF
                     menu
                 fi
             else
-                if grep -q 'ExecStart=.*--url http://localhost:8001' "/etc/systemd/system/argo.service"; then
+                if grep -q 'ExecStart=.*--url http://localhost' "/etc/systemd/system/argo.service"; then
                     get_quick_tunnel
                     change_argo_domain 
                 else

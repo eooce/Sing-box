@@ -13,6 +13,10 @@
 
 sing-box是一个强大的代理脚本，多种环境下使用。它支持多种代理协议（VLESS-reality-verison、VMess-ws-tls(tunnel)、Hysteria2、Tuic），并集成了哪吒(v0/v1)探针功能。
 
+---
+
+Telegram交流反馈群组：https://t.me/eooceu
+
 </div>
 
 

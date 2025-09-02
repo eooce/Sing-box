@@ -146,6 +146,7 @@ get_realip() {
 }
 
 # 处理防火墙
+# 处理防火墙
 allow_port() {
     has_ufw=0
     has_firewalld=0
@@ -161,18 +162,16 @@ allow_port() {
     [ "$has_ufw" -eq 1 ] && ufw --force default allow outgoing >/dev/null 2>&1
     [ "$has_firewalld" -eq 1 ] && firewall-cmd --permanent --zone=public --set-target=ACCEPT >/dev/null 2>&1
     [ "$has_iptables" -eq 1 ] && {
-        iptables -P INPUT DROP 2>/dev/null || true
-        iptables -P FORWARD DROP 2>/dev/null  || true
+        iptables -C INPUT -i lo -j ACCEPT 2>/dev/null || iptables -I INPUT 3 -i lo -j ACCEPT
+        iptables -C INPUT -p icmp -j ACCEPT 2>/dev/null || iptables -I INPUT 4 -p icmp -j ACCEPT
+        iptables -P FORWARD DROP 2>/dev/null || true
         iptables -P OUTPUT ACCEPT 2>/dev/null || true
-        iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited 2>/dev/null || true
-        iptables -D FORWARD -j REJECT --reject-with icmp-host-prohibited 2>/dev/null || true
     }
     [ "$has_ip6tables" -eq 1 ] && {
-        ip6tables -P INPUT DROP 2>/dev/null || true 
+        ip6tables -C INPUT -i lo -j ACCEPT 2>/dev/null || ip6tables -I INPUT 3 -i lo -j ACCEPT
+        ip6tables -C INPUT -p icmp -j ACCEPT 2>/dev/null || ip6tables -I INPUT 4 -p icmp -j ACCEPT
         ip6tables -P FORWARD DROP 2>/dev/null || true
         ip6tables -P OUTPUT ACCEPT 2>/dev/null || true
-        ip6tables -D INPUT -j REJECT --reject-with icmp-host-prohibited 2>/dev/null || true
-        ip6tables -D FORWARD -j REJECT --reject-with icmp-host-prohibited 2>/dev/null || true
     }
 
     # 入站
@@ -1462,6 +1461,9 @@ menu() {
    
    clear
    echo ""
+   green "Telegram群组: ${purple}https://t.me/eooceu${re}"
+   green "YouTube频道: ${purple}https://youtube.com/@eooce${re}"
+   green "Github地址: ${purple}https://github.com/eooce/sing-box${re}\n"
    purple "=== 老王sing-box四合一安装脚本 ===\n"
    purple "---Argo 状态: ${argo_status}"   
    purple "--Nginx 状态: ${nginx_status}"

@@ -3,7 +3,7 @@
 # =========================
 # 老王sing-box四合一安装脚本
 # vless-version-reality|vmess-ws-tls(tunnel)|hysteria2|tuic5
-# 最后更新时间: 2025.9.1
+# 最后更新时间: 2025.9.5
 # =========================
 
 export LANG=en_US.UTF-8
@@ -245,10 +245,10 @@ install_singbox() {
     # 生成自签名证书
     openssl ecparam -genkey -name prime256v1 -out "${work_dir}/private.key"
     openssl req -new -x509 -days 3650 -key "${work_dir}/private.key" -out "${work_dir}/cert.pem" -subj "/CN=bing.com"
-
+    
     # 检测网络类型并设置DNS策略
     dns_strategy=$(ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1 && echo "prefer_ipv4" || (ping -c 1 -W 3 2001:4860:4860::8888 >/dev/null 2>&1 && echo "prefer_ipv6" || echo "prefer_ipv4"))
-   
+
    # 生成配置文件
 cat > "${config_dir}" << EOF
 {
@@ -267,106 +267,103 @@ cat > "${config_dir}" << EOF
       }
     ]
   },
+  "ntp": {
+    "enabled": true,
+    "server": "time.apple.com",
+    "server_port": 123,
+    "interval": "30m"
+  },
   "inbounds": [
     {
-        "tag": "vless-reality-vesion",
-        "type": "vless",
-        "listen": "::",
-        "listen_port": $vless_port,
-        "users": [
-            {
-              "uuid": "$uuid",
-              "flow": "xtls-rprx-vision"
-            }
-        ],
-        "tls": {
-            "enabled": true,
-            "server_name": "www.iij.ad.jp",
-            "reality": {
-                "enabled": true,
-                "handshake": {
-                    "server": "www.iij.ad.jp",
-                    "server_port": 443
-                },
-                "private_key": "$private_key",
-                "short_id": [
-                  ""
-                ]
-            }
+      "type": "vless",
+      "tag": "vless-reality",
+      "listen": "::",
+      "listen_port": $vless_port,
+      "users": [
+        {
+          "uuid": "$uuid",
+          "flow": "xtls-rprx-vision"
         }
+      ],
+      "tls": {
+        "enabled": true,
+        "server_name": "www.iij.ad.jp",
+        "reality": {
+          "enabled": true,
+          "handshake": {
+            "server": "www.iij.ad.jp",
+            "server_port": 443
+          },
+          "private_key": "$private_key",
+          "short_id": [""]
+        }
+      }
     },
     {
-        "tag": "vmess-ws",
-        "type": "vmess",
-        "listen": "::",
-        "listen_port": 8001,
-        "users": [
+      "type": "vmess",
+      "tag": "vmess-ws",
+      "listen": "::",
+      "listen_port": 8001,
+      "users": [
         {
-            "uuid": "$uuid"
+          "uuid": "$uuid"
         }
-    ],
-    "transport": {
+      ],
+      "transport": {
         "type": "ws",
         "path": "/vmess-argo",
         "early_data_header_name": "Sec-WebSocket-Protocol"
-        }
+      }
     },
     {
-        "tag": "hysteria2",
-        "type": "hysteria2",
-        "listen": "::",
-        "listen_port": $hy2_port,
-        "sniff": true,
-        "sniff_override_destination": false,
-        "users": [
-            {
-                "password": "$uuid"
-            }
-        ],
-        "ignore_client_bandwidth":false,
-        "masquerade": "https://bing.com",
-        "tls": {
-            "enabled": true,
-            "alpn": [
-                "h3"
-            ],
-            "min_version":"1.3",
-            "max_version":"1.3",
-            "certificate_path": "$work_dir/cert.pem",
-            "key_path": "$work_dir/private.key"
+      "type": "hysteria2",
+      "tag": "hysteria2",
+      "listen": "::",
+      "listen_port": $hy2_port,
+      "users": [
+        {
+          "password": "$uuid"
         }
-
-    },
-    {
-        "tag": "tuic",
-        "type": "tuic",
-        "listen": "::",
-        "listen_port": $tuic_port,
-        "users": [
-          {
-            "uuid": "$uuid",
-            "password": "$password"
-          }
-        ],
-        "congestion_control": "bbr",
-        "tls": {
-            "enabled": true,
-            "alpn": [
-                "h3"
-            ],
+      ],
+      "ignore_client_bandwidth": false,
+      "masquerade": "https://bing.com",
+      "tls": {
+        "enabled": true,
+        "alpn": ["h3"],
+        "min_version": "1.3",
+        "max_version": "1.3",
         "certificate_path": "$work_dir/cert.pem",
         "key_path": "$work_dir/private.key"
-       }
+      }
+    },
+    {
+      "type": "tuic",
+      "tag": "tuic",
+      "listen": "::",
+      "listen_port": $tuic_port,
+      "users": [
+        {
+          "uuid": "$uuid",
+          "password": "$password"
+        }
+      ],
+      "congestion_control": "bbr",
+      "tls": {
+        "enabled": true,
+        "alpn": ["h3"],
+        "certificate_path": "$work_dir/cert.pem",
+        "key_path": "$work_dir/private.key"
+      }
     }
   ],
   "outbounds": [
     {
-      "tag": "direct",
-      "type": "direct"
+      "type": "direct",
+      "tag": "direct"
     },
     {
-      "tag": "block",
-      "type": "block"
+      "type": "block",
+      "tag": "block"
     },
     {
       "type": "wireguard",
@@ -377,27 +374,26 @@ cat > "${config_dir}" << EOF
         "172.16.0.2/32",
         "2606:4700:110:851f:4da3:4e2c:cdbf:2ecf/128"
       ],
-      "mtu": 1420,
       "private_key": "eAx8o6MJrH4KE7ivPFFCa4qvYw5nJsYHCBQXPApQX1A=",
       "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-      "reserved": [82, 90, 51]
+      "reserved": [82, 90, 51],
+      "mtu": 1420
     }
   ],
   "route": {
-    "final": "direct",
     "rule_set": [
-      {
-        "tag": "netflix",
-        "type": "remote",
-        "format": "binary",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/netflix.srs",
-        "download_detour": "direct"
-      },
       {
         "tag": "openai",
         "type": "remote",
         "format": "binary",
-        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/openai.srs",
+        "download_detour": "direct"
+      },
+      {
+        "tag": "netflix",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/netflix.srs",
         "download_detour": "direct"
       }
     ],
@@ -407,7 +403,7 @@ cat > "${config_dir}" << EOF
         "outbound": "wireguard-out"
       }
     ],
-	"final": "direct"
+    "final": "direct"
   }
 }
 EOF

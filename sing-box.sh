@@ -246,6 +246,9 @@ install_singbox() {
     openssl ecparam -genkey -name prime256v1 -out "${work_dir}/private.key"
     openssl req -new -x509 -days 3650 -key "${work_dir}/private.key" -out "${work_dir}/cert.pem" -subj "/CN=bing.com"
 
+    # 检测网络类型并设置DNS策略
+    dns_strategy=$(ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1 && echo "prefer_ipv4" || (ping -c 1 -W 3 2001:4860:4860::8888 >/dev/null 2>&1 && echo "prefer_ipv6" || echo "prefer_ipv4"))
+   
    # 生成配置文件
 cat > "${config_dir}" << EOF
 {
@@ -254,6 +257,15 @@ cat > "${config_dir}" << EOF
     "level": "error",
     "output": "$work_dir/sb.log",
     "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "tag": "local",
+        "address": "local",
+        "strategy": "$dns_strategy"
+      }
+    ]
   },
   "inbounds": [
     {
@@ -357,21 +369,18 @@ cat > "${config_dir}" << EOF
       "type": "block"
     },
     {
-      "tag": "wireguard-out",
       "type": "wireguard",
+      "tag": "wireguard-out",
+      "server": "engage.cloudflareclient.com",
+      "server_port": 2408,
       "local_address": [
         "172.16.0.2/32",
-        "2606:4700:110:8f77:1ca9:f086:846c:5f9e/128"
+        "2606:4700:110:851f:4da3:4e2c:cdbf:2ecf/128"
       ],
-      "server": "162.159.192.200",
-      "server_port": 4500,
+      "mtu": 1420,
+      "private_key": "eAx8o6MJrH4KE7ivPFFCa4qvYw5nJsYHCBQXPApQX1A=",
       "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-      "private_key": "wIxszdR2nMdA7a2Ul3XQcniSfSZqdqjPb6w6opvf5AU=",
-      "reserved": [
-        126,
-        246,
-        173
-      ]
+      "reserved": [82, 90, 51]
     }
   ],
   "route": {
@@ -394,13 +403,11 @@ cat > "${config_dir}" << EOF
     ],
     "rules": [
       {
-        "outbound": "wireguard-out",
-        "rule_set": [
-          "netflix",
-          "openai"
-        ]
+        "rule_set": ["openai", "netflix"],
+        "outbound": "wireguard-out"
       }
-    ]
+    ],
+	"final": "direct"
   }
 }
 EOF

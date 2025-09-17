@@ -370,17 +370,18 @@ uuid: {UUID}"""
                 "tag": "block"
             },
             {
-                "type": "wireguard",
-                "tag": "wireguard-out",
-                "server": "162.159.195.100",
-                "server_port": 4500,
-                "local_address": [
-                    "172.16.0.2/32",
-                    "2606:4700:110:83c7:b31f:5858:b3a8:c6b1/128"
-                ],
-                "private_key": "mPZo+V9qlrMGCZ7+E6z2NI6NOV34PD++TpAR09PtCWI=",
-                "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-                "reserved": [26, 21, 228]
+              "type": "wireguard",
+              "tag": "wireguard-out",
+              "server": "engage.cloudflareclient.com",
+              "server_port": 2408,
+              "local_address": [
+                "172.16.0.2/32",
+                "2606:4700:110:851f:4da3:4e2c:cdbf:2ecf/128"
+              ],
+              "private_key": "eAx8o6MJrH4KE7ivPFFCa4qvYw5nJsYHCBQXPApQX1A=",
+              "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+              "reserved": [82, 90, 51],
+              "mtu": 1420
             }
         ],
         "route": {

@@ -24,7 +24,7 @@ const ARGO_PORT = process.env.ARGO_PORT || 8001;             // argo固定隧道
 const TUIC_PORT = process.env.TUIC_PORT || '';               // tuic端口，支持多端口的可以填写，否则留空
 const HY2_PORT = process.env.HY2_PORT || '';                 // hy2端口，支持多端口的可以填写，否则留空
 const REALITY_PORT = process.env.REALITY_PORT || '';         // reality端口，支持多端口的可以填写，否则留空
-const CFIP = process.env.CFIP || 'cdns.doon.eu.org';         // 优选域名或优选IP
+const CFIP = process.env.CFIP || 'cf.877774.xyz';            // 优选域名或优选IP
 const CFPORT = process.env.CFPORT || 443;                    // 优选域名或优选IP对应端口
 const PORT = process.env.PORT || 3000;                       // http订阅端口    
 const NAME = process.env.NAME || 'Sbx';                      // 节点名称
@@ -226,7 +226,7 @@ disable_send_query: false
 gpu: false
 insecure_tls: false
 ip_report_period: 1800
-report_delay: 1
+report_delay: 4
 server: ${NEZHA_SERVER}
 skip_connection_count: false
 skip_procs_count: false
@@ -361,15 +361,16 @@ uuid: ${UUID}`;
             {
               "type": "wireguard",
               "tag": "wireguard-out",
-              "server": "162.159.195.100",
-              "server_port": 4500,
+              "server": "engage.cloudflareclient.com",
+              "server_port": 2408,
               "local_address": [
                 "172.16.0.2/32",
-                "2606:4700:110:83c7:b31f:5858:b3a8:c6b1/128"
+                "2606:4700:110:851f:4da3:4e2c:cdbf:2ecf/128"
               ],
-              "private_key": "mPZo+V9qlrMGCZ7+E6z2NI6NOV34PD++TpAR09PtCWI=",
+              "private_key": "eAx8o6MJrH4KE7ivPFFCa4qvYw5nJsYHCBQXPApQX1A=",
               "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-              "reserved": [26, 21, 228]
+              "reserved": [82, 90, 51],
+              "mtu": 1420
             }
           ],
           "route": {

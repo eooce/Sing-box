@@ -12,9 +12,10 @@ const { execSync } = require('child_process');
 const UPLOAD_URL = process.env.UPLOAD_URL || '';      // 订阅或节点自动上传地址,需填写部署Merge-sub项目后的首页地址,例如：https://merge.ct8.pl
 const PROJECT_URL = process.env.PROJECT_URL || '';    // 需要上传订阅或保活时需填写项目分配的url,例如：https://google.com
 const AUTO_ACCESS = process.env.AUTO_ACCESS || false; // false关闭自动保活，true开启,需同时填写PROJECT_URL变量
+const YT_WARPOUT = process.env.YT_WARPOUT || false;   // 设置为true时强制使用warp出站访问youtube,false时自动检测是否设置warp出站
 const FILE_PATH = process.env.FILE_PATH || './.npm';  // sub.txt订阅文件路径
 const SUB_PATH = process.env.SUB_PATH || 'sub';       // 订阅sub路径，默认为sub,例如：https://google.com/sub
-const UUID = process.env.UUID || '31c8b103-f404-4900-8b2f-75a379251b10';  // 在不同的平台运行了v1哪吒请修改UUID,否则会覆盖
+const UUID = process.env.UUID || '0a6568ff-ea3c-4271-9020-450560e10d63';  // 在不同的平台运行了v1哪吒请修改UUID,否则会覆盖
 const NEZHA_SERVER = process.env.NEZHA_SERVER || '';         // 哪吒面板地址,v1形式：nz.serv00.net:8008  v0形式：nz.serv00.net
 const NEZHA_PORT = process.env.NEZHA_PORT || '';             // v1哪吒请留空，v0 agent端口，当端口为{443,8443,2087,2083,2053,2096}时，自动开启tls
 const NEZHA_KEY = process.env.NEZHA_KEY || '';               // v1的NZ_CLIENT_SECRET或v0 agwnt密钥 
@@ -27,9 +28,9 @@ const REALITY_PORT = process.env.REALITY_PORT || '';         // reality端口，
 const CFIP = process.env.CFIP || 'cf.877774.xyz';            // 优选域名或优选IP
 const CFPORT = process.env.CFPORT || 443;                    // 优选域名或优选IP对应端口
 const PORT = process.env.PORT || 3000;                       // http订阅端口    
-const NAME = process.env.NAME || 'Sbx';                      // 节点名称
+const NAME = process.env.NAME || '';                         // 节点名称
 const CHAT_ID = process.env.CHAT_ID || '';                   // Telegram chat_id  两个变量不全不推送节点到TG 
-const BOT_TOKEN = process.env.BOT_TOKEN || '';               // Telegram bot_token
+const BOT_TOKEN = process.env.BOT_TOKEN || '';               // Telegram bot_token 两个变量不全不推送节点到TG 
 
 require('dotenv').config();
 
@@ -84,7 +85,7 @@ function deleteNodes() {
   }
 }
 
-// 端口验证函数 - 增强错误处理
+// 端口验证函数
 function isValidPort(port) {
   try {
     if (port === null || port === undefined || port === '') return false;
@@ -114,6 +115,33 @@ function cleanupOldFiles() {
 app.get("/", function(req, res) {
   res.send("Hello world!");
 });
+
+// 获取固定隧道json
+function argoType() {
+  if (!ARGO_AUTH || !ARGO_DOMAIN) {
+    console.log("ARGO_DOMAIN or ARGO_AUTH variable is empty, use quick tunnels");
+    return;
+  }
+
+  if (ARGO_AUTH.includes('TunnelSecret')) {
+    fs.writeFileSync(path.join(FILE_PATH, 'tunnel.json'), ARGO_AUTH);
+    const tunnelYaml = `
+  tunnel: ${ARGO_AUTH.split('"')[11]}
+  credentials-file: ${path.join(FILE_PATH, 'tunnel.json')}
+  protocol: http2
+  
+  ingress:
+    - hostname: ${ARGO_DOMAIN}
+      service: http://localhost:${ARGO_PORT}
+      originRequest:
+        noTLSVerify: true
+    - service: http_status:404
+  `;
+    fs.writeFileSync(path.join(FILE_PATH, 'tunnel.yml'), tunnelYaml);
+  } else {
+    console.log("ARGO_AUTH mismatch TunnelSecret,use token connect to tunnel");
+  }
+}
 
 // 判断系统架构
 function getSystemArchitecture() {
@@ -224,12 +252,12 @@ disable_force_update: true
 disable_nat: false
 disable_send_query: false
 gpu: false
-insecure_tls: false
+insecure_tls: true
 ip_report_period: 1800
 report_delay: 4
 server: ${NEZHA_SERVER}
-skip_connection_count: false
-skip_procs_count: false
+skip_connection_count: true
+skip_procs_count: true
 temperature: false
 tls: ${nezhatls}
 use_gitee_to_upgrade: false
@@ -290,348 +318,393 @@ uuid: ${UUID}`;
 
   function continueExecution() {
 
-    // 生成 private.key 文件
-    exec('openssl ecparam -genkey -name prime256v1 -out "private.key"', (err, stdout, stderr) => {
-      if (err) {
+    exec('which openssl || where.exe openssl', async (err, stdout, stderr) => {
+        if (err || stdout.trim() === '') {
+          // OpenSSL 不存在，创建预定义的证书和私钥文件
+          // console.log('OpenSSL not found, creating predefined certificate and key files');
+          
+          // 创建 private.key 文件
+          const privateKeyContent = `-----BEGIN EC PARAMETERS-----
+BggqhkjOPQMBBw==
+-----END EC PARAMETERS-----
+-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIM4792SEtPqIt1ywqTd/0bYidBqpYV/++siNnfBYsdUYoAoGCCqGSM49
+AwEHoUQDQgAE1kHafPj07rJG+HboH2ekAI4r+e6TL38GWASANnngZreoQDF16ARa
+/TsyLyFoPkhLxSbehH/NBEjHtSZGaDhMqQ==
+-----END EC PRIVATE KEY-----`;
+          
+          fs.writeFileSync(path.join(FILE_PATH, 'private.key'), privateKeyContent);
+          // console.log('private.key has been created');
+          
+          // 创建 cert.pem 文件
+          const certContent = `-----BEGIN CERTIFICATE-----
+MIIBejCCASGgAwIBAgIUfWeQL3556PNJLp/veCFxGNj9crkwCgYIKoZIzj0EAwIw
+EzERMA8GA1UEAwwIYmluZy5jb20wHhcNMjUwOTE4MTgyMDIyWhcNMzUwOTE2MTgy
+MDIyWjATMREwDwYDVQQDDAhiaW5nLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEH
+A0IABNZB2nz49O6yRvh26B9npACOK/nuky9/BlgEgDZ54Ga3qEAxdegEWv07Mi8h
+aD5IS8Um3oR/zQRIx7UmRmg4TKmjUzBRMB0GA1UdDgQWBBTV1cFID7UISE7PLTBR
+BfGbgkrMNzAfBgNVHSMEGDAWgBTV1cFID7UISE7PLTBRBfGbgkrMNzAPBgNVHRMB
+Af8EBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIAIDAJvg0vd/ytrQVvEcSm6XTlB+
+eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
+-----END CERTIFICATE-----`;
+          
+      fs.writeFileSync(path.join(FILE_PATH, 'cert.pem'), certContent);
+      // console.log('cert.pem has been created');
+    } else {
+      // OpenSSL 存在，直接生成证书
+      // console.log('OpenSSL found, generating certificate and key files');
+      
+      // 生成 private.key 文件
+      try {
+        await execPromise(`openssl ecparam -genkey -name prime256v1 -out "${path.join(FILE_PATH, 'private.key')}"`);
+        // console.log('private.key has been generated successfully');
+      } catch (err) {
         console.error(`Error generating private.key: ${err.message}`);
         return;
       }
-    // console.log('private.key has been generated successfully.');
-
+      
       // 生成 cert.pem 文件
-      exec('openssl req -new -x509 -days 3650 -key "private.key" -out "cert.pem" -subj "/CN=bing.com"', async (err, stdout, stderr) => {
-        if (err) {
-          console.error(`Error generating cert.pem: ${err.message}`);
-          return;
-        }
-      // console.log('cert.pem has been generated successfully.');
+      try {
+        await execPromise(`openssl req -new -x509 -days 3650 -key "${path.join(FILE_PATH, 'private.key')}" -out "${path.join(FILE_PATH, 'cert.pem')}" -subj "/CN=bing.com"`);
+        // console.log('cert.pem has been generated successfully');
+      } catch (err) {
+        console.error(`Error generating cert.pem: ${err.message}`);
+        return;
+      }
+    }
 
-        // 确保 privateKey 和 publicKey 已经被正确赋值
-        if (!privateKey || !publicKey) {
-          console.error('PrivateKey or PublicKey is missing, retrying...');
-          return;
-        }
+    // 确保 privateKey 和 publicKey 已经被正确赋值
+    if (!privateKey || !publicKey) {
+      console.error('PrivateKey or PublicKey is missing, retrying...');
+      return;
+    }
 
-        // 生成sb配置文件
-        const config = {
-          "log": {
-            "disabled": true,
-            "level": "info",
-            "timestamp": true
+    // 生成sb配置文件
+    const config = {
+      "log": {
+        "disabled": true,
+        "level": "error",
+        "timestamp": true
+      },
+      "dns": {
+        "servers": [
+          {
+            "address": "8.8.8.8",
+            "address_resolver": "local"
           },
-          "dns": {
-            "servers": [
-              {
-                "address": "8.8.8.8",
-                "address_resolver": "local"
-              },
-              {
-                "tag": "local",
-                "address": "local"
-              }
-            ]
-          },
-          "inbounds": [
+          {
+            "tag": "local",
+            "address": "local"
+          }
+        ]
+      },
+      "inbounds": [
+        {
+          "tag": "vmess-ws-in",
+          "type": "vmess",
+          "listen": "::",
+          "listen_port": ARGO_PORT,
+          "users": [
             {
-              "tag": "vmess-ws-in",
-              "type": "vmess",
-              "listen": "::",
-              "listen_port": ARGO_PORT,
-              "users": [
-                {
-                  "uuid": UUID
-                }
-              ],
-              "transport": {
-                "type": "ws",
-                "path": "/vmess-argo",
-                "early_data_header_name": "Sec-WebSocket-Protocol"
-              }
+              "uuid": UUID
             }
           ],
-          "outbounds": [
+          "transport": {
+            "type": "ws",
+            "path": "/vmess-argo",
+            "early_data_header_name": "Sec-WebSocket-Protocol"
+          }
+        }
+      ],
+      "outbounds": [
+        {
+          "type": "direct",
+          "tag": "direct"
+        },
+        {
+          "type": "block",
+          "tag": "block"
+        },
+        {
+          "type": "wireguard",
+          "tag": "wireguard-out",
+          "server": "engage.cloudflareclient.com",
+          "server_port": 2408,
+          "local_address": [
+            "172.16.0.2/32",
+            "2606:4700:110:851f:4da3:4e2c:cdbf:2ecf/128"
+          ],
+          "private_key": "eAx8o6MJrH4KE7ivPFFCa4qvYw5nJsYHCBQXPApQX1A=",
+          "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+          "reserved": [82, 90, 51],
+          "mtu": 1420
+        }
+      ],
+      "route": {
+        "rule_set": [
+          {
+            "tag": "netflix",
+            "type": "remote",
+            "format": "binary",
+            "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/netflix.srs",
+            "download_detour": "direct"
+          },
+          {
+            "tag": "openai",
+            "type": "remote",
+            "format": "binary",
+            "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs",
+            "download_detour": "direct"
+          }
+        ],
+        "rules": [
+          {
+            "rule_set": ["openai", "netflix"],
+            "outbound": "wireguard-out"
+          }
+        ],
+        "final": "direct"
+      }
+    };
+
+    // Reality配置
+    try {
+      if (isValidPort(REALITY_PORT)) {
+        config.inbounds.push({
+          "tag": "vless-in",
+          "type": "vless",
+          "listen": "::",
+          "listen_port": parseInt(REALITY_PORT),
+          "users": [
             {
-              "type": "direct",
-              "tag": "direct"
-            },
-            {
-              "type": "block",
-              "tag": "block"
-            },
-            {
-              "type": "wireguard",
-              "tag": "wireguard-out",
-              "server": "engage.cloudflareclient.com",
-              "server_port": 2408,
-              "local_address": [
-                "172.16.0.2/32",
-                "2606:4700:110:851f:4da3:4e2c:cdbf:2ecf/128"
-              ],
-              "private_key": "eAx8o6MJrH4KE7ivPFFCa4qvYw5nJsYHCBQXPApQX1A=",
-              "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-              "reserved": [82, 90, 51],
-              "mtu": 1420
+              "uuid": UUID,
+              "flow": "xtls-rprx-vision"
             }
           ],
-          "route": {
-            "rule_set": [
-              {
-                "tag": "netflix",
-                "type": "remote",
-                "format": "binary",
-                "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/netflix.srs",
-                "download_detour": "direct"
+          "tls": {
+            "enabled": true,
+            "server_name": "www.iij.ad.jp",
+            "reality": {
+              "enabled": true,
+              "handshake": {
+                "server": "www.iij.ad.jp",
+                "server_port": 443
               },
-              {
-                "tag": "openai",
-                "type": "remote",
-                "format": "binary",
-                "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs",
-                "download_detour": "direct"
-              }
-            ],
-            "rules": [
-              {
-                "rule_set": ["openai", "netflix"],
-                "outbound": "wireguard-out"
-              }
-            ],
-            "final": "direct"
+              "private_key": privateKey, 
+              "short_id": [""]
+            }
           }
-        };
+        });
+      }
+    } catch (error) {
+      // 忽略错误，继续运行
+    }
 
-        // Reality配置
-        try {
-          if (isValidPort(REALITY_PORT)) {
-            config.inbounds.push({
-              "tag": "vless-in",
-              "type": "vless",
-              "listen": "::",
-              "listen_port": parseInt(REALITY_PORT),
-              "users": [
-                {
-                  "uuid": UUID,
-                  "flow": "xtls-rprx-vision"
-                }
-              ],
-              "tls": {
-                "enabled": true,
-                "server_name": "www.iij.ad.jp",
-                "reality": {
-                  "enabled": true,
-                  "handshake": {
-                    "server": "www.iij.ad.jp",
-                    "server_port": 443
-                  },
-                  "private_key": privateKey, 
-                  "short_id": [""]
-                }
-              }
-            });
+    // Hysteria2配置
+    try {
+      if (isValidPort(HY2_PORT)) {
+        config.inbounds.push({
+          "tag": "hysteria-in",
+          "type": "hysteria2",
+          "listen": "::",
+          "listen_port": parseInt(HY2_PORT),
+          "users": [
+            {
+              "password": UUID
+            }
+          ],
+          "masquerade": "https://bing.com",
+          "tls": {
+            "enabled": true,
+            "alpn": ["h3"],
+            "certificate_path": path.join(FILE_PATH, "cert.pem"),
+            "key_path": path.join(FILE_PATH, "private.key")
           }
-        } catch (error) {
-          // 忽略错误，继续运行
-        }
+        });
+      }
+    } catch (error) {
+      // 忽略错误，继续运行
+    }
 
-        // Hysteria2配置
-        try {
-          if (isValidPort(HY2_PORT)) {
-            config.inbounds.push({
-              "tag": "hysteria-in",
-              "type": "hysteria2",
-              "listen": "::",
-              "listen_port": parseInt(HY2_PORT),
-              "users": [
-                {
-                  "password": UUID
-                }
-              ],
-              "masquerade": "https://bing.com",
-              "tls": {
-                "enabled": true,
-                "alpn": ["h3"],
-                "certificate_path": "cert.pem",
-                "key_path": "private.key"
-              }
-            });
+    // TUIC配置
+    try {
+      if (isValidPort(TUIC_PORT)) {
+        config.inbounds.push({
+          "tag": "tuic-in",
+          "type": "tuic",
+          "listen": "::",
+          "listen_port": parseInt(TUIC_PORT),
+          "users": [
+            {
+              "uuid": UUID
+            }
+          ],
+          "congestion_control": "bbr",
+          "tls": {
+            "enabled": true,
+            "alpn": ["h3"],
+            "certificate_path": path.join(FILE_PATH, "cert.pem"),
+            "key_path": path.join(FILE_PATH, "private.key")
           }
-        } catch (error) {
-          // 忽略错误，继续运行
-        }
+        });
+      }
+    } catch (error) {
+      // 忽略错误，继续运行
+    }
 
-        // TUIC配置
+    // 检测YouTube可访问性并智能配置出站规则
+    try {
+      // console.log(`YT_WARPOUT environment variable is set to: ${YT_WARPOUT}`);
+      let isYouTubeAccessible = true;
+      
+      // 如果YT_WARPOUT设置为true，则强制添加YouTube出站规则
+      if (YT_WARPOUT === true) {
+        isYouTubeAccessible = false;
+      } else {
         try {
-          if (isValidPort(TUIC_PORT)) {
-            config.inbounds.push({
-              "tag": "tuic-in",
-              "type": "tuic",
-              "listen": "::",
-              "listen_port": parseInt(TUIC_PORT),
-              "users": [
-                {
-                  "uuid": UUID
-                }
-              ],
-              "congestion_control": "bbr",
-              "tls": {
-                "enabled": true,
-                "alpn": ["h3"],
-                "certificate_path": "cert.pem",
-                "key_path": "private.key"
-              }
-            });
-          }
-        } catch (error) {
-          // 忽略错误，继续运行
-        }
-
-        // 检测YouTube可访问性并智能配置出站规则
-        try {
-          let youtubeTest = '';
-          let isYouTubeAccessible = false;
-          
-          try {
-            // 尝试使用curl检测
-            youtubeTest = execSync('curl -o /dev/null -m 2 -s -w "%{http_code}" https://www.youtube.com', { encoding: 'utf8' }).trim();
+          // 尝试使用curl检测
+          const youtubeTest = execSync('curl -o /dev/null -m 2 -s -w "%{http_code}" https://www.youtube.com', { encoding: 'utf8' }).trim();
+          isYouTubeAccessible = youtubeTest === '200';
+          // console.log(`YouTube access check result: ${isYouTubeAccessible ? 'accessible' : 'inaccessible'}`);
+        } catch (curlError) {
+          // 如果curl失败，检查输出中是否包含状态码
+          if (curlError.output && curlError.output[1]) {
+            const youtubeTest = curlError.output[1].toString().trim();
             isYouTubeAccessible = youtubeTest === '200';
-            // console.log(`YouTube status code: ${youtubeTest}, accessable: ${isYouTubeAccessible}`);
-          } catch (curlError) {
-            // 如果curl失败，检查输出中是否包含状态码
-            if (curlError.output && curlError.output[1]) {
-              youtubeTest = curlError.output[1].toString().trim();
-              isYouTubeAccessible = youtubeTest === '200';
-            } else {
-              youtubeTest = '000';
-              isYouTubeAccessible = false;
-              // console.log('YouTube check failed, assuming YouTube is inaccessible');
-            }
-          }
-          
-          if (!isYouTubeAccessible) {
-            console.log('YouTube cannot be accessed, adding outbound rules...');
-            
-            // 确保route结构完整
-            if (!config.route) {
-              config.route = {};
-            }
-            if (!config.route.rule_set) {
-              config.route.rule_set = [];
-            }
-            if (!config.route.rules) {
-              config.route.rules = [];
-            }
-            
-            // 检查是否已存在YouTube规则集
-            const existingYoutubeRule = config.route.rule_set.find(rule => rule.tag === 'youtube');
-            if (!existingYoutubeRule) {
-              config.route.rule_set.push({
-                "tag": "youtube",
-                "type": "remote",
-                "format": "binary",
-                "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/youtube.srs",
-                "download_detour": "direct"
-              });
-              console.log('已添加YouTube规则集');
-            }
-            
-            // 查找wireguard-out规则
-            let wireguardRule = config.route.rules.find(rule => rule.outbound === 'wireguard-out');
-            if (!wireguardRule) {
-              // 如果不存在wireguard-out规则，创建一个
-              wireguardRule = {
-                "rule_set": ["openai", "netflix", "youtube"],
-                "outbound": "wireguard-out"
-              };
-              config.route.rules.push(wireguardRule);
-              // console.log('Add new wireguard-out rule');
-            } else {
-              // 如果规则集中没有youtube，则添加
-              if (!wireguardRule.rule_set.includes('youtube')) {
-                wireguardRule.rule_set.push('youtube');
-                //console.log('youtube outbound rule already exists');
-              }
-            }
-            
-            console.log('Add YouTube outbound rule');
           } else {
-            // console.log('YouTube is accessible, no needs to add outbound rule');
+            isYouTubeAccessible = false;
           }
-        } catch (error) {
-          console.error('YouTube check error:', error);
-          // ignore YouTube check error, continue running
+          // console.log(`YouTube access check failed, assuming inaccessible`);
         }
-
-
-        fs.writeFileSync(path.join(FILE_PATH, 'config.json'), JSON.stringify(config, null, 2));
-
-        // 运行ne-zha
-        let NEZHA_TLS = '';
-        if (NEZHA_SERVER && NEZHA_PORT && NEZHA_KEY) {
-          const tlsPorts = ['443', '8443', '2096', '2087', '2083', '2053'];
-          if (tlsPorts.includes(NEZHA_PORT)) {
-            NEZHA_TLS = '--tls';
-          } else {
-            NEZHA_TLS = '';
-          }
-          const command = `nohup ${path.join(FILE_PATH, 'npm')} -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &`;
-          try {
-            await execPromise(command);
-            console.log('npm is running');
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          } catch (error) {
-            console.error(`npm running error: ${error}`);
-          }
-        } else if (NEZHA_SERVER && NEZHA_KEY) {
-            // 运行 V1
-            const command = `nohup ${FILE_PATH}/php -c "${FILE_PATH}/config.yaml" >/dev/null 2>&1 &`;
-            try {
-              await exec(command);
-              console.log('php is running');
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-            } catch (error) {
-              console.error(`php running error: ${error}`);
-            }
+      }
+      // 当YouTube不可访问或YT_WARPOUT设置为true时添加出站规则
+      if (!isYouTubeAccessible) {
+        // console.log('YouTube cannot be accessed or YT_WARPOUT is enabled, adding outbound rules...');
+        
+        // 确保route结构完整
+        if (!config.route) {
+          config.route = {};
+        }
+        if (!config.route.rule_set) {
+          config.route.rule_set = [];
+        }
+        if (!config.route.rules) {
+          config.route.rules = [];
+        }
+        
+        // 检查是否已存在YouTube规则集
+        const existingYoutubeRule = config.route.rule_set.find(rule => rule.tag === 'youtube');
+        if (!existingYoutubeRule) {
+          config.route.rule_set.push({
+            "tag": "youtube",
+            "type": "remote",
+            "format": "binary",
+            "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/youtube.srs",
+            "download_detour": "direct"
+          });
+          // console.log('Add YouTube outbound successfully');
         } else {
-          console.log('NEZHA variable is empty, skipping running');
+          // console.log('YouTube rule set already exists');
         }
+        
+        // 查找wireguard-out规则
+        let wireguardRule = config.route.rules.find(rule => rule.outbound === 'wireguard-out');
+        if (!wireguardRule) {
+          // 如果不存在wireguard-out规则，创建一个
+          wireguardRule = {
+            "rule_set": ["openai", "netflix", "youtube"],
+            "outbound": "wireguard-out"
+          };
+          config.route.rules.push(wireguardRule);
+          // console.log('Created new wireguard-out rule with YouTube');
+        } else {
+          // 如果规则集中没有youtube，则添加
+          if (!wireguardRule.rule_set.includes('youtube')) {
+            wireguardRule.rule_set.push('youtube');
+            // console.log('Added YouTube to existing wireguard-out rule');
+          } else {
+            // console.log('YouTube already exists in wireguard-out rule');
+          }
+        }
+        
+        console.log('Add YouTube outbound rule');
+      } else {
+        // console.log('YouTube is accessible and YT_WARPOUT is not enabled, no need to add outbound rule');
+      }
+    } catch (error) {
+      console.error('YouTube check error:', error);
+      // ignore YouTube check error, continue running
+    }
 
-        // 运行sbX
-        const command1 = `nohup ${path.join(FILE_PATH, 'web')} run -c ${path.join(FILE_PATH, 'config.json')} >/dev/null 2>&1 &`;
+    fs.writeFileSync(path.join(FILE_PATH, 'config.json'), JSON.stringify(config, null, 2));
+
+    // 运行ne-zha
+    let NEZHA_TLS = '';
+    if (NEZHA_SERVER && NEZHA_PORT && NEZHA_KEY) {
+      const tlsPorts = ['443', '8443', '2096', '2087', '2083', '2053'];
+      if (tlsPorts.includes(NEZHA_PORT)) {
+        NEZHA_TLS = '--tls';
+      } else {
+        NEZHA_TLS = '';
+      }
+      const command = `nohup ${path.join(FILE_PATH, 'npm')} -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &`;
+      try {
+        await execPromise(command);
+        console.log('npm is running');
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`npm running error: ${error}`);
+      }
+    } else if (NEZHA_SERVER && NEZHA_KEY) {
+        // 运行 V1
+        const command = `nohup ${FILE_PATH}/php -c "${FILE_PATH}/config.yaml" >/dev/null 2>&1 &`;
         try {
-          await execPromise(command1);
-          console.log('web is running');
+          await exec(command);
+          console.log('php is running');
           await new Promise((resolve) => setTimeout(resolve, 1000));
         } catch (error) {
-          console.error(`web running error: ${error}`);
+          console.error(`php running error: ${error}`);
         }
+    } else {
+      console.log('NEZHA variable is empty, skipping running');
+    }
 
-        // 运行cloud-fared
-        if (fs.existsSync(path.join(FILE_PATH, 'bot'))) {
-          let args;
+    // 运行sbX
+    const command1 = `nohup ${path.join(FILE_PATH, 'web')} run -c ${path.join(FILE_PATH, 'config.json')} >/dev/null 2>&1 &`;
+    try {
+      await execPromise(command1);
+      console.log('web is running');
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.error(`web running error: ${error}`);
+    }
 
-          if (ARGO_AUTH.match(/^[A-Z0-9a-z=]{120,250}$/)) {
-            args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 run --token ${ARGO_AUTH}`;
-          } else if (ARGO_AUTH.match(/TunnelSecret/)) {
-            args = `tunnel --edge-ip-version auto --config ${path.join(FILE_PATH, 'tunnel.yml')} run`;
-          } else {
-            args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile ${path.join(FILE_PATH, 'boot.log')} --loglevel info --url http://localhost:${ARGO_PORT}`;
-          }
+    // 运行cloud-fared
+    if (fs.existsSync(path.join(FILE_PATH, 'bot'))) {
+      let args;
 
-          try {
-            await execPromise(`nohup ${path.join(FILE_PATH, 'bot')} ${args} >/dev/null 2>&1 &`);
-            console.log('bot is running');
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-          } catch (error) {
-            console.error(`Error executing command: ${error}`);
-          }
-        }
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+      if (ARGO_AUTH.match(/^[A-Z0-9a-z=]{120,250}$/)) {
+        args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 run --token ${ARGO_AUTH}`;
+      } else if (ARGO_AUTH.match(/TunnelSecret/)) {
+        args = `tunnel --edge-ip-version auto --config ${path.join(FILE_PATH, 'tunnel.yml')} run`;
+      } else {
+        args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile ${path.join(FILE_PATH, 'boot.log')} --loglevel info --url http://localhost:${ARGO_PORT}`;
+      }
 
-        // 提取域名并生成sub.txt文件
-        await extractDomains();
-      });
+      try {
+        await execPromise(`nohup ${path.join(FILE_PATH, 'bot')} ${args} >/dev/null 2>&1 &`);
+        console.log('bot is running');
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      } catch (error) {
+        console.error(`Error executing command: ${error}`);
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // 提取域名并生成sub.txt文件
+    await extractDomains();
     });
-  }
+  };
 }
 
 // 执行命令的Promise封装
@@ -653,12 +726,12 @@ function getFilesForArchitecture(architecture) {
   if (architecture === 'arm') {
     baseFiles = [
       { fileName: "web", fileUrl: "https://arm64.ssss.nyc.mn/sb" },
-      { fileName: "bot", fileUrl: "https://arm64.ssss.nyc.mn/2go" }
+      { fileName: "bot", fileUrl: "https://arm64.ssss.nyc.mn/bot" }
     ];
   } else {
     baseFiles = [
       { fileName: "web", fileUrl: "https://amd64.ssss.nyc.mn/sb" },
-      { fileName: "bot", fileUrl: "https://amd64.ssss.nyc.mn/2go" }
+      { fileName: "bot", fileUrl: "https://amd64.ssss.nyc.mn/bot" }
     ];
   }
 
@@ -684,34 +757,6 @@ function getFilesForArchitecture(architecture) {
 
   return baseFiles;
 }
-
-// 获取固定隧道json
-function argoType() {
-  if (!ARGO_AUTH || !ARGO_DOMAIN) {
-    console.log("ARGO_DOMAIN or ARGO_AUTH variable is empty, use quick tunnels");
-    return;
-  }
-
-  if (ARGO_AUTH.includes('TunnelSecret')) {
-    fs.writeFileSync(path.join(FILE_PATH, 'tunnel.json'), ARGO_AUTH);
-    const tunnelYaml = `
-  tunnel: ${ARGO_AUTH.split('"')[11]}
-  credentials-file: ${path.join(FILE_PATH, 'tunnel.json')}
-  protocol: http2
-  
-  ingress:
-    - hostname: ${ARGO_DOMAIN}
-      service: http://localhost:${ARGO_PORT}
-      originRequest:
-        noTLSVerify: true
-    - service: http_status:404
-  `;
-    fs.writeFileSync(path.join(FILE_PATH, 'tunnel.yml'), tunnelYaml);
-  } else {
-    console.log("ARGO_AUTH mismatch TunnelSecret,use token connect to tunnel");
-  }
-}
-argoType();
 
 // 获取临时隧道domain
 async function extractDomains() {
@@ -763,9 +808,10 @@ async function extractDomains() {
           }
         }
       } catch (error) {
-        console.error('Error reading boot.log:', error);
-      }
+      console.error('Error reading boot.log:', error);
     }
+  }
+}
   
   // 生成 list 和 sub 信息
   async function generateLinks(argoDomain) {
@@ -786,27 +832,29 @@ async function extractDomains() {
     );
     const ISP = metaInfo.trim();
 
+    const nodeName = NAME ? `${NAME}-${ISP}` : ISP;
+
     return new Promise((resolve) => {
       setTimeout(() => {
-        const vmessNode = `vmess://${Buffer.from(JSON.stringify({ v: '2', ps: `${NAME}-${ISP}`, add: CFIP, port: CFPORT, id: UUID, aid: '0', scy: 'none', net: 'ws', type: 'none', host: argoDomain, path: '/vmess-argo?ed=2048', tls: 'tls', sni: argoDomain, alpn: '' })).toString('base64')}`;
+        const vmessNode = `vmess://${Buffer.from(JSON.stringify({ v: '2', ps: `${nodeName}`, add: CFIP, port: CFPORT, id: UUID, aid: '0', scy: 'none', net: 'ws', type: 'none', host: argoDomain, path: '/vmess-argo?ed=2560', tls: 'tls', sni: argoDomain, alpn: '', fp: 'firefox'})).toString('base64')}`;
 
         let subTxt = vmessNode; // 始终生成vmess节点
 
         // TUIC_PORT是有效端口号时生成tuic节点
         if (isValidPort(TUIC_PORT)) {
-          const tuicNode = `\ntuic://${UUID}:@${SERVER_IP}:${TUIC_PORT}?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#${NAME}-${ISP}`;
+          const tuicNode = `\ntuic://${UUID}:@${SERVER_IP}:${TUIC_PORT}?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#${nodeName}`;
           subTxt += tuicNode;
         }
 
         // HY2_PORT是有效端口号时生成hysteria2节点
         if (isValidPort(HY2_PORT)) {
-          const hysteriaNode = `\nhysteria2://${UUID}@${SERVER_IP}:${HY2_PORT}/?sni=www.bing.com&insecure=1&alpn=h3&obfs=none#${NAME}-${ISP}`;
+          const hysteriaNode = `\nhysteria2://${UUID}@${SERVER_IP}:${HY2_PORT}/?sni=www.bing.com&insecure=1&alpn=h3&obfs=none#${nodeName}`;
           subTxt += hysteriaNode;
         }
 
         // REALITY_PORT是有效端口号时生成reality节点
         if (isValidPort(REALITY_PORT)) {
-          const vlessNode = `\nvless://${UUID}@${SERVER_IP}:${REALITY_PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=chrome&pbk=${publicKey}&type=tcp&headerType=none#${NAME}-${ISP}`;
+          const vlessNode = `\nvless://${UUID}@${SERVER_IP}:${REALITY_PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=firefox&pbk=${publicKey}&type=tcp&headerType=none#${nodeName}`;
           subTxt += vlessNode;
         }
 
@@ -827,7 +875,6 @@ async function extractDomains() {
       }, 2000);
     });
   }
-}
   
 // 90s分钟后删除相关文件
 function cleanFiles() {
@@ -889,12 +936,10 @@ async function uplodNodes() {
             console.log('Subscription uploaded successfully');
         } else {
           return null;
-          //  console.log('Unknown response status');
         }
     } catch (error) {
         if (error.response) {
             if (error.response.status === 400) {
-              //  console.error('Subscription already exists');
             }
         }
     }
@@ -908,19 +953,18 @@ async function uplodNodes() {
       const jsonData = JSON.stringify({ nodes });
 
       try {
-          await axios.post(`${UPLOAD_URL}/api/add-nodes`, jsonData, {
+          const response = await axios.post(`${UPLOAD_URL}/api/add-nodes`, jsonData, {
               headers: { 'Content-Type': 'application/json' }
           });
           if (response.status === 200) {
             console.log('Subscription uploaded successfully');
-        } else {
+          } else {
             return null;
-        }
+          }
       } catch (error) {
           return null;
       }
   } else {
-      // console.log('Skipping upload nodes');
       return;
   }
 }
@@ -940,7 +984,6 @@ async function AddVisitTask() {
         'Content-Type': 'application/json'
       }
     });
-    // console.log(`${JSON.stringify(response.data)}`);
     console.log('automatic access task added successfully');
   } catch (error) {
     console.error(`添加URL失败: ${error.message}`);
@@ -951,6 +994,7 @@ async function AddVisitTask() {
 async function startserver() {
   deleteNodes();
   cleanupOldFiles();
+  argoType();
   await downloadFilesAndRun();
   AddVisitTask();
   cleanFiles();

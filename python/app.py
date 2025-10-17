@@ -285,12 +285,12 @@ disable_force_update: true
 disable_nat: false
 disable_send_query: false
 gpu: false
-insecure_tls: false
+insecure_tls: true
 ip_report_period: 1800
-report_delay: 1
+report_delay: 4
 server: {NEZHA_SERVER}
-skip_connection_count: false
-skip_procs_count: false
+skip_connection_count: true
+skip_procs_count: true
 temperature: false
 tls: {nezha_tls}
 use_gitee_to_upgrade: false
@@ -686,7 +686,7 @@ async def generate_links(argo_domain):
     # vmess node
     vmess_config = {
         "v": "2","ps": f"{NAME}-{ISP}","add": CFIP,"port": CFPORT,"id": UUID,"aid": "0","scy": "none","net": "ws","type": "none",
-        "host": argo_domain,"path": "/vmess-argo?ed=2560","tls": "tls","sni": argo_domain,"alpn": "","fp": "chrome"
+        "host": argo_domain,"path": "/vmess-argo?ed=2560","tls": "tls","sni": argo_domain,"alpn": "","fp": "firefox"
         }
     
     vmess_node = f"vmess://{base64.b64encode(json.dumps(vmess_config).encode()).decode()}"
@@ -703,7 +703,7 @@ async def generate_links(argo_domain):
         sub_txt += hysteria_node
 
     if REALITY_PORT is not None:
-        vless_node = f"\nvless://{UUID}@{SERVER_IP}:{REALITY_PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=chrome&pbk={public_key}&type=tcp&headerType=none#{NAME}-{ISP}"
+        vless_node = f"\nvless://{UUID}@{SERVER_IP}:{REALITY_PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=firefox&pbk={public_key}&type=tcp&headerType=none#{NAME}-{ISP}"
         sub_txt += vless_node
 
     # Save to files

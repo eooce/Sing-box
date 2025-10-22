@@ -13,7 +13,7 @@ const UPLOAD_URL = process.env.UPLOAD_URL || '';      // 订阅或节点自动�
 const PROJECT_URL = process.env.PROJECT_URL || '';    // 需要上传订阅或保活时需填写项目分配的url,例如：https://google.com
 const AUTO_ACCESS = process.env.AUTO_ACCESS || false; // false关闭自动保活，true开启,需同时填写PROJECT_URL变量
 const YT_WARPOUT = process.env.YT_WARPOUT || false;   // 设置为true时强制使用warp出站访问youtube,false时自动检测是否设置warp出站
-const FILE_PATH = process.env.FILE_PATH || './.npm';  // sub.txt订阅文件路径
+const FILE_PATH = process.env.FILE_PATH || '.npm';    // sub.txt订阅文件路径
 const SUB_PATH = process.env.SUB_PATH || 'sub';       // 订阅sub路径，默认为sub,例如：https://google.com/sub
 const UUID = process.env.UUID || '0a6568ff-ea3c-4271-9020-450560e10d63';  // 在不同的平台运行了v1哪吒请修改UUID,否则会覆盖
 const NEZHA_SERVER = process.env.NEZHA_SERVER || '';         // 哪吒面板地址,v1形式：nz.serv00.net:8008  v0形式：nz.serv00.net
@@ -25,7 +25,7 @@ const ARGO_PORT = process.env.ARGO_PORT || 8001;             // argo固定隧道
 const TUIC_PORT = process.env.TUIC_PORT || '';               // tuic端口，支持多端口的可以填写，否则留空
 const HY2_PORT = process.env.HY2_PORT || '';                 // hy2端口，支持多端口的可以填写，否则留空
 const REALITY_PORT = process.env.REALITY_PORT || '';         // reality端口，支持多端口的可以填写，否则留空
-const CFIP = process.env.CFIP || 'cf.877774.xyz';            // 优选域名或优选IP
+const CFIP = process.env.CFIP || 'cdns.doon.eu.org';         // 优选域名或优选IP
 const CFPORT = process.env.CFPORT || 443;                    // 优选域名或优选IP对应端口
 const PORT = process.env.PORT || 3000;                       // http订阅端口    
 const NAME = process.env.NAME || '';                         // 节点名称
@@ -44,10 +44,28 @@ if (!fs.existsSync(FILE_PATH)) {
 
 let privateKey = '';
 let publicKey = '';
-let npmPath = path.join(FILE_PATH, 'npm');
-let phpPath = path.join(FILE_PATH, 'php');
-let webPath = path.join(FILE_PATH, 'web');
-let botPath = path.join(FILE_PATH, 'bot');
+
+// 生成随机6位字符函数
+function generateRandomName() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// 生成随机名称
+const npmRandomName = generateRandomName();
+const webRandomName = generateRandomName();
+const botRandomName = generateRandomName();
+const phpRandomName = generateRandomName();
+
+// 使用随机文件名定义路径
+let npmPath = path.join(FILE_PATH, npmRandomName);
+let phpPath = path.join(FILE_PATH, phpRandomName);
+let webPath = path.join(FILE_PATH, webRandomName);
+let botPath = path.join(FILE_PATH, botRandomName);
 let subPath = path.join(FILE_PATH, 'sub.txt');
 let listPath = path.join(FILE_PATH, 'list.txt');
 let bootLogPath = path.join(FILE_PATH, 'boot.log');
@@ -102,7 +120,7 @@ function isValidPort(port) {
 }
 
 //清理历史文件
-const pathsToDelete = [ 'web', 'bot', 'npm', 'boot.log', 'list.txt'];
+const pathsToDelete = [ webRandomName, botRandomName, npmRandomName, 'boot.log', 'list.txt'];
 function cleanupOldFiles() {
   pathsToDelete.forEach(file => {
     const filePath = path.join(FILE_PATH, file);
@@ -196,7 +214,24 @@ async function downloadFilesAndRun() {
     return;
   }
 
-  const downloadPromises = filesToDownload.map(fileInfo => {
+  // 修改文件名映射为使用随机名称
+  const renamedFiles = filesToDownload.map(file => {
+    let newFileName;
+    if (file.fileName === 'npm') {
+      newFileName = npmRandomName;
+    } else if (file.fileName === 'web') {
+      newFileName = webRandomName;
+    } else if (file.fileName === 'bot') {
+      newFileName = botRandomName;
+    } else if (file.fileName === 'php') {
+      newFileName = phpRandomName;
+    } else {
+      newFileName = file.fileName;
+    }
+    return { ...file, fileName: newFileName };
+  });
+
+  const downloadPromises = renamedFiles.map(fileInfo => {
     return new Promise((resolve, reject) => {
       downloadFile(fileInfo.fileName, fileInfo.fileUrl, (err, fileName) => {
         if (err) {
@@ -231,7 +266,8 @@ async function downloadFilesAndRun() {
       }
     });
   }
-  const filesToAuthorize = NEZHA_PORT ? ['./npm', './web', './bot'] : ['./php', './web', './bot'];
+  // 修改授权文件列表以使用随机名称
+  const filesToAuthorize = NEZHA_PORT ? [npmRandomName, webRandomName, botRandomName] : [phpRandomName, webRandomName, botRandomName];
   authorizeFiles(filesToAuthorize);
 
   // 检测哪吒是否开启TLS
@@ -289,7 +325,8 @@ uuid: ${UUID}`;
 
     continueExecution();
   } else {
-    exec(`${path.join(FILE_PATH, 'web')} generate reality-keypair`, async (err, stdout, stderr) => {
+    // 修改执行命令以使用随机文件名
+    exec(`${path.join(FILE_PATH, webRandomName)} generate reality-keypair`, async (err, stdout, stderr) => {
       if (err) {
         console.error(`Error generating reality-keypair: ${err.message}`);
         return;
@@ -647,7 +684,7 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
       } else {
         NEZHA_TLS = '';
       }
-      const command = `nohup ${path.join(FILE_PATH, 'npm')} -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &`;
+      const command = `nohup ${path.join(FILE_PATH, npmRandomName)} -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &`;
       try {
         await execPromise(command);
         console.log('npm is running');
@@ -657,7 +694,7 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
       }
     } else if (NEZHA_SERVER && NEZHA_KEY) {
         // 运行 V1
-        const command = `nohup ${FILE_PATH}/php -c "${FILE_PATH}/config.yaml" >/dev/null 2>&1 &`;
+        const command = `nohup ${FILE_PATH}/${phpRandomName} -c "${FILE_PATH}/config.yaml" >/dev/null 2>&1 &`;
         try {
           await exec(command);
           console.log('php is running');
@@ -670,7 +707,8 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
     }
 
     // 运行sbX
-    const command1 = `nohup ${path.join(FILE_PATH, 'web')} run -c ${path.join(FILE_PATH, 'config.json')} >/dev/null 2>&1 &`;
+    // 修改执行命令以使用随机文件名
+    const command1 = `nohup ${path.join(FILE_PATH, webRandomName)} run -c ${path.join(FILE_PATH, 'config.json')} >/dev/null 2>&1 &`;
     try {
       await execPromise(command1);
       console.log('web is running');
@@ -680,7 +718,8 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
     }
 
     // 运行cloud-fared
-    if (fs.existsSync(path.join(FILE_PATH, 'bot'))) {
+    // 修改检查和执行命令以使用随机文件名
+    if (fs.existsSync(path.join(FILE_PATH, botRandomName))) {
       let args;
 
       if (ARGO_AUTH.match(/^[A-Z0-9a-z=]{120,250}$/)) {
@@ -692,7 +731,7 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
       }
 
       try {
-        await execPromise(`nohup ${path.join(FILE_PATH, 'bot')} ${args} >/dev/null 2>&1 &`);
+        await execPromise(`nohup ${path.join(FILE_PATH, botRandomName)} ${args} >/dev/null 2>&1 &`);
         console.log('bot is running');
         await new Promise((resolve) => setTimeout(resolve, 2000));
       } catch (error) {
@@ -789,7 +828,7 @@ async function extractDomains() {
           fs.unlinkSync(path.join(FILE_PATH, 'boot.log'));
           async function killBotProcess() {
             try {
-              await exec('pkill -f "[b]ot" > /dev/null 2>&1');
+              await exec(`pkill -f "${botRandomName}" > /dev/null 2>&1`);
             } catch (error) {
                 return null;
               // 忽略输出
@@ -799,7 +838,7 @@ async function extractDomains() {
           await new Promise((resolve) => setTimeout(resolve, 1000));
           const args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile ${FILE_PATH}/boot.log --loglevel info --url http://localhost:${ARGO_PORT}`;
           try {
-            await exec(`nohup ${path.join(FILE_PATH, 'bot')} ${args} >/dev/null 2>&1 &`);
+            await exec(`nohup ${path.join(FILE_PATH, botRandomName)} ${args} >/dev/null 2>&1 &`);
             console.log('bot is running.');
             await new Promise((resolve) => setTimeout(resolve, 6000)); // 等待6秒
             await extractDomains(); // 重新提取域名
@@ -887,7 +926,17 @@ function cleanFiles() {
       filesToDelete.push(phpPath);
     }
 
-    exec(`rm -rf ${filesToDelete.join(' ')} >/dev/null 2>&1`, (error) => {
+    // 修改为使用随机文件名删除文件
+    const filePathsToDelete = filesToDelete.map(file => {
+      // 对于已经使用随机路径的变量，直接使用
+      if ([webPath, botPath, phpPath, npmPath].includes(file)) {
+        return file;
+      }
+      // 对于其他文件，使用原始路径
+      return path.join(FILE_PATH, path.basename(file));
+    });
+
+    exec(`rm -rf ${filePathsToDelete.join(' ')} >/dev/null 2>&1`, (error) => {
       console.clear();
       console.log('App is running');
       console.log('Thank you for using this script, enjoy!');

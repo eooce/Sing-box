@@ -273,7 +273,7 @@ async function downloadFilesAndRun() {
   // 检测哪吒是否开启TLS
   const port = NEZHA_SERVER.includes(':') ? NEZHA_SERVER.split(':').pop() : '';
   const tlsPorts = new Set(['443', '8443', '2096', '2087', '2083', '2053']);
-  const nezhatls = tlsPorts.has(port) ? 'tls' : 'false';
+  const nezhatls = tlsPorts.has(port) ? 'true' : 'false';
 
   //运行ne-zha
   if (NEZHA_SERVER && NEZHA_KEY) {
@@ -675,7 +675,7 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
       } else {
         NEZHA_TLS = '';
       }
-      const command = `nohup ${path.join(FILE_PATH, npmRandomName)} -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} >/dev/null 2>&1 &`;
+      const command = `nohup ${path.join(FILE_PATH, npmRandomName)} -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} --disable-auto-update --report-delay 4 --skip-conn --skip-procs >/dev/null 2>&1 &`;
       try {
         await execPromise(command);
         console.log('npm is running');

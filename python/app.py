@@ -24,14 +24,14 @@ SUB_PATH = os.environ.get('SUB_PATH', 'sub')           # 订阅token,默认sub�
 UUID = os.environ.get('UUID', 'f929c4da-dc2e-4e0d-9a6f-1799036af214')  # UUID,如使用哪吒v1,在不同的平台部署需要修改,否则会覆盖
 NEZHA_SERVER = os.environ.get('NEZHA_SERVER', '')      # 哪吒面板域名或ip, v1格式: nz.serv00.net:8008, v0格式: nz.serv00.net
 NEZHA_PORT = os.environ.get('NEZHA_PORT', '')          # v1哪吒请留空, v0哪吒的agent通信端口
-NEZHA_KEY = os.environ.get('NEZHA_KEY', 'nezha123@')   # v1哪吒的NZ_CLIENT_SECRET或v0哪吒agent密钥
+NEZHA_KEY = os.environ.get('NEZHA_KEY', '')            # v1哪吒的NZ_CLIENT_SECRET或v0哪吒agent密钥
 ARGO_DOMAIN = os.environ.get('ARGO_DOMAIN', '')        # Argo固定隧道域名,留空即使用临时隧道
 ARGO_AUTH = os.environ.get('ARGO_AUTH', '')            # Argo固定隧道密钥,留空即使用临时隧道
 ARGO_PORT = int(os.environ.get('ARGO_PORT', '8001'))   # Argo端口,使用固定隧道token需在cloudflare后台设置端口和这里一致
 TUIC_PORT_STR = os.environ.get('TUIC_PORT', '')        # tuic端口,支持多端口的玩具可以填写开启,否则保持不变
 HY2_PORT_STR = os.environ.get('HY2_PORT', '')          # hy2端口,支持多端口的玩具可以填写开启,否则保持不变
 REALITY_PORT_STR = os.environ.get('REALITY_PORT', '')  # Reality端口,支持多端口的玩具可以填写开启,否则保持不变
-CFIP = os.environ.get('CFIP', 'time.is')               # 优选ip或优选域名
+CFIP = os.environ.get('CFIP', 'cdns.doon.eu.org')      # 优选ip或优选域名
 CFPORT = int(os.environ.get('CFPORT', '443'))          # 优选ip或优选域名对应端口
 PORT = int(os.environ.get('PORT', '3000'))             # http服务端口,订阅端口
 NAME = os.environ.get('NAME', '')                      # 节点名称
@@ -327,20 +327,8 @@ uuid: {UUID}"""
     config = {
         "log": {
             "disabled": True,
-            "level": "info",
+            "level": "error",
             "timestamp": True
-        },
-        "dns": {
-            "servers": [
-                {
-                    "address": "8.8.8.8",
-                    "address_resolver": "local"
-                },
-                {
-                    "tag": "local",
-                    "address": "local"
-                }
-            ]
         },
         "inbounds": [
             {
@@ -360,28 +348,31 @@ uuid: {UUID}"""
                 }
             }
         ],
+        "endpoints": [
+            {
+                "type": "wireguard",
+                "tag": "warp-out",
+                "mtu": 1280,
+                "address": [
+                    "172.16.0.2/32",
+                    "2606:4700:110:8dfe:d141:69bb:6b80:925/128"
+                ],
+                "private_key": "YFYOAdbw1bKTHlNNi+aEjBM3BO7unuFC5rOkMRAz9XY=",
+                "peers": [
+                    {
+                        "address": "engage.cloudflareclient.com",
+                        "port": 2408,
+                        "public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+                        "allowed_ips": ["0.0.0.0/0", "::/0"],
+                        "reserved": [78, 135, 76]
+                    }
+                ]
+            }
+        ],
         "outbounds": [
             {
                 "type": "direct",
                 "tag": "direct"
-            },
-            {
-                "type": "block",
-                "tag": "block"
-            },
-            {
-              "type": "wireguard",
-              "tag": "wireguard-out",
-              "server": "engage.cloudflareclient.com",
-              "server_port": 2408,
-              "local_address": [
-                "172.16.0.2/32",
-                "2606:4700:110:851f:4da3:4e2c:cdbf:2ecf/128"
-              ],
-              "private_key": "eAx8o6MJrH4KE7ivPFFCa4qvYw5nJsYHCBQXPApQX1A=",
-              "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-              "reserved": [82, 90, 51],
-              "mtu": 1420
             }
         ],
         "route": {
@@ -404,7 +395,7 @@ uuid: {UUID}"""
             "rules": [
                 {
                     "rule_set": ["openai", "netflix"],
-                    "outbound": "wireguard-out"
+                    "outbound": "warp-out"
                 }
             ],
             "final": "direct"

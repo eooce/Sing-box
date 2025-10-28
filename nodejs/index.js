@@ -444,7 +444,7 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
       "endpoints": [
           {
               "type": "wireguard",
-              "tag": "warp-out",
+              "tag": "wireguard-out",
               "mtu": 1280,
               "address": [
                   "172.16.0.2/32",
@@ -488,7 +488,7 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
         "rules": [
           {
             "rule_set": ["openai", "netflix"],
-            "outbound": "warp-out"
+            "outbound": "wireguard-out"
           }
         ],
         "final": "direct"

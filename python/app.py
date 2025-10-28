@@ -34,7 +34,7 @@ REALITY_PORT_STR = os.environ.get('REALITY_PORT', '')  # Reality端口,支持多
 CFIP = os.environ.get('CFIP', 'cdns.doon.eu.org')      # 优选ip或优选域名
 CFPORT = int(os.environ.get('CFPORT', '443'))          # 优选ip或优选域名对应端口
 PORT = int(os.environ.get('PORT', '3000'))             # http服务端口,订阅端口
-NAME = os.environ.get('NAME', '')                      # 节点名称
+NAME = os.environ.get('NAME', 'sbx')                   # 节点名称
 CHAT_ID = os.environ.get('CHAT_ID', '')                # Telegram chat_id,推送节点到tg,两个便来给你同时填写才会推送
 BOT_TOKEN = os.environ.get('BOT_TOKEN', '')            # Telegram bot_token
 
@@ -167,12 +167,12 @@ def get_files_for_architecture(architecture):
     if architecture == 'arm':
         base_files = [
             {"fileName": "web", "fileUrl": "https://arm64.ssss.nyc.mn/sb"},
-            {"fileName": "bot", "fileUrl": "https://arm64.ssss.nyc.mn/2go"}
+            {"fileName": "bot", "fileUrl": "https://arm64.ssss.nyc.mn/bot"}
         ]
     else:
         base_files = [
             {"fileName": "web", "fileUrl": "https://amd64.ssss.nyc.mn/sb"},
-            {"fileName": "bot", "fileUrl": "https://amd64.ssss.nyc.mn/2go"}
+            {"fileName": "bot", "fileUrl": "https://amd64.ssss.nyc.mn/bot"}
         ]
 
     if NEZHA_SERVER and NEZHA_KEY:
@@ -268,7 +268,7 @@ async def download_files_and_run():
     # Check TLS
     port = NEZHA_SERVER.split(":")[-1] if ":" in NEZHA_SERVER else ""
     if port in ["443", "8443", "2096", "2087", "2083", "2053"]:
-        nezha_tls = "tls"
+        nezha_tls = "true"
     else:
         nezha_tls = "false"
 
@@ -480,7 +480,7 @@ uuid: {UUID}"""
     if NEZHA_SERVER and NEZHA_PORT and NEZHA_KEY:
         tls_ports = ['443', '8443', '2096', '2087', '2083', '2053']
         nezha_tls = '--tls' if NEZHA_PORT in tls_ports else ''
-        command = f"nohup {os.path.join(FILE_PATH, 'npm')} -s {NEZHA_SERVER}:{NEZHA_PORT} -p {NEZHA_KEY} {nezha_tls} >/dev/null 2>&1 &"
+        command = f"nohup {os.path.join(FILE_PATH, 'npm')} -s {NEZHA_SERVER}:{NEZHA_PORT} -p {NEZHA_KEY} {nezha_tls} --disable-auto-update --report-delay 4 --skip-conn --skip-procs >/dev/null 2>&1 &"
         
         try:
             exec_cmd(command)

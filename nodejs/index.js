@@ -423,18 +423,6 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
         "level": "error",
         "timestamp": true
       },
-      "dns": {
-        "servers": [
-          {
-            "address": "8.8.8.8",
-            "address_resolver": "local"
-          },
-          {
-            "tag": "local",
-            "address": "local"
-          }
-        ]
-      },
       "inbounds": [
         {
           "tag": "vmess-ws-in",
@@ -453,28 +441,31 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
           }
         }
       ],
+      "endpoints": [
+          {
+              "type": "wireguard",
+              "tag": "warp-out",
+              "mtu": 1280,
+              "address": [
+                  "172.16.0.2/32",
+                  "2606:4700:110:8dfe:d141:69bb:6b80:925/128"
+              ],
+              "private_key": "YFYOAdbw1bKTHlNNi+aEjBM3BO7unuFC5rOkMRAz9XY=",
+              "peers": [
+                  {
+                      "address": "engage.cloudflareclient.com",
+                      "port": 2408,
+                      "public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+                      "allowed_ips": ["0.0.0.0/0", "::/0"],
+                      "reserved": [78, 135, 76]
+                  }
+              ]
+          }
+      ],
       "outbounds": [
         {
           "type": "direct",
           "tag": "direct"
-        },
-        {
-          "type": "block",
-          "tag": "block"
-        },
-        {
-          "type": "wireguard",
-          "tag": "wireguard-out",
-          "server": "engage.cloudflareclient.com",
-          "server_port": 2408,
-          "local_address": [
-            "172.16.0.2/32",
-            "2606:4700:110:851f:4da3:4e2c:cdbf:2ecf/128"
-          ],
-          "private_key": "eAx8o6MJrH4KE7ivPFFCa4qvYw5nJsYHCBQXPApQX1A=",
-          "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-          "reserved": [82, 90, 51],
-          "mtu": 1420
         }
       ],
       "route": {
@@ -497,7 +488,7 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
         "rules": [
           {
             "rule_set": ["openai", "netflix"],
-            "outbound": "wireguard-out"
+            "outbound": "warp-out"
           }
         ],
         "final": "direct"
@@ -875,7 +866,7 @@ async function extractDomains() {
 
     return new Promise((resolve) => {
       setTimeout(() => {
-        const vmessNode = `vmess://${Buffer.from(JSON.stringify({ v: '2', ps: `${nodeName}`, add: CFIP, port: CFPORT, id: UUID, aid: '0', scy: 'none', net: 'ws', type: 'none', host: argoDomain, path: '/vmess-argo?ed=2560', tls: 'tls', sni: argoDomain, alpn: '', fp: 'firefox'})).toString('base64')}`;
+        const vmessNode = `vmess://${Buffer.from(JSON.stringify({ v: '2', ps: `${nodeName}`, add: CFIP, port: CFPORT, id: UUID, aid: '0', scy: 'auto', net: 'ws', type: 'none', host: argoDomain, path: '/vmess-argo?ed=2560', tls: 'tls', sni: argoDomain, alpn: '', fp: 'firefox'})).toString('base64')}`;
 
         let subTxt = vmessNode; // 始终生成vmess节点
 

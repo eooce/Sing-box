@@ -31,6 +31,7 @@ const PORT = process.env.PORT || 3000;                       // http订阅端口
 const NAME = process.env.NAME || '';                         // 节点名称
 const CHAT_ID = process.env.CHAT_ID || '';                   // Telegram chat_id  两个变量不全不推送节点到TG 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';               // Telegram bot_token 两个变量不全不推送节点到TG 
+const DISABLE_ARGO = process.env.DISABLE_ARGO || false;      // 设置为 true 时禁用argo,false开启
 
 require('dotenv').config();
 
@@ -128,14 +129,13 @@ function cleanupOldFiles() {
   });
 }
 
-
-// 根路由
-app.get("/", function(req, res) {
-  res.send("Hello world!");
-});
-
 // 获取固定隧道json
 function argoType() {
+  if (DISABLE_ARGO === 'true' || DISABLE_ARGO === true) {
+    console.log("DISABLE_ARGO is set to true, disable argo tunnel");
+    return;
+  }
+
   if (!ARGO_AUTH || !ARGO_DOMAIN) {
     console.log("ARGO_DOMAIN or ARGO_AUTH variable is empty, use quick tunnels");
     return;
@@ -441,47 +441,40 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
           }
         }
       ],
-      "endpoints": [
-          {
-              "type": "wireguard",
-              "tag": "wireguard-out",
-              "mtu": 1280,
-              "address": [
-                  "172.16.0.2/32",
-                  "2606:4700:110:8dfe:d141:69bb:6b80:925/128"
-              ],
-              "private_key": "YFYOAdbw1bKTHlNNi+aEjBM3BO7unuFC5rOkMRAz9XY=",
-              "peers": [
-                  {
-                      "address": "engage.cloudflareclient.com",
-                      "port": 2408,
-                      "public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-                      "allowed_ips": ["0.0.0.0/0", "::/0"],
-                      "reserved": [78, 135, 76]
-                  }
-              ]
-          }
-      ],
       "outbounds": [
         {
           "type": "direct",
           "tag": "direct"
+        },
+        {
+          "type": "wireguard",
+          "tag": "wireguard-out",
+          "server": "engage.cloudflareclient.com",
+          "server_port": 2408,
+          "local_address": [
+            "172.16.0.2/32",
+            "2606:4700:110:851f:4da3:4e2c:cdbf:2ecf/128"
+          ],
+          "private_key": "eAx8o6MJrH4KE7ivPFFCa4qvYw5nJsYHCBQXPApQX1A=",
+          "peer_public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+          "reserved": [82, 90, 51],
+          "mtu": 1420
         }
       ],
       "route": {
         "rule_set": [
           {
-            "tag": "netflix",
-            "type": "remote",
-            "format": "binary",
-            "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/netflix.srs",
-            "download_detour": "direct"
-          },
-          {
             "tag": "openai",
             "type": "remote",
             "format": "binary",
-            "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.srs",
+            "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/openai.srs",
+            "download_detour": "direct"
+          },
+          {
+            "tag": "netflix",
+            "type": "remote",
+            "format": "binary",
+            "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/netflix.srs",
             "download_detour": "direct"
           }
         ],
@@ -709,29 +702,29 @@ eQ6OFb9LbLYL9f+sAiAffoMbi4y/0YUSlTtz7as9S8/lciBF5VCUoVIKS+vX2g==
     }
 
     // 运行cloud-fared
-    // 修改检查和执行命令以使用随机文件名
-    if (fs.existsSync(path.join(FILE_PATH, botRandomName))) {
-      let args;
+    if (DISABLE_ARGO !== 'true' && DISABLE_ARGO !== true) {
+      if (fs.existsSync(path.join(FILE_PATH, botRandomName))) {
+        let args;
 
-      if (ARGO_AUTH.match(/^[A-Z0-9a-z=]{120,250}$/)) {
-        args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 run --token ${ARGO_AUTH}`;
-      } else if (ARGO_AUTH.match(/TunnelSecret/)) {
-        args = `tunnel --edge-ip-version auto --config ${path.join(FILE_PATH, 'tunnel.yml')} run`;
-      } else {
-        args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile ${path.join(FILE_PATH, 'boot.log')} --loglevel info --url http://localhost:${ARGO_PORT}`;
-      }
+        if (ARGO_AUTH.match(/^[A-Z0-9a-z=]{120,250}$/)) {
+          args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 run --token ${ARGO_AUTH}`;
+        } else if (ARGO_AUTH.match(/TunnelSecret/)) {
+          args = `tunnel --edge-ip-version auto --config ${path.join(FILE_PATH, 'tunnel.yml')} run`;
+        } else {
+          args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile ${path.join(FILE_PATH, 'boot.log')} --loglevel info --url http://localhost:${ARGO_PORT}`;
+        }
 
-      try {
-        await execPromise(`nohup ${path.join(FILE_PATH, botRandomName)} ${args} >/dev/null 2>&1 &`);
-        console.log('bot is running');
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      } catch (error) {
-        console.error(`Error executing command: ${error}`);
+        try {
+          await execPromise(`nohup ${path.join(FILE_PATH, botRandomName)} ${args} >/dev/null 2>&1 &`);
+          console.log('bot is running');
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        } catch (error) {
+          console.error(`Error executing command: ${error}`);
+        }
       }
     }
+    // 无论是否禁用 Argo，都需要生成节点信息
     await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    // 提取域名并生成sub.txt文件
     await extractDomains();
     });
   };
@@ -755,12 +748,12 @@ function getFilesForArchitecture(architecture) {
   let baseFiles;
   if (architecture === 'arm') {
     baseFiles = [
-      { fileName: "web", fileUrl: "https://arm64.ssss.nyc.mn/sb" },
+      { fileName: "web", fileUrl: "https://arm64.ssss.nyc.mn/sbx" },
       { fileName: "bot", fileUrl: "https://arm64.ssss.nyc.mn/bot" }
     ];
   } else {
     baseFiles = [
-      { fileName: "web", fileUrl: "https://amd64.ssss.nyc.mn/sb" },
+      { fileName: "web", fileUrl: "https://amd64.ssss.nyc.mn/sbx" },
       { fileName: "bot", fileUrl: "https://amd64.ssss.nyc.mn/bot" }
     ];
   }
@@ -790,6 +783,11 @@ function getFilesForArchitecture(architecture) {
 
 // 获取临时隧道domain
 async function extractDomains() {
+  if (DISABLE_ARGO === 'true' || DISABLE_ARGO === true) {
+    await generateLinks(null);
+    return;
+  }
+
   let argoDomain;
 
   if (ARGO_AUTH && ARGO_DOMAIN) {
@@ -843,68 +841,105 @@ async function extractDomains() {
   }
 }
   
-  // 生成 list 和 sub 信息
-  async function generateLinks(argoDomain) {
-    let SERVER_IP = '';
+// 生成 list 和 sub 信息
+async function generateLinks(argoDomain) {
+  let SERVER_IP = '';
+  try {
+    const ipv4Response = await axios.get('http://ipv4.ip.sb', { timeout: 3000 });
+    SERVER_IP = ipv4Response.data.trim();
+  } catch (err) {
     try {
-      SERVER_IP = execSync('curl -s --max-time 2 ipv4.ip.sb').toString().trim();
-    } catch (err) {
+      SERVER_IP = execSync('curl -s --max-time 3 ipv4.ip.sb').toString().trim();
+    } catch (curlErr) {
       try {
-        SERVER_IP = `[${execSync('curl -s --max-time 1 ipv6.ip.sb').toString().trim()}]`;
-      } catch (ipv6Err) {
-        console.error('Failed to get IP address:', ipv6Err.message);
+        const ipv6Response = await axios.get('http://ipv6.ip.sb', { timeout: 3000 });
+        SERVER_IP = `[${ipv6Response.data.trim()}]`;
+      } catch (ipv6AxiosErr) {
+        try {
+          SERVER_IP = `[${execSync('curl -s --max-time 3 ipv6.ip.sb').toString().trim()}]`;
+        } catch (ipv6CurlErr) {
+          console.error('Failed to get IP address:', ipv6CurlErr.message);
+        }
       }
     }
-
-    const metaInfo = execSync(
-      'curl -s https://speed.cloudflare.com/meta | awk -F\\" \'{print $26"-"$18}\' | sed -e \'s/ /_/g\'',
-      { encoding: 'utf-8' }
-    );
-    const ISP = metaInfo.trim();
-
-    const nodeName = NAME ? `${NAME}-${ISP}` : ISP;
-
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const vmessNode = `vmess://${Buffer.from(JSON.stringify({ v: '2', ps: `${nodeName}`, add: CFIP, port: CFPORT, id: UUID, aid: '0', scy: 'auto', net: 'ws', type: 'none', host: argoDomain, path: '/vmess-argo?ed=2560', tls: 'tls', sni: argoDomain, alpn: '', fp: 'firefox'})).toString('base64')}`;
-
-        let subTxt = vmessNode; // 始终生成vmess节点
-
-        // TUIC_PORT是有效端口号时生成tuic节点
-        if (isValidPort(TUIC_PORT)) {
-          const tuicNode = `\ntuic://${UUID}:@${SERVER_IP}:${TUIC_PORT}?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#${nodeName}`;
-          subTxt += tuicNode;
-        }
-
-        // HY2_PORT是有效端口号时生成hysteria2节点
-        if (isValidPort(HY2_PORT)) {
-          const hysteriaNode = `\nhysteria2://${UUID}@${SERVER_IP}:${HY2_PORT}/?sni=www.bing.com&insecure=1&alpn=h3&obfs=none#${nodeName}`;
-          subTxt += hysteriaNode;
-        }
-
-        // REALITY_PORT是有效端口号时生成reality节点
-        if (isValidPort(REALITY_PORT)) {
-          const vlessNode = `\nvless://${UUID}@${SERVER_IP}:${REALITY_PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=firefox&pbk=${publicKey}&type=tcp&headerType=none#${nodeName}`;
-          subTxt += vlessNode;
-        }
-
-        // 打印 sub.txt 内容到控制台
-        console.log(Buffer.from(subTxt).toString('base64')); 
-        fs.writeFileSync(subPath, Buffer.from(subTxt).toString('base64'));
-        fs.writeFileSync(listPath, subTxt, 'utf8');
-        console.log(`${FILE_PATH}/sub.txt saved successfully`);
-        sendTelegram(); // 发送tg消息提醒
-        uplodNodes(); // 推送节点到订阅器
-        // 将内容进行 base64 编码并写入 SUB_PATH 路由
-        app.get(`/${SUB_PATH}`, (req, res) => {
-          const encodedContent = Buffer.from(subTxt).toString('base64');
-          res.set('Content-Type', 'text/plain; charset=utf-8');
-          res.send(encodedContent);
-        });
-        resolve(subTxt);
-      }, 2000);
-    });
   }
+
+  let ISP = '';
+  try {
+    const metaResponse = await axios.get('https://speed.cloudflare.com/meta', { timeout: 5000 });
+    const metaHtml = metaResponse.data;
+    
+    const coloMatch = metaHtml.match(/"colo":"([^"]+)"/);
+    const asnOrgMatch = metaHtml.match(/"asnOrg":"([^"]+)"/);
+    
+    if (coloMatch && asnOrgMatch) {
+      const colo = coloMatch[1];
+      let asnOrg = asnOrgMatch[1];
+      asnOrg = asnOrg.replace(/\s+/g, '_');
+      ISP = `${asnOrg}-${colo}`;
+    } else {
+      ISP = 'Unknown';
+    }
+  } catch (metaAxiosErr) {
+    try {
+      const metaInfo = execSync(
+        'curl -s https://speed.cloudflare.com/meta | awk -F\\" \'{print $26"-"$18}\' | sed -e \'s/ /_/g\'',
+        { encoding: 'utf-8' }
+      );
+      ISP = metaInfo.trim();
+    } catch (metaCurlErr) {
+      console.error('Failed to get ISP information:', metaCurlErr.message);
+      ISP = 'Unknown';
+    }
+  }
+
+  const nodeName = NAME ? `${NAME}-${ISP}` : ISP;
+
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      let subTxt = '';
+
+      // 只有当 DISABLE_ARGO 不为 'true' 且 argoDomain 存在时才生成默认的 vmess 节点
+      if ((DISABLE_ARGO !== 'true' && DISABLE_ARGO !== true) && argoDomain) {
+        const vmessNode = `vmess://${Buffer.from(JSON.stringify({ v: '2', ps: `${nodeName}`, add: CFIP, port: CFPORT, id: UUID, aid: '0', scy: 'auto', net: 'ws', type: 'none', host: argoDomain, path: '/vmess-argo?ed=2560', tls: 'tls', sni: argoDomain, alpn: '', fp: 'firefox'})).toString('base64')}`;
+        subTxt = vmessNode;
+      }
+
+      // TUIC_PORT是有效端口号时生成tuic节点
+      if (isValidPort(TUIC_PORT)) {
+        const tuicNode = `\ntuic://${UUID}:@${SERVER_IP}:${TUIC_PORT}?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#${nodeName}`;
+        subTxt += tuicNode;
+      }
+
+      // HY2_PORT是有效端口号时生成hysteria2节点
+      if (isValidPort(HY2_PORT)) {
+        const hysteriaNode = `\nhysteria2://${UUID}@${SERVER_IP}:${HY2_PORT}/?sni=www.bing.com&insecure=1&alpn=h3&obfs=none#${nodeName}`;
+        subTxt += hysteriaNode;
+      }
+
+      // REALITY_PORT是有效端口号时生成reality节点
+      if (isValidPort(REALITY_PORT)) {
+        const vlessNode = `\nvless://${UUID}@${SERVER_IP}:${REALITY_PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.iij.ad.jp&fp=firefox&pbk=${publicKey}&type=tcp&headerType=none#${nodeName}`;
+        subTxt += vlessNode;
+      }
+
+      // 打印 sub.txt 内容到控制台
+      console.log(Buffer.from(subTxt).toString('base64')); 
+      fs.writeFileSync(subPath, Buffer.from(subTxt).toString('base64'));
+      fs.writeFileSync(listPath, subTxt, 'utf8');
+      console.log(`${FILE_PATH}/sub.txt saved successfully`);
+      sendTelegram(); // 发送tg消息提醒
+      uplodNodes(); // 推送节点到订阅器
+      // 将内容进行 base64 编码并写入 SUB_PATH 路由
+      app.get(`/${SUB_PATH}`, (req, res) => {
+        const encodedContent = Buffer.from(subTxt).toString('base64');
+        res.set('Content-Type', 'text/plain; charset=utf-8');
+        res.send(encodedContent);
+      });
+      resolve(subTxt);
+    }, 2000);
+  });
+}
   
 // 90s分钟后删除相关文件
 function cleanFiles() {
@@ -916,14 +951,10 @@ function cleanFiles() {
     } else if (NEZHA_SERVER && NEZHA_KEY) {
       filesToDelete.push(phpPath);
     }
-
-    // 修改为使用随机文件名删除文件
     const filePathsToDelete = filesToDelete.map(file => {
-      // 对于已经使用随机路径的变量，直接使用
       if ([webPath, botPath, phpPath, npmPath].includes(file)) {
         return file;
       }
-      // 对于其他文件，使用原始路径
       return path.join(FILE_PATH, path.basename(file));
     });
 
@@ -1040,5 +1071,10 @@ async function startserver() {
   cleanFiles();
 }
 startserver();
+
+// 根路由
+app.get("/", function(req, res) {
+  res.send("Hello world!");
+});
   
 app.listen(PORT, () => console.log(`server is running on port:${PORT}!`));

@@ -495,7 +495,7 @@ get_info() {
   yellow "\nip检测中,请稍等...\n"
   server_ip=$(get_realip)
   clear
-  isp=$(curl -s --max-time 2 https://speed.cloudflare.com/meta | awk -F\" '{print $26"-"$18}' | sed -e 's/ /_/g' || echo "vps")
+  isp=$(curl -s --max-time 2 https://ipapi.co/json | tr -d '\n[:space:]' | sed 's/.*"country_code":"\([^"]*\)".*"org":"\([^"]*\)".*/\1-\2/' | sed 's/ /_/g' 2>/dev/null || echo "$hostname")
 
   if [ -f "${work_dir}/argo.log" ]; then
       for i in {1..5}; do

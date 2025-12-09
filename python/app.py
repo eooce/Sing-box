@@ -664,7 +664,7 @@ async def generate_links(argo_domain):
     # Get ISP info
     try:
         meta_info = subprocess.check_output(
-            'curl -s https://speed.cloudflare.com/meta | awk -F\\" \'{print $26"-"$18}\' | sed -e \'s/ /_/g\'',
+            'curl -sm 3 -H "User-Agent: Mozilla/5.0" "https://api.ip.sb/geoip" | awk -F\" '{print $32"-"$8}' | sed -e 's/ /_/g'',
             shell=True
         ).decode().strip()
         ISP = meta_info

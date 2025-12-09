@@ -849,14 +849,14 @@ async function generateLinks(argoDomain) {
     SERVER_IP = ipv4Response.data.trim();
   } catch (err) {
     try {
-      SERVER_IP = execSync('curl -s --max-time 3 ipv4.ip.sb').toString().trim();
+      SERVER_IP = execSync('curl -sm 3 ipv4.ip.sb').toString().trim();
     } catch (curlErr) {
       try {
         const ipv6Response = await axios.get('http://ipv6.ip.sb', { timeout: 3000 });
         SERVER_IP = `[${ipv6Response.data.trim()}]`;
       } catch (ipv6AxiosErr) {
         try {
-          SERVER_IP = `[${execSync('curl -s --max-time 3 ipv6.ip.sb').toString().trim()}]`;
+          SERVER_IP = `[${execSync('curl -sm 3 ipv6.ip.sb').toString().trim()}]`;
         } catch (ipv6CurlErr) {
           console.error('Failed to get IP address:', ipv6CurlErr.message);
         }
@@ -866,35 +866,30 @@ async function generateLinks(argoDomain) {
 
   let ISP = '';
   try {
-    const metaResponse = await axios.get('https://speed.cloudflare.com/meta', { timeout: 5000 });
-    const metaHtml = metaResponse.data;
-    
-    const coloMatch = metaHtml.match(/"colo":"([^"]+)"/);
-    const asnOrgMatch = metaHtml.match(/"asnOrg":"([^"]+)"/);
-    
-    if (coloMatch && asnOrgMatch) {
-      const colo = coloMatch[1];
-      let asnOrg = asnOrgMatch[1];
-      asnOrg = asnOrg.replace(/\s+/g, '_');
-      ISP = `${asnOrg}-${colo}`;
-    } else {
-      ISP = 'Unknown';
-    }
-  } catch (metaAxiosErr) {
-    try {
-      const metaInfo = execSync(
-        'curl -s https://speed.cloudflare.com/meta | awk -F\\" \'{print $26"-"$18}\' | sed -e \'s/ /_/g\'',
-        { encoding: 'utf-8' }
-      );
-      ISP = metaInfo.trim();
-    } catch (metaCurlErr) {
-      console.error('Failed to get ISP information:', metaCurlErr.message);
-      ISP = 'Unknown';
-    }
+      const metaResponse = await axios.get('https://api.ip.sb/geoip', { 
+          headers: { 'User-Agent': 'Mozilla/5.0',
+          timeout: 5000 }
+      });
+      const countryCode = metaResponse.data?.country_code;
+      const isp = metaResponse.data?.isp;
+      if (countryCode && isp) {
+          ISP = `${countryCode}-${isp.replace(/\s+/g, '_')}`;
+      } else {
+          throw new Error('Missing fields');
+      }
+  } catch (err) {
+      try {
+          const backupInfo = execSync(
+              'curl -sm 3 -H "User-Agent: Mozilla/5.0" "https://ipapi.co/json" | tr -d \'\\n\' | awk -F\\" \'{print $32"-"$92}\' | sed \'s/ /_/g\'',
+              { encoding: 'utf-8' }
+          ).trim();
+          ISP = (backupInfo && backupInfo !== '-') ? backupInfo : 'Unknown';
+      } catch (curlErr) {
+          console.error('Failed to get ISP information:', curlErr.message);
+          ISP = 'Unknown';
+      }
   }
-
   const nodeName = NAME ? `${NAME}-${ISP}` : ISP;
-
   return new Promise((resolve) => {
     setTimeout(() => {
       let subTxt = '';

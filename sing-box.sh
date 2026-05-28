@@ -2101,10 +2101,10 @@ case "$1" in
                     ;;
                 2)  uninstall_singbox;  need_pause=false ;;
                 3)  manage_singbox;     need_pause=false ;;
-                4)  manage_argo;        need_pause=false ;;
+                4)  manage_argo;        need_pause=true ;;
                 5)  check_nodes;        need_pause=true ;;
-                6)  change_config;      need_pause=false ;;
-                7)  disable_open_sub;   need_pause=false ;;
+                6)  change_config;      need_pause=true ;;
+                7)  disable_open_sub;   need_pause=true ;;
                 8)  warp_manage;        need_pause=false ;;
                 9)  manage_protocols;   need_pause=false ;;
                 10)

@@ -45,11 +45,11 @@ bash <(curl -Ls ssh_tool.eooce.com)
 ```
 用法: [sb或脚本] [参数], 示例: sb -c(查看节点信息)
 
-  -i, --install     无交互安装sing-box
-  -c, --check       查看节点信息和订阅链接
-  -r, --restart     重新获取argo临时隧道并更新到订阅
-  -u, --uninstall   无交互卸载sing-box（含 nginx)
-  -h, --help        显示此帮助信息
+  -i  --install     无交互安装sing-box
+  -c  --check       查看节点信息和订阅链接
+  -r  --restart     重新获取argo临时隧道并更新到订阅
+  -u  --uninstall   无交互卸载sing-box（含 nginx)
+  -h  --help        显示此帮助信息
 ```
 
 # 2：Serv00|CT8一键安装脚本,集成哪吒探针,全自动安装

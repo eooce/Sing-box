@@ -569,16 +569,16 @@ EOF
     base64 -w0 ${work_dir}/url.txt > ${work_dir}/sub.txt
     chmod 644 ${work_dir}/sub.txt
     yellow "\n温馨提醒：需打开V2rayN或其他软件里的 "跳过证书验证"，或将节点的Insecure或TLS里设置为"true"\n"
-    green "V2rayN,Shadowrocket,Nekobox,Loon,Karing,Sterisand订阅链接：http://${server_ip}:${nginx_port}/${password}\n"
+    green "V2rayN,Shadowrocket,Nekobox,Loon,Karing,Sterisand订阅链接：${purple}http://${server_ip}:${nginx_port}/${password}{re}\n"
     $work_dir/qrencode "http://${server_ip}:${nginx_port}/${password}"
     yellow "\n=========================================================================================="
-    green "\n\nClash,Mihomo系列订阅链接：https://sublink.eooce.com/clash?config=http://${server_ip}:${nginx_port}/${password}\n"
+    green "\n\nClash,Mihomo系列订阅链接：${purple}https://sublink.eooce.com/clash?config=http://${server_ip}:${nginx_port}/${password}${re}\n"
     $work_dir/qrencode "https://sublink.eooce.com/clash?config=http://${server_ip}:${nginx_port}/${password}"
     yellow "\n=========================================================================================="
-    green "\n\nSing-box订阅链接：https://sublink.eooce.com/singbox?config=http://${server_ip}:${nginx_port}/${password}\n"
+    green "\n\nSing-box订阅链接：${purple}https://sublink.eooce.com/singbox?config=http://${server_ip}:${nginx_port}/${password}${re}\n"
     $work_dir/qrencode "https://sublink.eooce.com/singbox?config=http://${server_ip}:${nginx_port}/${password}"
     yellow "\n=========================================================================================="
-    green "\n\nSurge订阅链接：https://sublink.eooce.com/surge?config=http://${server_ip}:${nginx_port}/${password}\n"
+    green "\n\nSurge订阅链接：${purple}https://sublink.eooce.com/surge?config=http://${server_ip}:${nginx_port}/${password}${re}\n"
     $work_dir/qrencode "https://sublink.eooce.com/surge?config=http://${server_ip}:${nginx_port}/${password}"
     yellow "\n==========================================================================================\n"
 }

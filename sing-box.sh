@@ -3,7 +3,7 @@
 # =========================
 # 老王sing-box四合一安装脚本
 # vless-version-reality|vmess-ws-tls(tunnel)|hysteria2|tuic5
-# 最后更新时间: 2026.5.28[新增Anytls，socks5，ss2022(有封ip风险,建议ipv6使用)等协议]
+# 最后更新时间: 2026.5.30[新增Anytls，socks5，ss2022(有封ip风险,建议ipv6使用)等协议]
 # =========================
 
 export LANG=en_US.UTF-8
@@ -79,7 +79,7 @@ manage_packages() {
     action=$1
     shift
 
-    # 工作目录不存在说明是首次安装，需要更新系统
+    # work_dir 不存在说明是首次安装，需要更新系统
     if [ "$action" == "install" ] && [ ! -d "$work_dir" ]; then
         yellow "正在更新系统软件包...\n"
         if command_exists apt; then
@@ -940,19 +940,19 @@ change_config() {
             esac
             ;;
         2)
-            reading "\n请输入新的UUID: " new_uuid
+            reading "\n请输入新的UUID(直接回车随机生成UUID): " new_uuid
             [ -z "$new_uuid" ] && new_uuid=$(cat /proc/sys/kernel/random/uuid)
             jq --arg uuid "$new_uuid" \
                '(.inbounds[] | select(.users != null) | .users[] | select(.uuid != null).uuid) = $uuid |
                 (.inbounds[] | select(.users != null) | .users[] | select(.password != null).password) = $uuid' \
                "${conf_dir}/inbounds.json" > "${conf_dir}/inbounds.json.tmp" && mv "${conf_dir}/inbounds.json.tmp" "${conf_dir}/inbounds.json"
             restart_singbox
-            sed -i -E 's/(vless:\/\/|hysteria2:\/\/)[^@]*(@.*)/\1'"$new_uuid"'\2/' $client_dir
-            sed -i -E "s#tuic://[0-9a-f-]{36}:[0-9a-f-]{36}@#tuic://$new_uuid:$new_uuid@#g" /etc/sing-box/url.txt
+            sed -i -E 's/(vless:\/\/|hysteria2:\/\/|anytls:\/\/)[^@]*(@.*)/\1'"$new_uuid"'\2/' $client_dir
+            sed -i -E "s#tuic://[0-9a-f-]{36}:[0-9a-f-]{36}@#tuic://$new_uuid:$new_uuid@#g" $client_dir
             isp=$(curl -sm 3 -H "User-Agent: Mozilla/5.0" "https://api.ip.sb/geoip" | tr -d '\n' | \
                 awk -F\" '{c="";i="";for(x=1;x<=NF;x++){if($x=="country_code")c=$(x+2);if($x=="isp")i=$(x+2)};if(c&&i)print c"-"i}' | sed 's/ /_/g' || echo "$hostname")
             argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
-            VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"www.visa.com.tw\", \"port\": \"443\", \"id\": \"${new_uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess-argo?ed=2560\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"\", \"allowlnsecure\": \"flase\"}"
+            VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"${CFIP}\", \"port\": \"443\", \"id\": \"${new_uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess-argo?ed=2560\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"\", \"allowlnsecure\": \"flase\"}"
             encoded_vmess=$(echo "$VMESS" | base64 -w0)
             sed -i -E '/vmess:\/\//{s@vmess://.*@vmess://'"$encoded_vmess"'@}' $client_dir
             base64 -w0 $client_dir > /etc/sing-box/sub.txt
@@ -1088,13 +1088,14 @@ disable_open_sub() {
             green "\n已开启节点订阅\n新的节点订阅链接：$link\n"
             ;;
         3)
-            reading "请输入新的订阅端口(1-65535):" sub_port
+            reading "请输入新的订阅端口(1-65535,直接回车随机生成):" sub_port
             [ -z "$sub_port" ] && sub_port=$(shuf -i 2000-65000 -n 1)
             until [[ -z $(lsof -iTCP:"$sub_port" -sTCP:LISTEN -t) ]]; do
                 echo -e "${red}端口 $sub_port 已被占用${re}"
                 reading "请输入新的订阅端口(1-65535):" sub_port
                 [[ -z $sub_port ]] && sub_port=$(shuf -i 2000-65000 -n 1)
             done
+            green "新的订阅端口为：${purple}${sub_port}${re}"
             [ -f "/etc/nginx/conf.d/sing-box.conf" ] && \
                 cp "/etc/nginx/conf.d/sing-box.conf" "/etc/nginx/conf.d/sing-box.conf.bak.$(date +%Y%m%d)"
             sed -i 's/listen [0-9]\+;/listen '$sub_port';/g' "/etc/nginx/conf.d/sing-box.conf"
@@ -1104,7 +1105,7 @@ disable_open_sub() {
             allow_port $sub_port/tcp > /dev/null 2>&1
             if nginx -t > /dev/null 2>&1; then
                 nginx -s reload > /dev/null 2>&1 || restart_nginx
-                green "\n订阅端口更换成功\n新的订阅链接为：http://$server_ip:$sub_port/$path\n"
+                green "\n订阅端口更换成功\n新的订阅链接为：${purple}http://${server_ip}:${sub_port}/${path}${re}\n"
             else
                 red "nginx配置测试失败，正在恢复..."
                 latest_backup=$(ls -t /etc/nginx/conf.d/sing-box.conf.bak.* 2>/dev/null | head -1)
@@ -1115,6 +1116,7 @@ disable_open_sub() {
         0) menu ;;
         *) red "无效的选项！" ;;
     esac
+    read -n 1 -s -r -p $'\n\033[1;91m按任意键返回...\033[0m\n'
 }
 
 # singbox 管理
@@ -1139,6 +1141,7 @@ manage_singbox() {
         0) menu ;;
         *) red "无效的选项！" && sleep 1 && manage_singbox ;;
     esac
+    read -n 1 -s -r -p $'\n\033[1;91m按任意键返回...\033[0m\n'
 }
 
 # Argo 管理
@@ -1177,7 +1180,7 @@ manage_argo() {
             ;;
         4)
             clear
-            yellow "\n固定隧道可为json或token，固定隧道端口为8001\njson获取地址：${purple}https://fscarmen.cloudflare.now.cc${re}\n"
+            yellow "\n固定隧道可为json或token，固定隧道端口为8001, 使用token请在cloudflare里设置一致\njson获取地址：${purple}https://fscarmen.cloudflare.now.cc${re}\n"
             reading "\n请输入你的argo域名: " argo_domain
             ArgoDomain=$argo_domain
             reading "\n请输入你的argo密钥(token或json): " argo_auth
@@ -1370,9 +1373,9 @@ warp_manage() {
     jq -r '.outbounds[] | select(.tag != "direct") | " - \(.tag) [\(.type)]"' "$outbound_file" 2>/dev/null || echo "  无"
 
     echo ""
-    green "1. 添加WARP分流规则"
+    green "1. 设置分流服务 (未添加socks/http直接设置则使用WARP)"
     skyblue "----------------------"
-    red "2. 删除WARP分流规则"
+    red "2. 删除分流服务"
     skyblue "--------------"
     green "3. 添加 Socks5/HTTP 出站"
     skyblue "----------------------"
@@ -1397,36 +1400,47 @@ warp_manage() {
 add_rule_menu() {
     clear
     green "选择要分流的服务:\n"
-    green "1. OpenAI"
-    green "2. Claude"
-    green "3. Gemini"
-    green "4. Google"
-    green "5. Tiktok"
-    green "6. Twitter"
-    green "7. YouTube"
-    green "8. Netflix"
-    green "9. Telegram\n"
-    purple "0. 返回上级菜单"
+    green "1.  OpenAI"
+    green "2.  Claude"
+    green "3.  Gemini"
+    green "4.  Google"
+    green "5.  Tiktok"
+    green "6.  Twitter"
+    green "7.  YouTube"
+    green "8.  Netflix"
+    green "9.  Telegram"
+    skyblue "-----------------------------"
+    green "10. 设置全局代理出站 (所有流量走指定代理)"
+    green "11. 恢复服务器原IP出站 (所有流量走服务器ip)"
+    skyblue "-----------------------------"
+    purple "0.  返回上级菜单"
+    skyblue "-----------------------------"
     reading "请输入选择: " add_choice
     case "$add_choice" in
-        1) rule_tag="openai" ;;
-        2) rule_tag="claude" ;;
-        3) rule_tag="gemini" ;;
-        4) rule_tag="google" ;;
-        5) rule_tag="tiktok" ;;
-        6) rule_tag="twitter" ;;
-        7) rule_tag="youtube" ;;
-        8) rule_tag="netflix" ;;
-        9) rule_tag="telegram" ;;
-        0) warp_manage; return ;;
-        *) red "无效选项"; sleep 1; add_rule_menu; return ;;
+        1)  rule_tag="openai"   ;;
+        2)  rule_tag="claude"   ;;
+        3)  rule_tag="gemini"   ;;
+        4)  rule_tag="google"   ;;
+        5)  rule_tag="tiktok"   ;;
+        6)  rule_tag="twitter"  ;;
+        7)  rule_tag="youtube"  ;;
+        8)  rule_tag="netflix"  ;;
+        9)  rule_tag="telegram" ;;
+        10) set_global_outbound; return ;;
+        11) restore_direct_outbound; return ;;
+        0)  warp_manage; return ;;
+        *)  red "无效选项"; sleep 1; add_rule_menu; return ;;
     esac
 
-    if jq -e --arg tag "$rule_tag" '.route.rules[] | select(.rule_set != null) | .rule_set[]? | select(. == $tag)' "$route_file" > /dev/null 2>&1; then
+    if jq -e --arg tag "$rule_tag" \
+        '.route.rules[] | select(.rule_set != null) | .rule_set[]? | select(. == $tag)' \
+        "$route_file" > /dev/null 2>&1; then
         yellow "规则集 '${rule_tag}' 已启用。"; sleep 1; warp_manage; return
     fi
 
-    jq 'if (.route.rules | length) == 1 and (.route.rules[0].rule_set | length) == 0 then .route.rules = [] else . end' \
+    jq 'if (.route.rules | length) == 1 and (.route.rules[0].rule_set | length) == 0
+        then .route.rules = []
+        else . end' \
         "$route_file" > "${route_file}.tmp" && mv "${route_file}.tmp" "$route_file"
 
     local out_tags=($(jq -r '.outbounds[] | select(.tag != "direct") | .tag' "$outbound_file" 2>/dev/null))
@@ -1440,7 +1454,9 @@ add_rule_menu() {
             echo -e "  ${green}$((i+1)). ${skyblue}${out_tags[$i]}${re}"
         done
         reading "请输入编号: " out_choice
-        if [[ ! "$out_choice" =~ ^[0-9]+$ ]] || [ "$out_choice" -lt 1 ] || [ "$out_choice" -gt "${#out_tags[@]}" ]; then
+        if [[ ! "$out_choice" =~ ^[0-9]+$ ]] || \
+           [ "$out_choice" -lt 1 ] || \
+           [ "$out_choice" -gt "${#out_tags[@]}" ]; then
             red "无效选择"; sleep 1; warp_manage; return
         fi
         selected_out="${out_tags[$((out_choice-1))]}"
@@ -1462,6 +1478,105 @@ add_rule_menu() {
     restart_singbox
     green "'${rule_tag}' 已分流至出站 '${selected_out}'"
     sleep 1; warp_manage
+}
+
+# 设置全局代理出站
+set_global_outbound() {
+    # 检查是否存在 socks5/http 代理出站（排除 direct 和 wireguard-out）
+    local proxy_tags
+    proxy_tags=($(jq -r '.outbounds[] | select(.tag != "direct" and .tag != "wireguard-out") | .tag' \
+        "$outbound_file" 2>/dev/null))
+
+    if [ ${#proxy_tags[@]} -eq 0 ]; then
+        yellow "\n当前没有可用的 socks5/http 代理出站。"
+        yellow "请先返回 → 设置分流服务 → 添加 Socks5/HTTP 出站，再设置全局代理。\n"
+        sleep 3; add_rule_menu; return
+    fi
+
+    echo ""
+    green "请选择全局代理出站:"
+    for i in "${!proxy_tags[@]}"; do
+        echo -e "  ${green}$((i+1)). ${skyblue}${proxy_tags[$i]}${re}"
+    done
+    echo ""
+    reading "请输入编号: " out_choice
+    if [[ ! "$out_choice" =~ ^[0-9]+$ ]] || \
+       [ "$out_choice" -lt 1 ] || \
+       [ "$out_choice" -gt "${#proxy_tags[@]}" ]; then
+        red "无效选择"; sleep 1; add_rule_menu; return
+    fi
+    local selected_out="${proxy_tags[$((out_choice-1))]}"
+
+    # 从 outbounds.json 中删除 direct 出站，防止流量绕过代理
+    jq 'del(.outbounds[] | select(.tag == "direct"))' \
+        "$outbound_file" > "${outbound_file}.tmp" && mv "${outbound_file}.tmp" "$outbound_file"
+    rm -rf ${route_file} ${conf_dir}/endpoints.json
+    restart_singbox
+    green "\n已设置全局代理出站：${purple}${selected_out}${re}"
+    yellow "所有流量将通过 ${selected_out} 转发，如需恢复请选择「恢复服务器原IP出站」\n"
+    sleep 2; warp_manage
+}
+
+# 恢复服务器原IP出站（恢复默认 route.json）
+restore_direct_outbound() {
+    yellow "\n正在恢复默认路由配置...\n"
+
+    # 恢复 outbounds.json 中的 direct 出站（不存在则插入到数组最前面）
+    if ! jq -e '.outbounds[] | select(.tag == "direct")' "$outbound_file" > /dev/null 2>&1; then
+        jq '.outbounds = [{"type": "direct", "tag": "direct"}] + .outbounds' \
+            "$outbound_file" > "${outbound_file}.tmp" && mv "${outbound_file}.tmp" "$outbound_file"
+    fi
+
+    # 恢复默认 route.json
+    cat > "${route_file}" << 'EOF'
+{
+  "route": {
+    "rule_set": [
+      {"tag":"gemini","type":"remote","format":"binary","url":"https://main.ssss.nyc.mn/gemini.srs","download_detour":"direct"},
+      {"tag":"claude","type":"remote","format":"binary","url":"https://main.ssss.nyc.mn/claude.srs","download_detour":"direct"},
+      {"tag":"openai","type":"remote","format":"binary","url":"https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/openai.srs","download_detour":"direct"},
+      {"tag":"tiktok","type":"remote","format":"binary","url":"https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/tiktok.srs","download_detour":"direct"},
+      {"tag":"twitter","type":"remote","format":"binary","url":"https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/twitter.srs","download_detour":"direct"},
+      {"tag":"google","type":"remote","format":"binary","url":"https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/google.srs","download_detour":"direct"},
+      {"tag":"telegram","type":"remote","format":"binary","url":"https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/telegram.srs","download_detour":"direct"},
+      {"tag":"youtube","type":"remote","format":"binary","url":"https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/youtube.srs","download_detour":"direct"},
+      {"tag":"netflix","type":"remote","format":"binary","url":"https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geosite/netflix.srs","download_detour":"direct"}
+    ],
+    "rules": [{"rule_set": []}],
+    "final": "direct"
+  }
+}
+EOF
+
+    # 恢复默认 endpoints.json
+    cat > "${conf_dir}/endpoints.json" << EOF
+{
+  "endpoints": [
+    {
+      "type": "wireguard",
+      "tag": "wireguard-out",
+      "mtu": 1280,
+      "address": [
+        "172.16.0.2/32",
+        "2606:4700:110:8dfe:d141:69bb:6b80:925/128"
+      ],
+      "private_key": "YFYOAdbw1bKTHlNNi+aEjBM3BO7unuFC5rOkMRAz9XY=",
+      "peers": [
+        {
+          "address": "engage.cloudflareclient.com",
+          "port": 2408,
+          "public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+          "allowed_ips": ["0.0.0.0/0", "::/0"],
+          "reserved": [78, 135, 76]
+        }
+      ]
+    }
+  ]
+}
+EOF
+    restart_singbox
+    green "\n已恢复服务器原IP出站，所有流量走 direct。\n"
+    sleep 2; warp_manage
 }
 
 delete_rule_menu() {
@@ -1488,7 +1603,7 @@ delete_rule_menu() {
 
 add_socks5_proxy() {
     clear
-    reading "请输入代理URL (支持socks://,socks5://,http://): " proxy_url
+    reading "请输入代理URL (支持socks://,socks5://,http:// 支持v2rayN导出的节点链接): " proxy_url
     [ -z "$proxy_url" ] && { red "输入为空！"; sleep 1; return; }
 
     proto=$(echo "$proxy_url" | grep -oP '^[a-zA-Z0-9]+(?=://)')
@@ -1527,32 +1642,70 @@ add_socks5_proxy() {
     [ -z "$server" ] || [ -z "$port" ] && { red "格式错误：缺少ip或端口"; sleep 2; return; }
 
     [[ "$proto" == "socks" || "$proto" == "socks5" ]] && check_proto="socks5" || check_proto="$proto"
-    yellow "正在测试代理 ${check_proto}://${server}:${port} ..."
-    local proxy_auth=""
-    [ -n "$user" ] && [ -n "$password" ] && proxy_auth="${user}:${password}@" || { [ -n "$user" ] && proxy_auth="${user}@"; }
 
-    local api_response=$(curl -s --max-time 8 -G --data-urlencode "proxy=${check_proto}://${proxy_auth}${server}:${port}" "https://check.socks5.cmliussss.net/check" 2>/dev/null)
-    [ -z "$api_response" ] && { red "API 请求失败"; sleep 2; return; }
-
-    success=$(echo "$api_response" | jq -r '.success')
-    if [ "$success" != "true" ]; then
-        error_msg=$(echo "$api_response" | jq -r '.error // "未知错误"')
-        red "代理不可用: $error_msg"; sleep 2; return
+    # 判断是否为本地地址，本地地址跳过外部 API 检测，直接用 curl 测试
+    local is_local=false
+    if [[ "$server" == "127.0.0.1" || "$server" == "::1" || "$server" == "localhost" ]]; then
+        is_local=true
     fi
-    exit_ip=$(echo "$api_response" | jq -r '.exit.ip // empty')
-    green "代理可用"
-    [ -n "$exit_ip" ] && green "出口 IP: $exit_ip"
 
-    [ -n "$tag_from_url" ] && tag="$tag_from_url" || tag="${outbound_type}-${server}"
-    jq -e --arg tag "$tag" '.outbounds[] | select(.tag == $tag)' "$outbound_file" >/dev/null 2>&1 && { red "出站标签 '${tag}' 已存在"; sleep 2; return; }
+    local proxy_auth=""
+    [ -n "$user" ] && [ -n "$password" ] && proxy_auth="${user}:${password}@" || \
+        { [ -n "$user" ] && proxy_auth="${user}@"; }
 
-    jq --arg type "$outbound_type" --arg tag "$tag" --arg server "$server" \
-       --arg port "$port" --arg user "$user" --arg password "$password" \
-       '.outbounds += [{"type":$type,"tag":$tag,"server":$server,"server_port":($port|tonumber),"username":$user,"password":$password}]' \
-       "$outbound_file" > "${outbound_file}.tmp" && mv "${outbound_file}.tmp" "$outbound_file"
+    if [ "$is_local" = true ]; then
+        # 本地代理：直接用 curl 通过代理访问外网测试连通性
+        yellow "检测到本地代理 ${check_proto}://${server}:${port}，跳过外部API检测，正在用curl测试连通性..."
+        local curl_proxy_url="${check_proto}://${proxy_auth}${server}:${port}"
+        local test_result
+        test_result=$(curl -s --max-time 8 --proxy "$curl_proxy_url" "https://api.ip.sb/ip" 2>/dev/null)
+        if [ -z "$test_result" ]; then
+            yellow "警告：通过本地代理访问外网失败，请确认代理服务正在运行。"
+            reading "是否仍然添加此代理？(y/n): " force_add
+            [[ ! "$force_add" =~ ^[yY]$ ]] && { yellow "已取消"; sleep 1; return; }
+        else
+            green "本地代理可用，出口IP: $test_result"
+        fi
+    else
+        # 远程代理：调用外部 API 检测
+        yellow "正在测试代理 ${check_proto}://${server}:${port} ..."
+        local api_response
+        api_response=$(curl -s --max-time 8 -G \
+            --data-urlencode "proxy=${check_proto}://${proxy_auth}${server}:${port}" \
+            "https://check.socks5.cmliussss.net/check" 2>/dev/null)
+        [ -z "$api_response" ] && { red "API 请求失败"; sleep 2; return; }
+
+        success=$(echo "$api_response" | jq -r '.success')
+        if [ "$success" != "true" ]; then
+            error_msg=$(echo "$api_response" | jq -r '.error // "未知错误"')
+            red "代理不可用: $error_msg"; sleep 2; return
+        fi
+        exit_ip=$(echo "$api_response" | jq -r '.exit.ip // empty')
+        green "代理可用"
+        [ -n "$exit_ip" ] && green "出口 IP: $exit_ip"
+    fi
+
+    [ -n "$tag_from_url" ] && tag="$tag_from_url" || tag="${outbound_type}-${server}-${port}"
+    jq -e --arg tag "$tag" '.outbounds[] | select(.tag == $tag)' "$outbound_file" >/dev/null 2>&1 \
+        && { red "出站标签 '${tag}' 已存在"; sleep 2; return; }
+
+    # 根据是否有账号密码，决定写入字段，避免空字符串导致 sing-box 报错
+    if [ -n "$user" ] && [ -n "$password" ]; then
+        jq --arg type "$outbound_type" --arg tag "$tag" --arg server "$server" \
+           --arg port "$port" --arg user "$user" --arg password "$password" \
+           '.outbounds += [{"type":$type,"tag":$tag,"server":$server,"server_port":($port|tonumber),"username":$user,"password":$password}]' \
+           "$outbound_file" > "${outbound_file}.tmp" && mv "${outbound_file}.tmp" "$outbound_file"
+    else
+        # 无账号密码：不写 username/password 字段
+        jq --arg type "$outbound_type" --arg tag "$tag" --arg server "$server" \
+           --arg port "$port" \
+           '.outbounds += [{"type":$type,"tag":$tag,"server":$server,"server_port":($port|tonumber)}]' \
+           "$outbound_file" > "${outbound_file}.tmp" && mv "${outbound_file}.tmp" "$outbound_file"
+    fi
 
     if jq -e '.route.rules | length > 0' "$route_file" >/dev/null 2>&1; then
-        jq --arg tag "$tag" '.route.rules[].outbound = $tag' "$route_file" > "${route_file}.tmp" && mv "${route_file}.tmp" "$route_file"
+        jq --arg tag "$tag" '.route.rules[].outbound = $tag' "$route_file" > "${route_file}.tmp" \
+            && mv "${route_file}.tmp" "$route_file"
         yellow "已将现有分流规则出站切换为 '${tag}'。"
     fi
 
@@ -2124,7 +2277,7 @@ case "$1" in
     *)
         red "未知参数: $1"
         echo ""
-        green "用法: sb [参数],相关参数:[-i|-u|-c|-r|-h], 首次安装：bash脚本 -i(前面可带环境变量)"
+        green "用法: sb [参数],相关参数:[-i|-u|-c|-r|-h], 首次安装：(前面可带环境变量)bash脚本 -i"
         exit 1
         ;;
 esac

@@ -2,8 +2,8 @@
 
 # =========================
 # 老王sing-box四合一安装脚本
-# vless-version-reality|vmess-ws-tls(tunnel)|hysteria2|tuic5
-# 最后更新时间: 2026.5.30[新增Anytls，socks5，ss2022(有封ip风险,建议ipv6使用)等协议]
+# vless-version-reality|vmess-ws-tls(tunnel)|hysteria2|tuic5|[可额外添加Anytls，socks5，ss2022等协议] 
+# 最后更新时间: 2026.6.7[添加hy2证书, 添加ipv4和ipv6切换]
 # =========================
 
 export LANG=en_US.UTF-8
@@ -28,10 +28,11 @@ conf_dir="${work_dir}/conf"
 client_dir="${work_dir}/url.txt"
 export vless_port=${PORT:-$(shuf -i 1000-65000 -n 1)}
 export CFIP=${CFIP:-'cdns.doon.eu.org'} 
+export ARGO_PORT=${ARGO_PORT:-'8001'} 
 export CFPORT=${CFPORT:-'443'} 
 
 # 检查是否为root下运行
-[[ $EUID -ne 0 ]] && red "请在root用户下运行脚本" && exit 1
+[[ $EUID -ne 0 ]] && red "请在root用户下运行脚本，可输入 sudo -i 回车切换到root用户" && exit 1
 
 # 检查命令是否存在函数
 command_exists() {
@@ -79,7 +80,7 @@ manage_packages() {
     action=$1
     shift
 
-    # work_dir 不存在说明是首次安装，需要更新系统
+    # 首次安装更新系统
     if [ "$action" == "install" ] && [ ! -d "$work_dir" ]; then
         yellow "正在更新系统软件包...\n"
         if command_exists apt; then
@@ -229,9 +230,15 @@ install_singbox() {
     esac
 
     [ ! -d "${work_dir}" ] && mkdir -p "${work_dir}" && chmod 777 "${work_dir}" && mkdir -p "${conf_dir}"
-    curl -sLo "${work_dir}/argo"     "https://$ARCH.ssss.nyc.mn/bot"
-    curl -sLo "${work_dir}/sing-box" "https://$ARCH.ssss.nyc.mn/sb"
+    # latest_version=$(curl -s "https://api.github.com/repos/SagerNet/sing-box/releases" | jq -r '[.[] | select(.prerelease==false)][0].tag_name | sub("^v"; "")')
+    # curl -sLo "${work_dir}/${server_name}.tar.gz" "https://github.com/SagerNet/sing-box/releases/download/v${latest_version}/sing-box-${latest_version}-linux-${ARCH}.tar.gz"
+    # curl -sLo "${work_dir}/qrencode" "https://github.com/eooce/test/releases/download/${ARCH}/qrencode-linux-${ARCH}"
     curl -sLo "${work_dir}/qrencode" "https://$ARCH.ssss.nyc.mn/qrencode"
+    curl -sLo "${work_dir}/sing-box" "https://$ARCH.ssss.nyc.mn/sbx-1.13.13"
+    curl -sLo "${work_dir}/argo" "https://$ARCH.ssss.nyc.mn/bot"
+    # tar -xzvf "${work_dir}/${server_name}.tar.gz" -C "${work_dir}/" && \
+    # mv "${work_dir}/sing-box-${latest_version}-linux-${ARCH}/sing-box" "${work_dir}/" && \
+    # rm -rf "${work_dir}/${server_name}.tar.gz" "${work_dir}/sing-box-${latest_version}-linux-${ARCH}"
     chown root:root ${work_dir} && chmod +x ${work_dir}/${server_name} ${work_dir}/argo ${work_dir}/qrencode
 
     nginx_port=$(($vless_port + 1))
@@ -247,10 +254,12 @@ install_singbox() {
 
     openssl ecparam -genkey -name prime256v1 -out "${work_dir}/private.key"
     openssl req -new -x509 -days 3650 -key "${work_dir}/private.key" -out "${work_dir}/cert.pem" -subj "/CN=bing.com"
-
+    
+    fingerprint=$(openssl x509 -noout -fingerprint -sha256 -in "${work_dir}/cert.pem" | cut -d'=' -f2 | sed 's/:/%3A/g')
+    
     dns_strategy=$(ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1 && echo "prefer_ipv4" || \
         (ping -c 1 -W 3 2001:4860:4860::8888 >/dev/null 2>&1 && echo "prefer_ipv6" || echo "prefer_ipv4"))
-
+    
     cat > "${conf_dir}/log.json" << EOF
 {
   "log": {
@@ -262,16 +271,27 @@ install_singbox() {
 }
 EOF
 
+    cat > ${conf_dir}/ntp.json << EOF
+{
+    "ntp": {
+        "enabled": true,
+        "server": "time.apple.com",
+        "server_port": 123,
+        "interval": "60m"
+    }
+}
+EOF
+
     cat > "${conf_dir}/dns.json" << EOF
 {
   "dns": {
     "servers": [
       {
         "tag": "local",
-        "address": "local",
-        "strategy": "$dns_strategy"
+        "type": "local"
       }
-    ]
+    ],
+    "strategy": "$dns_strategy"
   }
 }
 EOF
@@ -308,7 +328,7 @@ EOF
       "type": "vmess",
       "tag": "vmess-ws",
       "listen": "::",
-      "listen_port": 8001,
+      "listen_port": ${ARGO_PORT},
       "users": [
         {
           "uuid": "$uuid"
@@ -502,18 +522,6 @@ EOF
     rc-update add argo default     > /dev/null 2>&1
 }
 
-# 从已安装配置中获取UUID
-get_current_uuid() {
-    local inbounds_file="${conf_dir}/inbounds.json"
-    if [ -f "$inbounds_file" ]; then
-        local uuid
-        uuid=$(jq -r '.inbounds[] | select(.type == "vless") | .users[0].uuid // empty' "$inbounds_file" 2>/dev/null | head -1)
-        [ -z "$uuid" ] && uuid=$(jq -r '.inbounds[] | select(.type == "vmess") | .users[0].uuid // empty' "$inbounds_file" 2>/dev/null | head -1)
-        [ -z "$uuid" ] && uuid=$(jq -r '.inbounds[] | select(.type == "hysteria2") | .users[0].password // empty' "$inbounds_file" 2>/dev/null | head -1)
-        echo "$uuid"
-    fi
-}
-
 # 生成节点和订阅链接
 get_info() {
     yellow "\nip检测中,请稍等...\n"
@@ -541,9 +549,8 @@ get_info() {
 
     green "\nArgoDomain：${purple}$argodomain${re}\n"
 
-    VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"${CFIP}\", \"port\": \"${CFPORT}\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess-argo?ed=2560\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"firefox\", \"allowInsecure\": \"false\"}"
+    VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"${CFIP}\", \"port\": \"${CFPORT}\", \"id\": \"${uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess-argo?ed=2560\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"firefox\", \"allowlnsecure\": \"flase\"}"
 
-    # 保留已有额外协议行
     extra_lines=""
     if [ -f "${client_dir}" ]; then
         extra_lines=$(grep -vE '^(vless://|vmess://|hysteria2://|tuic://)' "${client_dir}" || true)
@@ -554,7 +561,7 @@ vless://${uuid}@${server_ip}:${vless_port}?encryption=none&flow=xtls-rprx-vision
 
 vmess://$(echo "$VMESS" | base64 -w0)
 
-hysteria2://${uuid}@${server_ip}:${hy2_port}/?sni=www.bing.com&insecure=1&alpn=h3&obfs=none#${isp}
+hysteria2://${uuid}@${server_ip}:${hy2_port}/?sni=www.bing.com&insecure=1&pinSHA256=${fingerprint}&alpn=h3&obfs=none#${isp}
 
 tuic://${uuid}:${uuid}@${server_ip}:${tuic_port}?sni=www.bing.com&congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1#${isp}
 EOF
@@ -568,7 +575,9 @@ EOF
     while IFS= read -r line; do echo -e "${purple}$line"; done < ${work_dir}/url.txt
     base64 -w0 ${work_dir}/url.txt > ${work_dir}/sub.txt
     chmod 644 ${work_dir}/sub.txt
-    yellow "\n温馨提醒：需打开V2rayN或其他软件里的 "跳过证书验证"，或将节点的Insecure或TLS里设置为"true"\n"
+    yellow "\n温馨提醒:"
+    yellow "如果节点里的ip是ipv6的，可在 修改节点配置 菜单切换ipv4后重新订阅节点\n"
+    red "如果hysteria2或tuic不通，请尝试将节点里的 "跳过证书验证" 设置为 "true" 或切换内核\n"
     green "V2rayN,Shadowrocket,Nekobox,Loon,Karing,Sterisand订阅链接：${purple}http://${server_ip}:${nginx_port}/${password}${re}\n"
     $work_dir/qrencode "http://${server_ip}:${nginx_port}/${password}"
     yellow "\n=========================================================================================="
@@ -664,6 +673,18 @@ EOF
     fi
 }
 
+# 从已安装配置中获取UUID
+get_current_uuid() {
+    local inbounds_file="${conf_dir}/inbounds.json"
+    if [ -f "$inbounds_file" ]; then
+        local uuid
+        uuid=$(jq -r '.inbounds[] | select(.type == "vless") | .users[0].uuid // empty' "$inbounds_file" 2>/dev/null | head -1)
+        [ -z "$uuid" ] && uuid=$(jq -r '.inbounds[] | select(.type == "vmess") | .users[0].uuid // empty' "$inbounds_file" 2>/dev/null | head -1)
+        [ -z "$uuid" ] && uuid=$(jq -r '.inbounds[] | select(.type == "hysteria2") | .users[0].password // empty' "$inbounds_file" 2>/dev/null | head -1)
+        echo "$uuid"
+    fi
+}
+
 # 通用服务管理函数
 manage_service() {
     local service_name="$1"
@@ -732,7 +753,7 @@ uninstall_singbox() {
             rm -f /etc/systemd/system/sing-box.service /etc/systemd/system/argo.service
             rm -f /etc/nginx/conf.d/sing-box.conf
 
-            reading "\n是否卸载 Nginx？(y/n): " choice
+            reading "\n是否卸载 Nginx？${green}(卸载请输入 ${yellow}y${re} ${green}回车将跳过卸载Nginx) (y/n): ${re}" choice
             case "${choice}" in
                 y|Y) manage_packages uninstall nginx ;;
                 *)   yellow "取消卸载Nginx\n\n" ;;
@@ -858,6 +879,10 @@ change_config() {
     skyblue "------------"
     green "6. 修改vmess-argo优选域名"
     skyblue "------------"
+    green "7. 修改节点ip为ipv4"
+    skyblue "------------"
+    green "8. 修改节点ip为ipv6"
+    skyblue "------------"
     purple "0. 返回主菜单"
     skyblue "------------"
     reading "请输入选择: " choice
@@ -952,7 +977,7 @@ change_config() {
             isp=$(curl -sm 3 -H "User-Agent: Mozilla/5.0" "https://api.ip.sb/geoip" | tr -d '\n' | \
                 awk -F\" '{c="";i="";for(x=1;x<=NF;x++){if($x=="country_code")c=$(x+2);if($x=="isp")i=$(x+2)};if(c&&i)print c"-"i}' | sed 's/ /_/g' || echo "$hostname")
             argodomain=$(grep -oE 'https://[[:alnum:]+\.-]+\.trycloudflare\.com' "${work_dir}/argo.log" | sed 's@https://@@')
-            VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"${CFIP}\", \"port\": \"443\", \"id\": \"${new_uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess-argo?ed=2560\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"\", \"allowlnsecure\": \"false\"}"
+            VMESS="{ \"v\": \"2\", \"ps\": \"${isp}\", \"add\": \"${CFIP}\", \"port\": \"443\", \"id\": \"${new_uuid}\", \"aid\": \"0\", \"scy\": \"none\", \"net\": \"ws\", \"type\": \"none\", \"host\": \"${argodomain}\", \"path\": \"/vmess-argo?ed=2560\", \"tls\": \"tls\", \"sni\": \"${argodomain}\", \"alpn\": \"\", \"fp\": \"\", \"allowInsecure\": \"false\"}"
             encoded_vmess=$(echo "$VMESS" | base64 -w0)
             sed -i -E '/vmess:\/\//{s@vmess://.*@vmess://'"$encoded_vmess"'@}' $client_dir
             base64 -w0 $client_dir > /etc/sing-box/sub.txt
@@ -1014,12 +1039,13 @@ IEOF
             fi
             restart_singbox
             ip=$(get_realip)
+            fingerprint=$(openssl x509 -noout -fingerprint -sha256 -in "${work_dir}/cert.pem" | cut -d'=' -f2 | sed 's/:/%3A/g')
             uuid=$(sed -n 's/.*hysteria2:\/\/\([^@]*\)@.*/\1/p' $client_dir)
             line_number=$(grep -n 'hysteria2://' $client_dir | cut -d':' -f1)
             isp=$(curl -sm 3 -H "User-Agent: Mozilla/5.0" "https://api.ip.sb/geoip" | tr -d '\n' | \
                 awk -F\" '{c="";i="";for(x=1;x<=NF;x++){if($x=="country_code")c=$(x+2);if($x=="isp")i=$(x+2)};if(c&&i)print c"-"i}' | sed 's/ /_/g' || echo "$hostname")
             sed -i.bak "/hysteria2:/d" $client_dir
-            sed -i "${line_number}i hysteria2://$uuid@$ip:$listen_port?peer=www.bing.com&insecure=1&alpn=h3&obfs=none&mport=$listen_port,$min_port-$max_port#$isp" $client_dir
+            sed -i "${line_number}i hysteria2://$uuid@$ip:$listen_port?peer=www.bing.com&insecure=1&pinSHA256=${fingerprint}&alpn=h3&obfs=none&mport=$listen_port,$min_port-$max_port#$isp" $client_dir
             base64 -w0 $client_dir > /etc/sing-box/sub.txt
             while IFS= read -r line; do yellow "$line"; done < ${work_dir}/url.txt
             green "\nhysteria2端口跳跃已开启：${purple}$min_port-$max_port${re}\n"
@@ -1040,8 +1066,56 @@ IEOF
             green "\n端口跳跃已删除\n"
             ;;
         6) change_cfip ;;
+        7)  
+            local new_ipv4
+            [ -f "$client_dir" ] || {
+                red "\n错误: $client_dir 不存在\n"
+                return 1
+            }
+            new_ipv4=$(curl -4 -sm 2 ip.sb)
+            if ! printf '%s' "$new_ipv4" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+                red "\n错误: 获取 IPv4 失败: $new_ipv4\n"
+                return 1
+            fi
+            if curl -4 -sm 2 http://ipinfo.io/org | grep -qE 'Cloudflare|UnReal|AEZA|Andrei'; then
+                red "\n当前服务器的ipv4: $new_ipv4 为warp ip,无法作为直连节点使用\n"
+                return 1
+            fi
+            if grep -Eq '^(vless|hysteria2|tuic|anytls|socks|ss)://[^@]+@\[[0-9a-fA-F:]+\]' "$client_dir"; then
+                sed -i -E "/^(vless|hysteria2|tuic|anytls|socks|ss):\/\// s#@\[[0-9a-fA-F:]+\]#@${new_ipv4}#g" "$client_dir"
+                green "\n已将 IPv6 修改为 IPv4: $new_ipv4 可复制以下节点或更新订阅\n"
+                check_nodes
+            else
+                yellow "\n当前已是ipv4, 无需切换\n" && return 0
+            fi
+            base64 -w 0 "$client_dir" > "${work_dir}/sub.txt" 2>/dev/null || base64 "$client_dir" | tr -d '\n' > "${work_dir}/sub.txt"
+           ;;
+        8) 
+            local new_ipv6
+            [ -f "$client_dir" ] || {
+                red "\n错误: $client_dir 不存在\n"
+                return 1
+            }
+            new_ipv6=$(curl -6 -sm 3 ip.sb)
+            if ! printf '%s' "$new_ipv6" | grep -Eq '^[0-9a-fA-F:]+$'; then
+                red "\n当前服务器没有可用的ipv6\n"
+                return 1
+            fi
+            if curl -6 -sm 2 http://ipinfo.io/org | grep -qE 'Cloudflare|UnReal|AEZA|Andrei'; then
+                red "\n当前服务器的ipv6 $new_ipv6 为warp ip,无法作为直连节点使用\n"
+                return 1
+            fi
+            if grep -Eq '^(vless|hysteria2|tuic|anytls|socks|ss)://[^@]+@([0-9]{1,3}\.){3}[0-9]{1,3}' "$client_dir"; then
+                sed -i -E "/^(vless|hysteria2|tuic|anytls|socks|ss):\/\// s#@(([0-9]{1,3}\.){3}[0-9]{1,3})#@[${new_ipv6}]#g" "$client_dir"
+                green "\n已将 IPv4 修改为 IPv6: [${new_ipv6}] 可复制以下节点或更新订阅\n"
+                check_nodes
+            else
+                yellow "\n当前已是ipv6, 无需切换\n" && return 0
+            fi
+            base64 -w 0 "$client_dir" > "${work_dir}/sub.txt" 2>/dev/null || base64 "$client_dir" | tr -d '\n' > "${work_dir}/sub.txt"
+           ;;
         0) menu ;;
-        *) red "无效的选项！" ;;
+        *) red "无效的选项！\n" ;;
     esac
 }
 
@@ -1060,6 +1134,8 @@ disable_open_sub() {
     green "2. 开启节点订阅"
     skyblue "------------"
     green "3. 更换订阅端口"
+    skyblue "------------"
+    green "4. 重启订阅服务"
     skyblue "------------"
     purple "0. 返回主菜单"
     skyblue "------------"
@@ -1113,6 +1189,7 @@ disable_open_sub() {
                 return 1
             fi
             ;;
+        4) restart_nginx ;;
         0) menu ;;
         *) red "无效的选项！" ;;
     esac
@@ -1295,7 +1372,7 @@ check_nodes() {
         echo -e "${purple}${line}${re}\n"
     done < "${work_dir}/url.txt"
 
-    echo ""
+    yellow "\n温馨提醒: 如果hysteria2或tuic不通，请尝试将节点里的 "跳过证书验证" 设置为 "true" 或切换内核\n"
     green "\n=== 订阅链接 ===\n"
 
     green "V2rayN/Shadowrocket/Nekobox/Karing 订阅链接:\n${purple}${base64_url}${re}\n"
@@ -2277,7 +2354,7 @@ case "$1" in
     *)
         red "未知参数: $1"
         echo ""
-        green "用法: sb [参数],相关参数:[-i|-u|-c|-r|-h], 首次安装：(前面可带环境变量)bash脚本 -i"
+        green "用法: sb [参数],相关参数:[-i|-u|-c|-r|-h], 首次安装：bash脚本 -i(前面可带环境变量)"
         exit 1
         ;;
 esac

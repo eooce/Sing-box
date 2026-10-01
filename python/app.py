@@ -294,7 +294,7 @@ async def download_files_and_run():
     # Check TLS
     port = NEZHA_SERVER.split(":")[-1] if ":" in NEZHA_SERVER else ""
     if port in ["443", "8443", "2096", "2087", "2083", "2053"]:
-        nezha_tls = "tls"
+        nezha_tls = "true"
     else:
         nezha_tls = "false"
 

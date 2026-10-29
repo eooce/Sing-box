@@ -1720,46 +1720,22 @@ add_socks5_proxy() {
 
     [[ "$proto" == "socks" || "$proto" == "socks5" ]] && check_proto="socks5" || check_proto="$proto"
 
-    # 判断是否为本地地址，本地地址跳过外部 API 检测，直接用 curl 测试
-    local is_local=false
-    if [[ "$server" == "127.0.0.1" || "$server" == "::1" || "$server" == "localhost" ]]; then
-        is_local=true
-    fi
 
     local proxy_auth=""
     [ -n "$user" ] && [ -n "$password" ] && proxy_auth="${user}:${password}@" || \
         { [ -n "$user" ] && proxy_auth="${user}@"; }
 
-    if [ "$is_local" = true ]; then
-        # 本地代理：直接用 curl 通过代理访问外网测试连通性
-        yellow "检测到本地代理 ${check_proto}://${server}:${port}，跳过外部API检测，正在用curl测试连通性..."
-        local curl_proxy_url="${check_proto}://${proxy_auth}${server}:${port}"
-        local test_result
-        test_result=$(curl -s --max-time 8 --proxy "$curl_proxy_url" "https://api.ip.sb/ip" 2>/dev/null)
-        if [ -z "$test_result" ]; then
-            yellow "警告：通过本地代理访问外网失败，请确认代理服务正在运行。"
-            reading "是否仍然添加此代理？(y/n): " force_add
-            [[ ! "$force_add" =~ ^[yY]$ ]] && { yellow "已取消"; sleep 1; return; }
-        else
-            green "本地代理可用，出口IP: $test_result"
-        fi
+    # 测试连通性
+    yellow "检测到代理 ${check_proto}://${server}:${port}，正在测试连通性..."
+    local curl_proxy_url="${check_proto}://${proxy_auth}${server}:${port}"
+    local test_result
+    test_result=$(curl -s --max-time 10 --proxy "$curl_proxy_url" "https://api.ip.sb" 2>/dev/null)
+    if [ -z "$test_result" ]; then
+        yellow "警告：通过本地代理访问外网失败，请确认代理服务正在运行。"
+        reading "是否仍然添加此代理？(y/n): " force_add
+        [[ ! "$force_add" =~ ^[yY]$ ]] && { yellow "已取消"; sleep 1; return; }
     else
-        # 远程代理：调用外部 API 检测
-        yellow "正在测试代理 ${check_proto}://${server}:${port} ..."
-        local api_response
-        api_response=$(curl -s --max-time 8 -G \
-            --data-urlencode "proxy=${check_proto}://${proxy_auth}${server}:${port}" \
-            "https://check.socks5.cmliussss.net/check" 2>/dev/null)
-        [ -z "$api_response" ] && { red "API 请求失败"; sleep 2; return; }
-
-        success=$(echo "$api_response" | jq -r '.success')
-        if [ "$success" != "true" ]; then
-            error_msg=$(echo "$api_response" | jq -r '.error // "未知错误"')
-            red "代理不可用: $error_msg"; sleep 2; return
-        fi
-        exit_ip=$(echo "$api_response" | jq -r '.exit.ip // empty')
-        green "代理可用"
-        [ -n "$exit_ip" ] && green "出口 IP: $exit_ip"
+        green "${check_proto}代理可用，出口IP: $test_result"
     fi
 
     [ -n "$tag_from_url" ] && tag="$tag_from_url" || tag="${outbound_type}-${server}-${port}"

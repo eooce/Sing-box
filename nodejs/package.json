@@ -1,0 +1,23 @@
+{
+  "name": "nodejs-sb",
+  "version": "1.0.0",
+  "description": "nodejs",
+  "main": "index.js",
+  "author": "eooce",
+  "repository": "",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "latest",
+    "dotenv": "latest",
+    "express": "latest"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+}
+  
+

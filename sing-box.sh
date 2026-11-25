@@ -3,7 +3,7 @@
 # =========================
 # 老王sing-box四合一安装脚本
 # vless-version-reality|vmess-ws-tls(tunnel)|hysteria2|tuic5|[可额外添加Anytls，socks5，ss2022等协议] 
-# 最后更新时间: 2026.6.7[添加hy2证书, 添加ipv4和ipv6切换]
+# 最后更新时间: 2026.11.25[添加一键设置jetpac-esim免流]
 # =========================
 
 export LANG=en_US.UTF-8
@@ -883,6 +883,8 @@ change_config() {
     skyblue "------------"
     green "8. 修改节点ip为ipv6"
     skyblue "------------"
+    green "9. 一键设置节点为Jetpac-Esim免流节点"
+    skyblue "------------"
     purple "0. 返回主菜单"
     skyblue "------------"
     reading "请输入选择: " choice
@@ -1114,9 +1116,109 @@ IEOF
             fi
             base64 -w 0 "$client_dir" > "${work_dir}/sub.txt" 2>/dev/null || base64 "$client_dir" | tr -d '\n' > "${work_dir}/sub.txt"
            ;;
+        9) set_jetpac_esim ;;
         0) menu ;;
         *) red "无效的选项！\n" ;;
     esac
+}
+
+set_jetpac_esim() {
+    clear
+    echo ""
+    green "=== 一键设置 Jetpac eSIM 免流节点 ===\n"
+    green "请选择免流域名:"
+    echo "  1. maps.google.com"
+    echo "  2. api.whatsapp.com"
+    echo "  3. grab.com"
+    echo "  4. wa.me"
+    skyblue "--------------------------------"
+    reading "请输入选择 (直接回车默认使用 1): " esim_choice
+
+    case "$esim_choice" in
+        2) domain="api.whatsapp.com" ;;
+        3) domain="grab.com" ;;
+        4) domain="wa.me" ;;
+        *|1) domain="maps.google.com" ;;
+    esac
+
+    green "\n已选择免流域名：${purple}${domain}${re}\n"
+
+    # 1. 修改 inbounds.json
+    local inbounds_file="${conf_dir}/inbounds.json"
+    if [ ! -f "$inbounds_file" ]; then
+        red "错误：未找到 ${inbounds_file}"
+        return 1
+    fi
+
+    yellow "正在修改配置文件 ..."
+    jq --arg domain "$domain" '
+        (.inbounds[] | select(.tag == "vless-reality") | .tls.server_name) = $domain |
+        (.inbounds[] | select(.tag == "vless-reality") | .tls.reality.handshake.server) = $domain |
+        (.inbounds[] | select(.tag == "hysteria2") | .masquerade) = ("https://" + $domain)
+    ' "$inbounds_file" > "${inbounds_file}.tmp" && mv "${inbounds_file}.tmp" "$inbounds_file"
+
+    # 2. 重新生成证书和指纹
+    yellow "正在重新生成证书和指纹 ..."
+    openssl ecparam -genkey -name prime256v1 -out "${work_dir}/private.key" 2>/dev/null
+    openssl req -new -x509 -days 3650 -key "${work_dir}/private.key" \
+        -out "${work_dir}/cert.pem" -subj "/CN=${domain}" 2>/dev/null
+    fingerprint=$(openssl x509 -noout -fingerprint -sha256 -in "${work_dir}/cert.pem" \
+        | cut -d'=' -f2 | sed 's/:/%3A/g')
+    # green "新证书指纹：${purple}${fingerprint}${re}"
+
+    # 3. 重启 sing-box
+    yellow "正在重启 sing-box 服务 ..."
+    restart_singbox
+    sleep 2
+
+    # 4. 修改 url.txt 中的节点链接
+    local client_file="${client_dir}"
+    if [ ! -f "$client_file" ]; then
+        red "错误：未找到 ${client_file}"
+        return 1
+    fi
+
+    yellow "正在更新节点链接中的域名与指纹 ..."
+    local tmp_url="${client_file}.tmp"
+    > "$tmp_url"
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in
+            vless://*)
+                line=$(echo "$line" | sed -E 's|([?&]sni=)[^&#]*|\1'"$domain"'|')
+                ;;
+            hysteria2://*)
+                line=$(echo "$line" | sed -E \
+                    -e 's|([?&]sni=)[^&#]*|\1'"$domain"'|' \
+                    -e 's|([?&]pinSHA256=)[^&#]*|\1'"$fingerprint"'|')
+                ;;
+            tuic://*)
+                line=$(echo "$line" | sed -E 's|([?&]sni=)[^&#]*|\1'"$domain"'|')
+                ;;
+            anytls://*)
+                line=$(echo "$line" | sed -E 's|([?&]sni=)[^&#]*|\1'"$domain"'|')
+                ;;
+        esac
+        echo "$line" >> "$tmp_url"
+    done < "$client_file"
+
+    mv "$tmp_url" "$client_file"
+
+    # 5. 重新生成 sub.txt
+    base64 -w0 "$client_file" > "${work_dir}/sub.txt"
+    chmod 644 "${work_dir}/sub.txt"
+
+    # 6. 打印更新后的节点信息
+    echo ""
+    green "=== 更新后的节点信息 ===\n"
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        echo -e "${purple}${line}${re}\n"
+    done < "$client_file"
+
+    green "\nJetpac eSIM 免流节点设置完成！"
+    green "免流域名：${purple}${domain}${re}"
+    green "订阅已更新，请在客户端更新订阅。\n"
 }
 
 disable_open_sub() {

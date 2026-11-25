@@ -34,26 +34,20 @@ PORT=开放的端口 确保后面有3个端口可用
 ```
 PORT=你的端口 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sing-box.sh)
 ```
-### 快捷指令和命令行
-* 进入菜单快捷指令: sb
-* 查看节点信息:  sb -c
-* 更换临时隧道：sb -r
-* 一键卸载:   sb -u
+### 快捷指令和命令行参数
+快捷指令：sb
+```
+用法: [sb] [参数], 示例: sb -c(查看节点信息)
+
+  sb -c    查看节点信息和订阅链接
+  sb -r    重新获取argo临时隧道并更新到订阅
+  sb -u    无交互卸载sing-box（含 nginx)
+  sb -h    显示此帮助信息
+```
 
 ## ssh综合工具箱一键脚本
 ```
 bash <(curl -Ls ssh_tool.eooce.com)
-```
-## 快捷指令和命令行参数
-快捷指令：sb
-```
-用法: [sb或脚本] [参数], 示例: sb -c(查看节点信息)
-
-  -i  --install     无交互安装sing-box
-  -c  --check       查看节点信息和订阅链接
-  -r  --restart     重新获取argo临时隧道并更新到订阅
-  -u  --uninstall   无交互卸载sing-box（含 nginx)
-  -h  --help        显示此帮助信息
 ```
 
 # 2：Serv00|CT8一键安装脚本,集成哪吒探针,全自动安装

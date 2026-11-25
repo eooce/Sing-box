@@ -3,7 +3,7 @@
 # =========================
 # 老王sing-box四合一安装脚本
 # vless-version-reality|vmess-ws-tls(tunnel)|hysteria2|tuic5|[可额外添加Anytls，socks5，ss2022等协议] 
-# 最后更新时间: 2026.11.25[添加一键设置jetpac-esim免流]
+# 最后更新时间: 2026.11.25[添加一键设置jetpac esim免流节点]
 # =========================
 
 export LANG=en_US.UTF-8
@@ -1497,38 +1497,154 @@ check_nodes() {
 change_cfip() {
     clear
     yellow "修改vmess-argo优选域名\n"
-    green "1: cf.090227.xyz  2: cf.877774.xyz  3: cf.877771.xyz  4: cdns.doon.eu.org  5: cf.zhetengsha.eu.org  6: time.is\n"
-    reading "请输入你的优选域名或优选IP\n(请输入1至6选项,可输入域名:端口 或 IP:端口,直接回车默认使用1): " cfip_input
+    green "1: saas.sin.fan  2: cf.877774.xyz  3: cf.877771.xyz  4: cdns.doon.eu.org  5: cdn.664667.xyz  6: time.is\n"
 
-    case "$cfip_input" in
-        ""|"1") cfip="cf.090227.xyz";          cfport="443" ;;
-        "2")    cfip="cf.877774.xyz";           cfport="443" ;;
-        "3")    cfip="cf.877771.xyz";           cfport="443" ;;
-        "4")    cfip="cdns.doon.eu.org";        cfport="443" ;;
-        "5")    cfip="cf.zhetengsha.eu.org";    cfport="443" ;;
-        "6")    cfip="time.is";                 cfport="443" ;;
-        *)
-            if [[ "$cfip_input" =~ : ]]; then
-                cfip=$(echo "$cfip_input" | cut -d':' -f1)
-                cfport=$(echo "$cfip_input" | cut -d':' -f2)
-            else
-                cfip="$cfip_input"; cfport="443"
-            fi
-            ;;
-    esac
+    local cfip=""
+    local cfport="443"
 
-    content=$(cat "$client_dir")
-    vmess_url=$(grep -o 'vmess://[^ ]*' "$client_dir")
+    # 进入输入验证循环
+    while true; do
+        reading "请输入你的优选域名或优选IP\n(请输入1至6选项,可输入域名:端口 或 IP:端口,直接回车默认使用1): " cfip_input
+
+        # 去除首尾空白（防止用户多打空格）
+        cfip_input=$(printf '%s' "$cfip_input" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+
+        # 如果按回车直接跳出循环，使用默认值
+        if [ -z "$cfip_input" ]; then
+            cfip="ccf.877774.xyz"
+            cfport="443"
+            break
+        fi
+
+        case "$cfip_input" in
+            1) cfip="saas.sin.fan"; cfport="443"; break ;;
+            2) cfip="cf.877774.xyz"; cfport="443"; break ;;
+            3) cfip="cf.877771.xyz"; cfport="443"; break ;;
+            4) cfip="cdns.doon.eu.org"; cfport="443"; break ;;
+            5) cfip="cdn.664667.xyz"; cfport="443"; break ;;
+            6) cfip="time.is"; cfport="443"; break ;;
+            *)
+                local input_host=""
+                local input_port="443"
+                local has_error=0
+
+                # 依次识别: [IPv6]:port / [IPv6] / 裸 IPv6 / host:port / host
+                if [[ "$cfip_input" =~ ^\[([^]]+)\]:([0-9]+)$ ]]; then
+                    input_host="${BASH_REMATCH[1]}"
+                    input_port="${BASH_REMATCH[2]}"
+                elif [[ "$cfip_input" =~ ^\[([^]]+)\]$ ]]; then
+                    input_host="${BASH_REMATCH[1]}"
+                elif [[ "$cfip_input" == *:*:* ]]; then
+                    # 多个冒号 => 视为裸 IPv6（不带端口）
+                    input_host="$cfip_input"
+                elif [[ "$cfip_input" == *:* ]]; then
+                    input_host="${cfip_input%:*}"
+                    input_port="${cfip_input##*:}"
+                else
+                    input_host="$cfip_input"
+                fi
+
+                # 1. host 非空检查
+                if [ -z "$input_host" ]; then
+                    red "错误：域名/IP 不能为空！"
+                    has_error=1
+                fi
+
+                # 2. host 格式校验：域名 / IPv4 / 必须带冒号的 IPv6
+                if [ "$has_error" -eq 0 ] && ! printf '%s' "$input_host" | grep -Eq \
+                    '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$|^([0-9]{1,3}\.){3}[0-9]{1,3}$|^[0-9a-fA-F]*:[0-9a-fA-F:]*$'; then
+                    red "错误：域名/IP 格式不合法：${input_host}"
+                    has_error=1
+                fi
+
+                # 3. IPv4 每段 0-255 校验
+                if [ "$has_error" -eq 0 ] && printf '%s' "$input_host" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+                    local octet
+                    for octet in ${input_host//./ }; do
+                        if [ "$octet" -lt 0 ] || [ "$octet" -gt 255 ]; then
+                            red "错误：IPv4 地址不合法：${input_host}"
+                            has_error=1
+                            break
+                        fi
+                    done
+                fi
+
+                # 4. 端口校验：纯数字 + 1-65535 范围
+                if [ "$has_error" -eq 0 ]; then
+                    if ! printf '%s' "$input_port" | grep -Eq '^[0-9]+$'; then
+                        red "错误：端口必须为数字：${input_port}"
+                        has_error=1
+                    elif [ "$input_port" -lt 1 ] || [ "$input_port" -gt 65535 ]; then
+                        red "错误：端口范围必须为 1-65535：${input_port}"
+                        has_error=1
+                    fi
+                fi
+
+                # 如果发生错误，打印空行并 continue 重新循环；否则赋值并 break
+                if [ "$has_error" -eq 1 ]; then
+                    echo ""
+                    continue
+                else
+                    cfip="$input_host"
+                    cfport="$input_port"
+                    break
+                fi
+                ;;
+        esac
+    done
+
+    # 文件存在性检查
+    if [ ! -f "${client_dir}" ]; then
+        red "\n错误：未找到 ${client_dir}\n"
+        return 1
+    fi
+
+    local vmess_url
+    vmess_url=$(grep -m1 -o 'vmess://[^[:space:]]*' "$client_dir")
+    if [ -z "$vmess_url" ]; then
+        red "\n错误：未在 ${client_dir} 中找到 vmess 节点\n"
+        return 1
+    fi
+
+    # 解码 / 校验 / 修改
+    local encoded_part decoded_json updated_json new_encoded_part new_vmess_url
     encoded_part="${vmess_url#vmess://}"
-    decoded_json=$(echo "$encoded_part" | base64 --decode 2>/dev/null)
-    updated_json=$(echo "$decoded_json" | jq --arg cfip "$cfip" --argjson cfport "$cfport" '.add = $cfip | .port = $cfport')
-    new_encoded_part=$(echo "$updated_json" | base64 -w0)
-    new_vmess_url="vmess://$new_encoded_part"
-    new_content=$(echo "$content" | sed "s|$vmess_url|$new_vmess_url|")
-    echo "$new_content" > "$client_dir"
+    decoded_json=$(printf '%s' "$encoded_part" | base64 --decode 2>/dev/null)
+    if [ -z "$decoded_json" ]; then
+        red "\n错误：vmess 节点解码失败\n"
+        return 1
+    fi
+    if ! printf '%s' "$decoded_json" | jq -e . >/dev/null 2>&1; then
+        red "\n错误：vmess 节点 JSON 解析失败\n"
+        return 1
+    fi
+
+    updated_json=$(printf '%s' "$decoded_json" | jq \
+        --arg add "$cfip" --argjson port "$cfport" \
+        '.add = $add | .port = $port' 2>/dev/null)
+    if [ -z "$updated_json" ]; then
+        red "\n错误：JSON 更新失败\n"
+        return 1
+    fi
+
+    new_encoded_part=$(printf '%s' "$updated_json" | base64 -w0)
+    new_vmess_url="vmess://${new_encoded_part}"
+
+    # 使用 awk 的 index/substr 做字面量替换，避免 sed 分隔符冲突与正则元字符问题
+    awk -v old="$vmess_url" -v new="$new_vmess_url" '
+        {
+            while ((pos = index($0, old)) > 0) {
+                $0 = substr($0, 1, pos - 1) new substr($0, pos + length(old))
+            }
+            print
+        }
+    ' "$client_dir" > "${client_dir}.tmp" && mv "${client_dir}.tmp" "$client_dir"
+
+    # 重新生成订阅
     base64 -w0 "${work_dir}/url.txt" > "${work_dir}/sub.txt"
+
     green "\nvmess节点优选域名已更新为：${purple}${cfip}:${cfport}${re}\n"
-    purple "$new_vmess_url\n"
+    purple "${new_vmess_url}\n"
 }
 
 # WARP 分流管理

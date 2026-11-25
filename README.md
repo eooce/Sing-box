@@ -34,7 +34,11 @@ PORT=开放的端口 确保后面有3个端口可用
 ```
 PORT=你的端口 bash <(curl -Ls https://raw.githubusercontent.com/eooce/sing-box/main/sing-box.sh)
 ```
-
+### 快捷指令和命令行
+* 进入菜单快捷指令: sb
+* 查看节点信息:  sb -c
+* 更换临时隧道：sb -r
+* 一键卸载:   sb -u
 
 ## ssh综合工具箱一键脚本
 ```
@@ -156,22 +160,6 @@ bash <(curl -Ls https://github.com/eooce/Sing-box/releases/download/00/00_vm.sh)
 ## 赞助
 * 感谢[YXVM](https://yxvm.com/aff.php?aff=764)提供赞助 [NodeSupport](https://github.com/NodeSeekDev/NodeSupport)
 ---
-### 🚀 Sponsored by SharonNetworks 
-
-<img src="https://framerusercontent.com/assets/3bMljdaUFNDFvMzdG9S0NjYmhSY.png" width="30%" alt="sharon.io">
-
-本项目的构建与发布环境由 SharonNetworks 提供支持 —— 专注亚太顶级回国优化线路，高带宽、低延迟直连中国大陆，内置强大高防 DDoS 清洗能力。
-
-SharonNetworks 为您的业务起飞保驾护航！
-
-#### ✨ 服务优势
-
-* 亚太三网回程优化直连中国大陆，下载快到飞起
-* 超大带宽 + 抗攻击清洗服务，保障业务安全稳定
-* 多节点覆盖（香港、新加坡、日本、台湾、韩国）
-* 高防护力、高速网络；港/日/新 CDN 即将上线
-
-想体验同款构建环境？欢迎 [访问 Sharon 官网](https://sharon.io) 或 [加入 Telegram 群组](https://t.me/SharonNetwork) 了解更多并申请赞助。
 
 ## ⭐ Star History
 

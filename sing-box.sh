@@ -1131,15 +1131,40 @@ set_jetpac_esim() {
     echo "  2. api.whatsapp.com"
     echo "  3. grab.com"
     echo "  4. wa.me"
+    green "  或直接输入自定义域名 (如: custom.domain.com)"
     skyblue "--------------------------------"
-    reading "请输入选择 (直接回车默认使用 1): " esim_choice
 
-    case "$esim_choice" in
-        2) domain="api.whatsapp.com" ;;
-        3) domain="grab.com" ;;
-        4) domain="wa.me" ;;
-        *|1) domain="maps.google.com" ;;
-    esac
+    local domain=""
+    while true; do
+        reading "请输入选择或自定义域名(直接回车默认使用 1): " esim_choice
+
+        # 去除首尾空格
+        esim_choice=$(printf '%s' "$esim_choice" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+
+        # 空输入默认选项 1
+        if [ -z "$esim_choice" ]; then
+            domain="maps.google.com"
+            break
+        fi
+
+        # 选项匹配
+        case "$esim_choice" in
+            1) domain="maps.google.com"; break ;;
+            2) domain="api.whatsapp.com"; break ;;
+            3) domain="grab.com"; break ;;
+            4) domain="wa.me"; break ;;
+            *)
+                # 自定义域名格式校验 (标准的域名正则表达式，不含协议头，至少包含一个点)
+                if printf '%s' "$esim_choice" | grep -Eq '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'; then
+                    domain="$esim_choice"
+                    break
+                else
+                    red "错误：域名格式不合法！请不要包含 http/https 或特殊字符。"
+                    echo ""
+                fi
+                ;;
+        esac
+    done
 
     green "\n已选择免流域名：${purple}${domain}${re}\n"
 
@@ -1167,7 +1192,6 @@ set_jetpac_esim() {
     # green "新证书指纹：${purple}${fingerprint}${re}"
 
     # 3. 重启 sing-box
-    yellow "正在重启 sing-box 服务 ..."
     restart_singbox
     sleep 2
 
